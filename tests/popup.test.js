@@ -13,6 +13,11 @@ document.body.innerHTML = `
   <span id="screenshot-status">Screenshot mode</span>
   <input type="checkbox" id="autosuggest-enabled" />
   <span id="autosuggest-status" title="Works in standard text fields (textarea). Gmail, Docs, and Notion support coming soon.">Auto-suggest</span>
+  <div id="theme-segment">
+    <button class="theme-option active" data-theme="auto">Auto</button>
+    <button class="theme-option" data-theme="light">Light</button>
+    <button class="theme-option" data-theme="dark">Dark</button>
+  </div>
   <a id="settings" href="#">Settings</a>
 `;
 
@@ -147,6 +152,56 @@ describe('popup.js', () => {
       toggle.checked = false;
       toggle.dispatchEvent(new Event('change'));
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'SCREENSHOT_TOGGLE', enabled: false });
+    });
+  });
+
+  describe('theme toggle', () => {
+    it('renders three theme option buttons', () => {
+      const options = document.querySelectorAll('.theme-option');
+      expect(options.length).toBe(3);
+      expect(options[0].dataset.theme).toBe('auto');
+      expect(options[1].dataset.theme).toBe('light');
+      expect(options[2].dataset.theme).toBe('dark');
+    });
+
+    it('defaults to Auto active when theme absent from storage', () => {
+      storageGetCallbacks['theme']({});
+      const options = document.querySelectorAll('.theme-option');
+      expect(options[0].classList.contains('active')).toBe(true);
+      expect(options[1].classList.contains('active')).toBe(false);
+      expect(options[2].classList.contains('active')).toBe(false);
+    });
+
+    it('loads light theme from storage and activates Light button', () => {
+      storageGetCallbacks['theme']({ theme: 'light' });
+      const options = document.querySelectorAll('.theme-option');
+      expect(options[0].classList.contains('active')).toBe(false);
+      expect(options[1].classList.contains('active')).toBe(true);
+      expect(options[2].classList.contains('active')).toBe(false);
+    });
+
+    it('loads dark theme from storage and activates Dark button', () => {
+      storageGetCallbacks['theme']({ theme: 'dark' });
+      const options = document.querySelectorAll('.theme-option');
+      expect(options[0].classList.contains('active')).toBe(false);
+      expect(options[1].classList.contains('active')).toBe(false);
+      expect(options[2].classList.contains('active')).toBe(true);
+    });
+
+    it('persists theme to chrome.storage on click', () => {
+      vi.clearAllMocks();
+      const darkBtn = document.querySelector('.theme-option[data-theme="dark"]');
+      darkBtn.click();
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({ theme: 'dark' });
+    });
+
+    it('updates active class on click', () => {
+      const lightBtn = document.querySelector('.theme-option[data-theme="light"]');
+      lightBtn.click();
+      const options = document.querySelectorAll('.theme-option');
+      expect(options[1].classList.contains('active')).toBe(true);
+      expect(options[0].classList.contains('active')).toBe(false);
+      expect(options[2].classList.contains('active')).toBe(false);
     });
   });
 
