@@ -298,8 +298,8 @@ function morphIntoBubble(host, shadow, label, instruction) {
   const images = host._images || null;
   const messages = buildChatMessages(text, instruction, true, images);
 
-  // Crossfade: open bubble FIRST, then fade out toolbar on top
-  // This avoids the blink — toolbar stays visible while bubble appears underneath
+  // Crossfade: start bubble creation and toolbar fade simultaneously.
+  // showBubble is async (theme read) but the fade timer is independent of that.
   showBubble(selectionRect, messages, text, instruction, images);
 
   // Fade out toolbar smoothly over the same duration as bubble entry animation

@@ -66,7 +66,9 @@ const themeOptions = document.querySelectorAll('.theme-option');
 
 function setActiveThemeOption(value) {
   themeOptions.forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.theme === value);
+    const isActive = btn.dataset.theme === value;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', String(isActive));
   });
 }
 

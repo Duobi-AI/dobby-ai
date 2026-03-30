@@ -182,7 +182,7 @@ function _showConfirmToolbar(overlay, banner, rect) {
             right: rect.x + rect.width,
             top: rect.y,
           };
-          showBubbleWithPresets(bubbleRect, '', null, [captured]);
+          await showBubbleWithPresets(bubbleRect, '', null, [captured]);
         }
       }
     } catch (err) {

@@ -63,12 +63,12 @@ function createBubbleHost(selectionRect) {
   // Live-update theme when storage changes
   host._storageChangeHandler = (changes) => {
     if (!changes.theme) return;
-    const newTheme = changes.theme.newValue || 'auto';
-    detectTheme().then((theme) => {
-      if (!bubbleHost || !bubbleHost.shadowRoot) return;
-      const styleEl = bubbleHost.shadowRoot.querySelector('style');
-      if (styleEl) styleEl.textContent = getStyles(theme);
-    });
+    const raw = changes.theme.newValue || 'auto';
+    const theme = (raw === 'light' || raw === 'dark') ? raw
+      : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    if (!bubbleHost || !bubbleHost.shadowRoot) return;
+    const styleEl = bubbleHost.shadowRoot.querySelector('style');
+    if (styleEl) styleEl.textContent = getStyles(theme);
   };
   chrome.storage.onChanged.addListener(host._storageChangeHandler);
 
