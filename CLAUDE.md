@@ -1,24 +1,35 @@
-# Ask AI Chrome Extension
+# Dobby AI — Chrome Extension
 
 ## Quick Reference
 
+- Build: `npm run build` (output in `dist/`, load in chrome://extensions)
+- Dev: `npm run dev` (watch mode)
 - Test: `npx vitest run`
 - Test single file: `npx vitest run tests/<file>.test.js`
+- Test watch: `npm run test:watch`
+- E2E: `npm run test:e2e` (builds first, then runs Playwright)
 - CI coverage threshold: 80% (hard requirement)
 
 ## Architecture
 
 Chrome extension (Manifest V3) using vanilla JS, no frameworks.
-- `trigger.js` — text selection trigger, long-press screenshot mode, progress ring
-- `bubble.js` — chat window UI (Shadow DOM), resize, theming
-- `content.js` — content script entry point
-- `background.js` — service worker, API routing, tab capture
-- `image-capture.js` — screenshot capture logic
-- `prompt.js` — system prompt construction
-- `detection.js` — content type detection
-- `presets.js` — preset prompt chips
-- `api.js` — LLM API client
-- `proxy/` — rate-limiting proxy server
+- `src/content/` — content script (injected into pages)
+  - `trigger/` — text selection trigger, long-press screenshot, progress ring
+  - `bubble/` — chat window UI (Shadow DOM), resize, theming
+  - `autosuggest/` — autocomplete suggestions
+  - `shared/` — shared utilities
+  - `api.js` — LLM API client
+  - `detection.js` — content type detection
+  - `image-capture.js` — screenshot capture
+  - `prompt.js` — system prompt construction
+  - `presets.js` — preset prompt chips
+  - `history.js` — conversation history
+- `src/background/` — service worker (API routing, tab capture)
+- `src/popup.js` — extension popup UI
+- `src/options.js` — settings page
+- `proxy/` — rate-limiting Cloudflare Worker (own package.json, wrangler.toml)
+
+Build entry points (`esbuild.config.js`): `src/content/index.js` → `content.js`, `src/background/index.js` → `background.js`, plus popup/options.
 
 ## Conventions
 
