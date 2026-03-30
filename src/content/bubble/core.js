@@ -18,11 +18,22 @@ import { getSuggestedPresetsForType } from '../presets.js';
 import { buildChatMessages } from '../prompt.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
 
-export function detectTheme() {
-  if (typeof window !== 'undefined' && window.matchMedia) {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return 'light';
+export async function detectTheme() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get('theme', (data) => {
+      const stored = data.theme;
+      if (stored === 'light' || stored === 'dark') {
+        resolve(stored);
+        return;
+      }
+      // 'auto' or absent — fall back to OS preference
+      if (typeof window !== 'undefined' && window.matchMedia) {
+        resolve(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      } else {
+        resolve('light');
+      }
+    });
+  });
 }
 
 function truncatePreview(text, maxLen = 120) {
@@ -48,6 +59,19 @@ function createBubbleHost(selectionRect) {
   });
   host._escHandler = (e) => { if (e.key === 'Escape') hideBubble(); };
   document.addEventListener('keydown', host._escHandler);
+
+  // Live-update theme when storage changes
+  host._storageChangeHandler = (changes) => {
+    if (!changes.theme) return;
+    const newTheme = changes.theme.newValue || 'auto';
+    detectTheme().then((theme) => {
+      if (!bubbleHost || !bubbleHost.shadowRoot) return;
+      const styleEl = bubbleHost.shadowRoot.querySelector('style');
+      if (styleEl) styleEl.textContent = getStyles(theme);
+    });
+  };
+  chrome.storage.onChanged.addListener(host._storageChangeHandler);
+
   setBubbleHost(host);
   return host;
 }
@@ -239,7 +263,7 @@ function activateResponseSection(shadow, messages) {
   startStreaming(shadow, messages);
 }
 
-function initBubble(selectionRect, selectedText, previewLabel, showPresets, images) {
+async function initBubble(selectionRect, selectedText, previewLabel, showPresets, images) {
   hideBubble();
   setResponseText('');
 
@@ -248,7 +272,7 @@ function initBubble(selectionRect, selectedText, previewLabel, showPresets, imag
   const shadow = bubbleHost.attachShadow({ mode: 'open' });
 
   const style = document.createElement('style');
-  style.textContent = getStyles(detectTheme());
+  style.textContent = getStyles(await detectTheme());
   shadow.appendChild(style);
 
   const bubble = document.createElement('div');
@@ -273,11 +297,11 @@ function launchFromPreset(shadow, selectedText, instruction, images) {
 }
 
 // Show bubble with preset selection first, then expand to show response
-export function showBubbleWithPresets(selectionRect, selectedText, anchorNode, images) {
+export async function showBubbleWithPresets(selectionRect, selectedText, anchorNode, images) {
   const hasImages = images && images.length > 0;
   const isImageOnly = hasImages && !selectedText.trim();
   const previewLabel = isImageOnly ? 'Image' : 'Selected text';
-  const shadow = initBubble(selectionRect, selectedText, previewLabel, true, images);
+  const shadow = await initBubble(selectionRect, selectedText, previewLabel, true, images);
 
   // Detect content type and populate presets
   let detected;
@@ -330,9 +354,9 @@ export function showBubbleWithPresets(selectionRect, selectedText, anchorNode, i
 }
 
 // Direct bubble (used by context menu — no preset selection needed)
-export function showBubble(selectionRect, messages, selectedText, instruction, images) {
+export async function showBubble(selectionRect, messages, selectedText, instruction, images) {
   setCurrentMessages(messages);
-  const shadow = initBubble(selectionRect, selectedText, instruction || 'Selected text', false, images);
+  const shadow = await initBubble(selectionRect, selectedText, instruction || 'Selected text', false, images);
   activateResponseSection(shadow, messages);
 }
 
@@ -350,6 +374,9 @@ export function hideBubble() {
       bubbleHost._resizeCleanup();
     }
     if (bubbleHost._escHandler) document.removeEventListener('keydown', bubbleHost._escHandler);
+    if (bubbleHost._storageChangeHandler) {
+      chrome.storage.onChanged.removeListener(bubbleHost._storageChangeHandler);
+    }
     removeElement(bubbleHost);
   }
   setBubbleHost(null);

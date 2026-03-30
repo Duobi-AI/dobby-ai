@@ -65,7 +65,7 @@ function clearAutoHide() {
 
 // --- Toolbar creation ---
 
-function createToolbar() {
+async function createToolbar() {
   const host = document.createElement('div');
   host.id = 'dobby-ai-toolbar-host';
   Object.assign(host.style, {
@@ -79,7 +79,7 @@ function createToolbar() {
 
   // Inject styles
   const style = document.createElement('style');
-  style.textContent = getToolbarStyles(detectTheme());
+  style.textContent = getToolbarStyles(await detectTheme());
   shadow.appendChild(style);
 
   // Build toolbar DOM
@@ -422,10 +422,10 @@ function exitInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
 
 // --- Public API ---
 
-export function showTrigger(x, y, selectionData = {}) {
+export async function showTrigger(x, y, selectionData = {}) {
   let host = document.getElementById('dobby-ai-toolbar-host');
   if (!host) {
-    host = createToolbar();
+    host = await createToolbar();
   }
 
   // Store selection data on host
@@ -462,11 +462,11 @@ export function hideTrigger() {
 }
 
 // --- Legacy compatibility: createTriggerButton maps to showTrigger ---
-export function createTriggerButton() {
+export async function createTriggerButton() {
   // For backwards compat: create toolbar in hidden state
   let host = document.getElementById('dobby-ai-toolbar-host');
   if (!host) {
-    host = createToolbar();
+    host = await createToolbar();
   }
 }
 
