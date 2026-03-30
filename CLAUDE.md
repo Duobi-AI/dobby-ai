@@ -54,3 +54,57 @@ Build entry points (`esbuild.config.js`): `src/content/index.js` → `content.js
   - Record via Playwright: `node scripts/record-demo.js demos/<scenario>.js /tmp/output.gif --framerate 5`
   - Push to `docs/pr-demo-gifs` branch (non-LFS, <800KB), reference via `raw.githubusercontent.com` URL
   - Do NOT use Git LFS — raw URLs serve pointer files instead of actual content
+
+## Obsidian Project Notes
+
+Project notes are maintained in the Obsidian vault at `../Vibe-Coding-Playground/`.
+
+**Session start:**
+1. `obsidian read file="Dobby AI"` for project context
+2. `obsidian search query="<topic>"` for related past decisions — don't re-debate settled choices
+
+**During work:** `obsidian search query="..."` to find past decisions and context
+
+**After significant work** (features, fixes, architecture changes), create a session note and link it:
+
+```bash
+obsidian create name="Dobby AI — YYYY-MM-DD <Topic>" content="---
+tags: [session, dobby-ai]
+type: feature|bugfix|refactor|infra
+date: YYYY-MM-DD
+pr: '#N'
+---
+
+# <Topic>
+
+**PR:** [#N](https://github.com/Duobi-AI/dobby-ai/pull/N)
+**Branch:** <branch-name>
+
+## What
+One paragraph on what was built/fixed.
+
+## Why
+Motivation, alternatives considered and rejected.
+
+## Design Decisions
+- **Choice** — reasoning
+
+## Files Changed
+| File | Change |
+|------|--------|
+
+## Testing
+What was verified, test counts.
+
+## Open Questions
+Anything deferred for later.
+
+[[Dobby AI]]"
+```
+
+Then link from the main note:
+```bash
+obsidian append file="Dobby AI" content="- [[Dobby AI — YYYY-MM-DD <Topic>]] — one-line summary"
+```
+
+Keep the main "Dobby AI" note as a high-level overview (architecture, links). Session notes hold the details.

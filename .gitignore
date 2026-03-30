@@ -10,3 +10,7 @@ coverage/
 .playwright-mcp/
 .omc/
 .claude/
+mockups/
+store-screenshots/
+scripts/take-store-screenshots.js
+docs/linkedin-launch-post.md
