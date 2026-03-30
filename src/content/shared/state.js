@@ -14,6 +14,11 @@ export function appendResponseText(v) { responseText += v; }
 export function setCurrentRequest(v) { currentRequest = v; }
 export function setRenderTimer(v) { renderTimer = v; }
 
+// Raw AI response tracking (for copy button)
+export let rawResponses = [];
+export function pushRawResponse(text) { rawResponses.push(text); return rawResponses.length - 1; }
+export function clearRawResponses() { rawResponses = []; }
+
 // Trigger state
 export let triggerButton = null;
 export let dobbyEnabled = true;
