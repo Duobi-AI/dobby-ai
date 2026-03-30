@@ -5,6 +5,7 @@ import {
   responseText, appendResponseText, setResponseText,
   currentRequest, setCurrentRequest,
   renderTimer, setRenderTimer,
+  clearRawResponses,
 } from '../shared/state.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
 import { removeElement } from '../shared/dom-utils.js';
@@ -354,6 +355,7 @@ export function hideBubble() {
   setBubbleHost(null);
   setCurrentMessages([]);
   setResponseText('');
+  clearRawResponses();
 }
 
 export function appendToken(text) {
