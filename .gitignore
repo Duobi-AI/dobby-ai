@@ -5,3 +5,8 @@ docs/superpowers/
 dist/
 playwright-report/
 test-results/
+coverage/
+.DS_Store
+.playwright-mcp/
+.omc/
+.claude/
