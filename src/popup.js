@@ -60,3 +60,25 @@ autosuggestToggle.addEventListener('change', () => {
     });
   });
 });
+
+// Theme segmented control
+const themeOptions = document.querySelectorAll('.theme-option');
+
+function setActiveThemeOption(value) {
+  themeOptions.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.theme === value);
+  });
+}
+
+chrome.storage.local.get('theme', (data) => {
+  const theme = data.theme || 'auto';
+  setActiveThemeOption(theme);
+});
+
+themeOptions.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const value = btn.dataset.theme;
+    chrome.storage.local.set({ theme: value });
+    setActiveThemeOption(value);
+  });
+});
