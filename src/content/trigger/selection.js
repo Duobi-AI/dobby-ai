@@ -61,7 +61,7 @@ export function registerListeners() {
       if (text.length >= 3 && dobbyEnabled) {
         const sel = window.getSelection();
         const anchorNode = sel.anchorNode || null;
-        showTrigger(cursorX, cursorY, { text, anchorNode });
+        showTrigger(cursorX, cursorY, { text, anchorNode }).catch(() => {});
       } else {
         hideTrigger();
       }
@@ -79,7 +79,7 @@ export function registerListeners() {
         if (!triggerButton || triggerButton.style.display === 'none') {
           const anchorNode = selection.anchorNode || null;
           const rect = getSelectionRect();
-          showTrigger(rect.right, rect.bottom, { text, anchorNode });
+          showTrigger(rect.right, rect.bottom, { text, anchorNode }).catch(() => {});
         }
       }
     }, TIMING.SELECTION_DEBOUNCE));
@@ -95,7 +95,7 @@ export function registerListeners() {
       if (text.length >= 3 && dobbyEnabled && selection.rangeCount > 0) {
         const anchorNode = selection.anchorNode || null;
         const rect = getSelectionRect();
-        showTrigger(rect.right, rect.top, { text, anchorNode });
+        showTrigger(rect.right, rect.top, { text, anchorNode }).catch(() => {});
       }
     }, TIMING.SCROLL_DEBOUNCE));
   }, true);
