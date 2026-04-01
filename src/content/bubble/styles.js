@@ -48,7 +48,7 @@ export function getStyles(theme) {
       font-weight: 700;
       font-size: 14px;
       letter-spacing: -0.01em;
-      color: ${isDark ? accentLight : accent};
+      color: ${text};
     }
     .bubble-status {
       font-size: 12px;
@@ -83,7 +83,7 @@ export function getStyles(theme) {
       background: ${surfaceHover};
     }
     .pin-btn.pinned {
-      color: ${accent};
+      color: ${text};
       transform: rotate(0deg);
     }
     .selected-text-preview {
@@ -139,8 +139,8 @@ export function getStyles(theme) {
     }
     .message-user {
       align-self: flex-end;
-      background: ${isDark ? 'rgba(167, 139, 250, 0.85)' : 'rgba(124, 58, 237, 0.88)'};
-      color: #fff;
+      background: ${isDark ? '#44403c' : '#f5f0eb'};
+      color: ${text};
       padding: 6px 12px;
       border-radius: 12px 12px 2px 12px;
       max-width: 85%;
@@ -152,7 +152,7 @@ export function getStyles(theme) {
       position: relative;
       align-self: flex-start;
       background: none;
-      border-left: 3px solid ${isDark ? 'rgba(167, 139, 250, 0.25)' : 'rgba(124, 58, 237, 0.15)'};
+      border-left: 3px solid ${isDark ? 'rgba(168, 162, 158, 0.25)' : 'rgba(120, 113, 108, 0.18)'};
       padding: 8px 28px 8px 12px;
       border-radius: 0 8px 8px 0;
       max-width: 95%;
@@ -233,7 +233,7 @@ export function getStyles(theme) {
       display: inline-block;
       width: 2px;
       height: 14px;
-      background: ${isDark ? accentLight : accent};
+      background: ${textSec};
       margin-left: 2px;
       vertical-align: text-bottom;
     }
@@ -264,7 +264,7 @@ export function getStyles(theme) {
       transition: border-color 0.2s ease-out;
     }
     .follow-up-input:focus {
-      border-color: ${isDark ? accentLight : accent};
+      border-color: ${isDark ? THEME.DARK_TEXT_SECONDARY : THEME.TEXT_SECONDARY};
     }
     .follow-up-input::placeholder {
       color: ${textSec};
@@ -288,8 +288,8 @@ export function getStyles(theme) {
       padding: 8px 0;
     }
     .retry-btn {
-      background: ${isDark ? accentLight : accent};
-      color: white;
+      background: ${text};
+      color: ${isDark ? '#1c1917' : '#fafaf9'};
       border: none;
       padding: 4px 12px;
       border-radius: 6px;
@@ -300,7 +300,7 @@ export function getStyles(theme) {
     }
     .retry-btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 2px 8px ${isDark ? 'rgba(167,139,250,0.3)' : 'rgba(124,58,237,0.2)'};
+      box-shadow: 0 2px 8px ${isDark ? 'rgba(0,0,0,0.3)' : 'rgba(28,25,23,0.15)'};
     }
     .rate-limit-msg {
       text-align: center;
@@ -309,7 +309,7 @@ export function getStyles(theme) {
     .rate-limit-msg .cta {
       display: inline-block;
       margin-top: 8px;
-      color: ${isDark ? accentLight : accent};
+      color: ${textSec};
       cursor: pointer;
       text-decoration: underline;
     }
@@ -351,7 +351,7 @@ export function getStyles(theme) {
       font-family: inherit;
       transition: border-color 0.2s ease-out;
     }
-    .preset-input:focus { border-color: ${isDark ? accentLight : accent}; }
+    .preset-input:focus { border-color: ${isDark ? THEME.DARK_TEXT_SECONDARY : THEME.TEXT_SECONDARY}; }
     .preset-input::placeholder { color: ${textSec}; }
     .detection-badge {
       font-family: ${fontDisplay};

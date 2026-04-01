@@ -333,7 +333,7 @@ function showSelectionHighlight() {
       top: rect.top + 'px',
       width: rect.width + 'px',
       height: rect.height + 'px',
-      background: 'rgba(124, 58, 237, 0.1)',
+      background: 'rgba(120, 113, 108, 0.12)',
       pointerEvents: 'none',
       zIndex: '2147483646',
       borderRadius: '2px',

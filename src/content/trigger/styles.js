@@ -123,7 +123,7 @@ export function getToolbarStyles(theme) {
     .toolbar-pencil {
       background: none;
       border: none;
-      color: ${accent};
+      color: ${text};
       min-width: 28px;
       height: 28px;
       padding: 4px 6px;
