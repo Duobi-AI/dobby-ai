@@ -3,8 +3,6 @@ import { THEME } from '../shared/constants.js';
 
 export function getStyles(theme) {
   const isDark = theme === 'dark';
-  const accent = THEME.ACCENT;
-  const accentLight = THEME.ACCENT_LIGHT;
   const fontStack = THEME.FONT_STACK;
   const fontDisplay = THEME.FONT_DISPLAY;
 

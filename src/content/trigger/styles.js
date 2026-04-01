@@ -4,7 +4,6 @@ import { THEME } from '../shared/constants.js';
 export function getToolbarStyles(theme) {
   const isDark = theme === 'dark';
   const accent = THEME.ACCENT;
-  const accentLight = THEME.ACCENT_LIGHT;
   const fontStack = THEME.FONT_STACK;
 
   // Warm palette tokens

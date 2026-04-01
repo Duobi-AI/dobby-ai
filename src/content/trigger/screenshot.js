@@ -196,7 +196,7 @@ function _showConfirmToolbar(overlay, banner, rect) {
   Object.assign(reselectBtn.style, {
     ...btnBase,
     background: 'rgba(255, 255, 255, 0.9)',
-    color: '#374151',
+    color: '#44403c',
   });
   reselectBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -217,7 +217,7 @@ function _showConfirmToolbar(overlay, banner, rect) {
   Object.assign(cancelBtn.style, {
     ...btnBase,
     background: 'rgba(255, 255, 255, 0.9)',
-    color: '#6b7280',
+    color: '#78716c',
   });
   cancelBtn.addEventListener('click', (e) => {
     e.stopPropagation();
