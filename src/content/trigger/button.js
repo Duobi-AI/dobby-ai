@@ -144,6 +144,16 @@ async function createToolbar() {
 
   shadow.appendChild(toolbar);
 
+  // Live-update theme when storage changes
+  host._storageChangeHandler = (changes) => {
+    if (!changes.theme) return;
+    const raw = changes.theme.newValue || 'auto';
+    const theme = (raw === 'light' || raw === 'dark') ? raw
+      : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    style.textContent = getToolbarStyles(theme);
+  };
+  chrome.storage.onChanged.addListener(host._storageChangeHandler);
+
   // --- Event handlers ---
   toolbar.addEventListener('mouseenter', () => {
     clearAutoHide();
@@ -300,7 +310,8 @@ function morphIntoBubble(host, shadow, label, instruction) {
 
   // Crossfade: start bubble creation and toolbar fade simultaneously.
   // showBubble is async (theme read) but the fade timer is independent of that.
-  showBubble(selectionRect, messages, text, instruction, images);
+  showBubble(selectionRect, messages, text, instruction, images)
+    .catch((err) => console.error('[Dobby AI] Bubble creation failed:', err));
 
   // Fade out toolbar smoothly over the same duration as bubble entry animation
   toolbar.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
@@ -454,6 +465,9 @@ export function hideTrigger() {
   }
   const host = document.getElementById('dobby-ai-toolbar-host');
   if (host) {
+    if (host._storageChangeHandler) {
+      chrome.storage.onChanged.removeListener(host._storageChangeHandler);
+    }
     host.remove();
   }
   setToolbarHost(null);

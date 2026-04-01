@@ -6,7 +6,7 @@ import { setupChromeMocks } from './helpers.js';
 
 // Mock bubble/core.js
 vi.mock('../src/content/bubble/core.js', () => ({
-  showBubble: vi.fn(),
+  showBubble: vi.fn(() => Promise.resolve()),
   hideBubble: vi.fn(),
   getBubbleContainer: vi.fn(() => null),
   detectTheme: vi.fn(() => Promise.resolve('light')),
