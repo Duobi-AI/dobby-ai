@@ -120,13 +120,31 @@ export function getStyles(theme) {
       word-break: break-word;
     }
     .message-ai {
+      position: relative;
       align-self: flex-start;
       background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
-      padding: 8px 12px;
+      padding: 8px 28px 8px 12px;
       border-radius: 12px 12px 12px 2px;
       max-width: 95%;
       word-break: break-word;
     }
+    .copy-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      color: ${isDark ? '#a1a1aa' : '#71717a'};
+      opacity: 0;
+      transition: opacity 0.15s, background 0.15s;
+      line-height: 1;
+    }
+    .message-ai:hover .copy-btn { opacity: 1; }
+    .copy-btn:hover { background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
+    .copy-btn.copied { color: #22c55e; }
     .response-text code {
       background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'};
       padding: 1px 4px;

@@ -4,12 +4,47 @@ import {
   currentMessages, setCurrentMessages,
   renderTimer, setRenderTimer,
   setCurrentRequest,
+  rawResponses, pushRawResponse,
 } from '../shared/state.js';
 import { requestChat } from '../api.js';
 import { buildFollowUp } from '../prompt.js';
 import { saveConversation } from '../history.js';
 import { renderMarkdown } from './markdown.js';
 import { TIMING } from '../shared/constants.js';
+
+const COPY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+
+export function createCopyButton(aiMsg, responseIdx) {
+  const btn = document.createElement('button');
+  btn.className = 'copy-btn';
+  btn.title = 'Copy';
+  btn.setAttribute('aria-label', 'Copy response');
+  btn.dataset.responseIdx = String(responseIdx);
+  btn.innerHTML = COPY_ICON;
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const text = rawResponses[responseIdx];
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.classList.add('copied');
+      btn.innerHTML = CHECK_ICON;
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = COPY_ICON;
+      }, TIMING.COPY_FEEDBACK_DURATION);
+    } catch (err) {
+      btn.title = 'Copy failed';
+      btn.style.color = '#ef4444';
+      setTimeout(() => {
+        btn.title = 'Copy';
+        btn.style.color = '';
+      }, TIMING.COPY_FEEDBACK_DURATION);
+    }
+  });
+  aiMsg.appendChild(btn);
+}
 
 export function startStreaming(shadow, messages) {
   const responseEl = shadow.querySelector('.response-text');
@@ -59,6 +94,11 @@ export function startStreaming(shadow, messages) {
         statusEl.textContent = '';
       }
       cursorEl.classList.add('hidden');
+      // Store raw markdown and add copy button
+      if (responseText) {
+        const idx = pushRawResponse(responseText);
+        createCopyButton(aiMsg, idx);
+      }
       followUpInput.disabled = false;
       followUpInput.focus();
       setCurrentMessages([...currentMessages, { role: 'assistant', content: responseText }]);
