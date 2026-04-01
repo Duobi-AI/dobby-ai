@@ -123,7 +123,7 @@ export function getStyles(theme) {
       position: relative;
       align-self: flex-start;
       background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
-      padding: 8px 12px;
+      padding: 8px 28px 8px 12px;
       border-radius: 12px 12px 12px 2px;
       max-width: 95%;
       word-break: break-word;

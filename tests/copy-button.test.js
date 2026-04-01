@@ -99,6 +99,24 @@ describe('copy button DOM', () => {
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
   });
 
+  it('shows error feedback on clipboard write failure', async () => {
+    vi.useFakeTimers();
+    navigator.clipboard.writeText = vi.fn().mockRejectedValue(new Error('denied'));
+    pushRawResponse('test');
+    const div = document.createElement('div');
+    createCopyButton(div, 0);
+    const btn = div.querySelector('.copy-btn');
+    btn.click();
+    await vi.waitFor(() => {
+      expect(btn.title).toBe('Copy failed');
+    });
+    expect(btn.style.color).toBe('rgb(239, 68, 68)');
+    vi.advanceTimersByTime(1500);
+    expect(btn.title).toBe('Copy');
+    expect(btn.style.color).toBe('');
+    vi.useRealTimers();
+  });
+
   it('handles multiple independent copy buttons', async () => {
     pushRawResponse('first **response**');
     pushRawResponse('second `response`');

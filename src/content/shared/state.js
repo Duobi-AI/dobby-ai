@@ -17,7 +17,7 @@ export function setRenderTimer(v) { renderTimer = v; }
 // Raw AI response tracking (for copy button)
 export let rawResponses = [];
 export function pushRawResponse(text) { rawResponses.push(text); return rawResponses.length - 1; }
-export function clearRawResponses() { rawResponses = []; }
+export function clearRawResponses() { rawResponses.length = 0; }
 
 // Trigger state
 export let triggerButton = null;
