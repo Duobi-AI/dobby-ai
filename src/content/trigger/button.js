@@ -65,7 +65,7 @@ function clearAutoHide() {
 
 // --- Toolbar creation ---
 
-function createToolbar() {
+async function createToolbar() {
   const host = document.createElement('div');
   host.id = 'dobby-ai-toolbar-host';
   Object.assign(host.style, {
@@ -79,7 +79,7 @@ function createToolbar() {
 
   // Inject styles
   const style = document.createElement('style');
-  style.textContent = getToolbarStyles(detectTheme());
+  style.textContent = getToolbarStyles(await detectTheme());
   shadow.appendChild(style);
 
   // Build toolbar DOM
@@ -143,6 +143,16 @@ function createToolbar() {
   toolbar.appendChild(row);
 
   shadow.appendChild(toolbar);
+
+  // Live-update theme when storage changes
+  host._storageChangeHandler = (changes) => {
+    if (!changes.theme) return;
+    const raw = changes.theme.newValue || 'auto';
+    const theme = (raw === 'light' || raw === 'dark') ? raw
+      : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    style.textContent = getToolbarStyles(theme);
+  };
+  chrome.storage.onChanged.addListener(host._storageChangeHandler);
 
   // --- Event handlers ---
   toolbar.addEventListener('mouseenter', () => {
@@ -298,9 +308,10 @@ function morphIntoBubble(host, shadow, label, instruction) {
   const images = host._images || null;
   const messages = buildChatMessages(text, instruction, true, images);
 
-  // Crossfade: open bubble FIRST, then fade out toolbar on top
-  // This avoids the blink — toolbar stays visible while bubble appears underneath
-  showBubble(selectionRect, messages, text, instruction, images);
+  // Crossfade: start bubble creation and toolbar fade simultaneously.
+  // showBubble is async (theme read) but the fade timer is independent of that.
+  showBubble(selectionRect, messages, text, instruction, images)
+    .catch((err) => console.error('[Dobby AI] Bubble creation failed:', err));
 
   // Fade out toolbar smoothly over the same duration as bubble entry animation
   toolbar.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
@@ -422,10 +433,16 @@ function exitInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
 
 // --- Public API ---
 
-export function showTrigger(x, y, selectionData = {}) {
+let toolbarCreating = null;
+
+export async function showTrigger(x, y, selectionData = {}) {
   let host = document.getElementById('dobby-ai-toolbar-host');
   if (!host) {
-    host = createToolbar();
+    if (!toolbarCreating) {
+      toolbarCreating = createToolbar();
+    }
+    host = await toolbarCreating;
+    toolbarCreating = null;
   }
 
   // Store selection data on host
@@ -454,6 +471,9 @@ export function hideTrigger() {
   }
   const host = document.getElementById('dobby-ai-toolbar-host');
   if (host) {
+    if (host._storageChangeHandler) {
+      chrome.storage.onChanged.removeListener(host._storageChangeHandler);
+    }
     host.remove();
   }
   setToolbarHost(null);
@@ -462,11 +482,11 @@ export function hideTrigger() {
 }
 
 // --- Legacy compatibility: createTriggerButton maps to showTrigger ---
-export function createTriggerButton() {
+export async function createTriggerButton() {
   // For backwards compat: create toolbar in hidden state
   let host = document.getElementById('dobby-ai-toolbar-host');
   if (!host) {
-    host = createToolbar();
+    host = await createToolbar();
   }
 }
 

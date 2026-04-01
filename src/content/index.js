@@ -71,9 +71,9 @@ chrome.runtime.onMessage.addListener((msg) => {
         const captured = await captureImage(msg.image);
         if (captured) images = [captured];
         if (images.length > 0) {
-          showBubbleWithPresets(rect, '', null, images);
+          await showBubbleWithPresets(rect, '', null, images);
         } else {
-          showBubble(rect, [{ role: 'user', content: "Couldn't capture this image" }], '', 'Error');
+          await showBubble(rect, [{ role: 'user', content: "Couldn't capture this image" }], '', 'Error');
         }
       })();
       return;
@@ -81,7 +81,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 
     const instruction = 'Explain the following';
     const messages = buildChatMessages(msg.text, instruction, true);
-    showBubble(rect, messages, msg.text, instruction);
+    (async () => { await showBubble(rect, messages, msg.text, instruction); })();
   }
 });
 

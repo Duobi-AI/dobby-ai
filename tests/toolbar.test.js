@@ -6,10 +6,10 @@ import { setupChromeMocks } from './helpers.js';
 
 // Mock bubble/core.js
 vi.mock('../src/content/bubble/core.js', () => ({
-  showBubble: vi.fn(),
+  showBubble: vi.fn(() => Promise.resolve()),
   hideBubble: vi.fn(),
   getBubbleContainer: vi.fn(() => null),
-  detectTheme: vi.fn(() => 'light'),
+  detectTheme: vi.fn(() => Promise.resolve('light')),
 }));
 
 // Mock image-capture
@@ -75,54 +75,54 @@ afterEach(() => {
 });
 
 describe('createToolbar / showTrigger', () => {
-  it('creates a Shadow DOM host element with id dobby-ai-toolbar-host', () => {
-    showTrigger(200, 100, { text: 'hello', anchorNode: null });
+  it('creates a Shadow DOM host element with id dobby-ai-toolbar-host', async () => {
+    await showTrigger(200, 100, { text: 'hello', anchorNode: null });
     const host = getToolbarHost();
     expect(host).not.toBeNull();
     expect(host.id).toBe('dobby-ai-toolbar-host');
     expect(host.shadowRoot).not.toBeNull();
   });
 
-  it('positions and shows the toolbar at given coordinates', () => {
-    showTrigger(200, 100, { text: 'hello', anchorNode: null });
+  it('positions and shows the toolbar at given coordinates', async () => {
+    await showTrigger(200, 100, { text: 'hello', anchorNode: null });
     const host = getToolbarHost();
     expect(host.style.display).not.toBe('none');
     expect(parseInt(host.style.left)).toBeGreaterThanOrEqual(8);
     expect(parseInt(host.style.top)).toBeGreaterThanOrEqual(4);
   });
 
-  it('stores selection data on the host element', () => {
+  it('stores selection data on the host element', async () => {
     const anchorNode = document.createElement('p');
-    showTrigger(200, 100, { text: 'test text', anchorNode });
+    await showTrigger(200, 100, { text: 'test text', anchorNode });
     const host = getToolbarHost();
     expect(host._selectedText).toBe('test text');
     expect(host._anchorNode).toBe(anchorNode);
   });
 
-  it('is idempotent - calling showTrigger twice does not duplicate', () => {
-    showTrigger(200, 100, { text: 'hello', anchorNode: null });
-    showTrigger(300, 200, { text: 'world', anchorNode: null });
+  it('is idempotent - calling showTrigger twice does not duplicate', async () => {
+    await showTrigger(200, 100, { text: 'hello', anchorNode: null });
+    await showTrigger(300, 200, { text: 'world', anchorNode: null });
     const hosts = document.querySelectorAll('#dobby-ai-toolbar-host');
     expect(hosts.length).toBe(1);
   });
 
-  it('has a toolbar element inside shadow DOM', () => {
-    showTrigger(200, 100, { text: 'hello', anchorNode: null });
+  it('has a toolbar element inside shadow DOM', async () => {
+    await showTrigger(200, 100, { text: 'hello', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
     expect(toolbar).not.toBeNull();
   });
 
-  it('contains the Dobby icon in collapsed state', () => {
-    showTrigger(200, 100, { text: 'hello', anchorNode: null });
+  it('contains the Dobby icon in collapsed state', async () => {
+    await showTrigger(200, 100, { text: 'hello', anchorNode: null });
     const shadow = getShadow();
     const icon = shadow.querySelector('.toolbar-icon img');
     expect(icon).not.toBeNull();
     expect(icon.alt).toBe('Dobby AI');
   });
 
-  it('works with default selectionData parameter', () => {
-    showTrigger(200, 100);
+  it('works with default selectionData parameter', async () => {
+    await showTrigger(200, 100);
     const host = getToolbarHost();
     expect(host).not.toBeNull();
     expect(host._selectedText).toBe('');
@@ -131,19 +131,19 @@ describe('createToolbar / showTrigger', () => {
 });
 
 describe('hideTrigger', () => {
-  it('removes the toolbar host from DOM', () => {
-    showTrigger(200, 100, { text: 'hello', anchorNode: null });
+  it('removes the toolbar host from DOM', async () => {
+    await showTrigger(200, 100, { text: 'hello', anchorNode: null });
     expect(getToolbarHost()).not.toBeNull();
     hideTrigger();
     expect(getToolbarHost()).toBeNull();
   });
 
-  it('is safe to call when no toolbar exists', () => {
+  it('is safe to call when no toolbar exists', async () => {
     expect(() => hideTrigger()).not.toThrow();
   });
 
   it('resets toolbar state', async () => {
-    showTrigger(200, 100, { text: 'hello', anchorNode: null });
+    await showTrigger(200, 100, { text: 'hello', anchorNode: null });
     hideTrigger();
     // Verify the host is gone from state module too
     const { toolbarHost } = await import('../src/content/shared/state.js');
@@ -152,8 +152,8 @@ describe('hideTrigger', () => {
 });
 
 describe('hover expand/collapse', () => {
-  it('expands toolbar on mouseenter, showing preset buttons', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('expands toolbar on mouseenter, showing preset buttons', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -164,8 +164,8 @@ describe('hover expand/collapse', () => {
     expect(actions.length).toBe(2);
   });
 
-  it('calls detectContentType and getSuggestedPresetsForType on hover', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: document.body });
+  it('calls detectContentType and getSuggestedPresetsForType on hover', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: document.body });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -175,8 +175,8 @@ describe('hover expand/collapse', () => {
     expect(getSuggestedPresetsForType).toHaveBeenCalled();
   });
 
-  it('collapses toolbar on mouseleave', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('collapses toolbar on mouseleave', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -187,8 +187,8 @@ describe('hover expand/collapse', () => {
     expect(toolbar.classList.contains('expanded')).toBe(false);
   });
 
-  it('does not collapse when in input mode', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('does not collapse when in input mode', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -204,18 +204,18 @@ describe('hover expand/collapse', () => {
 });
 
 describe('auto-hide timer', () => {
-  it('auto-hides after 3 seconds when collapsed', () => {
+  it('auto-hides after 3 seconds when collapsed', async () => {
     vi.useFakeTimers();
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     expect(getToolbarHost()).not.toBeNull();
 
     vi.advanceTimersByTime(3100);
     expect(getToolbarHost()).toBeNull();
   });
 
-  it('hover pauses auto-hide timer', () => {
+  it('hover pauses auto-hide timer', async () => {
     vi.useFakeTimers();
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -228,9 +228,9 @@ describe('auto-hide timer', () => {
     expect(getToolbarHost()).not.toBeNull();
   });
 
-  it('resumes auto-hide after mouseleave from expanded state', () => {
+  it('resumes auto-hide after mouseleave from expanded state', async () => {
     vi.useFakeTimers();
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -245,8 +245,8 @@ describe('auto-hide timer', () => {
 });
 
 describe('input mode', () => {
-  it('shows pencil button in expanded toolbar', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('shows pencil button in expanded toolbar', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -257,8 +257,8 @@ describe('input mode', () => {
     expect(pencilBtn.title).toBe('Custom prompt');
   });
 
-  it('enters input mode on pencil click — shows input, hides presets', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('enters input mode on pencil click — shows input, hides presets', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -272,8 +272,8 @@ describe('input mode', () => {
     expect(actionsDiv.style.opacity).toBe('0');
   });
 
-  it('pencil becomes close icon in input mode', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('pencil becomes close icon in input mode', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -285,8 +285,8 @@ describe('input mode', () => {
     expect(pencilBtn.title).toBe('Cancel');
   });
 
-  it('exits input mode on close button click — restores presets', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('exits input mode on close button click — restores presets', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -302,8 +302,8 @@ describe('input mode', () => {
     expect(actionsDiv.style.opacity).not.toBe('0');
   });
 
-  it('exits input mode on Escape key', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('exits input mode on Escape key', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -317,8 +317,8 @@ describe('input mode', () => {
     expect(inputSection.classList.contains('visible')).toBe(false);
   });
 
-  it('send button is disabled when input is empty', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('send button is disabled when input is empty', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -329,8 +329,8 @@ describe('input mode', () => {
     expect(sendBtn.classList.contains('disabled')).toBe(true);
   });
 
-  it('send button enables when input has text', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('send button enables when input has text', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -345,8 +345,8 @@ describe('input mode', () => {
     expect(sendBtn.classList.contains('disabled')).toBe(false);
   });
 
-  it('Enter with empty input does not call showBubble', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('Enter with empty input does not call showBubble', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -359,8 +359,8 @@ describe('input mode', () => {
     expect(showBubble).not.toHaveBeenCalled();
   });
 
-  it('Enter with text calls showBubble via morphIntoBubble', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('Enter with text calls showBubble via morphIntoBubble', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -375,8 +375,8 @@ describe('input mode', () => {
     expect(buildChatMessages).toHaveBeenCalledWith('test text', 'What does this mean?', true, null);
   });
 
-  it('send button click with text calls showBubble', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('send button click with text calls showBubble', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -392,9 +392,9 @@ describe('input mode', () => {
     expect(showBubble).toHaveBeenCalledTimes(1);
   });
 
-  it('auto-hide is suppressed during input mode', () => {
+  it('auto-hide is suppressed during input mode', async () => {
     vi.useFakeTimers();
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -405,8 +405,8 @@ describe('input mode', () => {
     expect(getToolbarHost()).not.toBeNull();
   });
 
-  it('mouseleave does not collapse during input mode', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('mouseleave does not collapse during input mode', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -417,9 +417,9 @@ describe('input mode', () => {
     expect(toolbar.classList.contains('expanded')).toBe(true);
   });
 
-  it('click outside toolbar exits input mode', () => {
+  it('click outside toolbar exits input mode', async () => {
     vi.useFakeTimers();
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -434,8 +434,8 @@ describe('input mode', () => {
     expect(inputSection.classList.contains('visible')).toBe(false);
   });
 
-  it('send button click with empty input does not call showBubble', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('send button click with empty input does not call showBubble', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -448,9 +448,9 @@ describe('input mode', () => {
     expect(showBubble).not.toHaveBeenCalled();
   });
 
-  it('auto-hide resumes after exiting input mode', () => {
+  it('auto-hide resumes after exiting input mode', async () => {
     vi.useFakeTimers();
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -465,8 +465,8 @@ describe('input mode', () => {
 });
 
 describe('preset click opens bubble', () => {
-  it('calls showBubble with correct arguments on preset button click', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('calls showBubble with correct arguments on preset button click', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -489,8 +489,8 @@ describe('preset click opens bubble', () => {
     expect(args[3]).toBe('Summarize the following');
   });
 
-  it('calls buildChatMessages with text, instruction, and true', () => {
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+  it('calls buildChatMessages with text, instruction, and true', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -500,17 +500,17 @@ describe('preset click opens bubble', () => {
     expect(buildChatMessages).toHaveBeenCalledWith('test text', 'Summarize the following', true, null);
   });
 
-  it('removes toolbar after preset click', () => {
+  it('removes toolbar after preset click', async () => {
     vi.useFakeTimers();
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
     toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
     shadow.querySelector('.toolbar-action').click();
 
-    // Toolbar is removed after 220ms crossfade
-    vi.advanceTimersByTime(250);
+    // Flush async microtasks (showBubble is now async)
+    await vi.advanceTimersByTimeAsync(250);
     expect(getToolbarHost()).toBeNull();
   });
 });
@@ -532,9 +532,9 @@ describe('extractImagesFromSelection', () => {
 });
 
 describe('fallback presets', () => {
-  it('falls back to Summarize/Explain when 0 suggested presets', () => {
+  it('falls back to Summarize/Explain when 0 suggested presets', async () => {
     getSuggestedPresetsForType.mockReturnValueOnce([]);
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
@@ -545,11 +545,11 @@ describe('fallback presets', () => {
     expect(actions[1].textContent).toBe('Explain');
   });
 
-  it('shows only 1 button + more when 1 suggested preset', () => {
+  it('shows only 1 button + more when 1 suggested preset', async () => {
     getSuggestedPresetsForType.mockReturnValueOnce([
       { label: 'Explain code', instruction: 'Explain the following code' },
     ]);
-    showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 

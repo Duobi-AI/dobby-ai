@@ -23,6 +23,10 @@ export function setupChromeMocks(overrides = {}) {
         get: vi.fn((keys, cb) => cb({})),
         set: vi.fn((data, cb) => { if (cb) cb(); }),
       },
+      onChanged: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
       ...(overrides.storage || {}),
     },
     contextMenus: {

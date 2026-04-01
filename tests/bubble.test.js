@@ -64,28 +64,28 @@ describe('bubble.js', () => {
   });
 
   describe('showBubble', () => {
-    it('creates a shadow DOM container', () => {
-      showBubble({ bottom: 200, left: 100, right: 300 }, [{ role: 'user', content: 'hi' }]);
+    it('creates a shadow DOM container', async () => {
+      await showBubble({ bottom: 200, left: 100, right: 300 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();
       expect(container).not.toBeNull();
       expect(container.shadowRoot).not.toBeNull();
     });
 
-    it('positions below the selection rect', () => {
-      showBubble({ bottom: 150, left: 50, right: 250 }, []);
+    it('positions below the selection rect', async () => {
+      await showBubble({ bottom: 150, left: 50, right: 250 }, []);
       const container = _getBubbleContainer();
       expect(container.style.top).toBe('158px'); // bottom + 8px gap
     });
 
-    it('shows thinking status initially', () => {
-      showBubble({ bottom: 100, left: 50, right: 250 }, []);
+    it('shows thinking status initially', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
       const container = _getBubbleContainer();
       const status = container.shadowRoot.querySelector('.bubble-status');
       expect(status.textContent).toBe('thinking...');
     });
 
-    it('has Dobby AI branding in header', () => {
-      showBubble({ bottom: 100, left: 50, right: 250 }, []);
+    it('has Dobby AI branding in header', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
       const container = _getBubbleContainer();
       const header = container.shadowRoot.querySelector('.bubble-header');
       expect(header.textContent).toContain('Dobby AI');
@@ -93,8 +93,8 @@ describe('bubble.js', () => {
   });
 
   describe('appendToken', () => {
-    it('appends text to response area', () => {
-      showBubble({ bottom: 100, left: 50, right: 250 }, []);
+    it('appends text to response area', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
       appendToken('Hello');
       appendToken(' world');
       const container = _getBubbleContainer();
@@ -104,8 +104,8 @@ describe('bubble.js', () => {
   });
 
   describe('setBubbleStatus', () => {
-    it('updates status text', () => {
-      showBubble({ bottom: 100, left: 50, right: 250 }, []);
+    it('updates status text', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
       setBubbleStatus('typing...');
       const container = _getBubbleContainer();
       const status = container.shadowRoot.querySelector('.bubble-status');
@@ -114,68 +114,68 @@ describe('bubble.js', () => {
   });
 
   describe('hideBubble', () => {
-    it('removes bubble from DOM', () => {
-      showBubble({ bottom: 100, left: 50, right: 250 }, []);
+    it('removes bubble from DOM', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
       expect(_getBubbleContainer()).not.toBeNull();
       hideBubble();
       expect(_getBubbleContainer()).toBeNull();
     });
 
-    it('is safe to call when no bubble exists', () => {
+    it('is safe to call when no bubble exists', async () => {
       expect(() => hideBubble()).not.toThrow();
     });
   });
 
   describe('renderMarkdown', () => {
-    it('renders bold text', () => {
+    it('renders bold text', async () => {
       expect(renderMarkdown('**bold**')).toContain('<strong>bold</strong>');
     });
 
-    it('renders inline code', () => {
+    it('renders inline code', async () => {
       expect(renderMarkdown('`code`')).toContain('<code>code</code>');
     });
 
-    it('renders code blocks', () => {
+    it('renders code blocks', async () => {
       const result = renderMarkdown('```\nconst x = 1;\n```');
       expect(result).toContain('<pre><code>');
       expect(result).toContain('const x = 1;');
     });
 
-    it('renders newlines as <br>', () => {
+    it('renders newlines as <br>', async () => {
       expect(renderMarkdown('line1\nline2')).toContain('<br>');
     });
 
-    it('handles plain text without modification', () => {
+    it('handles plain text without modification', async () => {
       const result = renderMarkdown('just plain text');
       expect(result).toContain('just plain text');
     });
   });
 
   describe('detectTheme', () => {
-    it('returns light when OS prefers light', () => {
+    it('returns light when OS prefers light', async () => {
       window.matchMedia = vi.fn(() => ({ matches: false }));
-      expect(detectTheme()).toBe('light');
+      expect(await detectTheme()).toBe('light');
       expect(window.matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
     });
 
-    it('returns dark when OS prefers dark', () => {
+    it('returns dark when OS prefers dark', async () => {
       window.matchMedia = vi.fn(() => ({ matches: true }));
-      expect(detectTheme()).toBe('dark');
+      expect(await detectTheme()).toBe('dark');
       expect(window.matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
     });
 
-    it('defaults to light when matchMedia unavailable', () => {
+    it('defaults to light when matchMedia unavailable', async () => {
       const original = window.matchMedia;
       window.matchMedia = undefined;
-      expect(detectTheme()).toBe('light');
+      expect(await detectTheme()).toBe('light');
       window.matchMedia = original;
     });
   });
 
   // Errata item 8: additional tests
   describe('follow-up input', () => {
-    it('calls buildFollowUp and requestChat on Enter', () => {
-      showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+    it('calls buildFollowUp and requestChat on Enter', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();
       const input = container.shadowRoot.querySelector('.follow-up-input');
       input.disabled = false;
@@ -197,7 +197,7 @@ describe('bubble.js', () => {
         },
       ]);
 
-      showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+      await showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();
       const shadow = container.shadowRoot;
 
@@ -222,7 +222,7 @@ describe('bubble.js', () => {
         },
       ]);
 
-      showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+      await showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();
       const shadow = container.shadowRoot;
 
@@ -252,7 +252,7 @@ describe('bubble.js', () => {
         },
       ]);
 
-      showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+      await showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();
       const shadow = container.shadowRoot;
 
@@ -287,7 +287,7 @@ describe('bubble.js', () => {
         },
       ]);
 
-      showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+      await showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();
       const shadow = container.shadowRoot;
 
@@ -300,8 +300,8 @@ describe('bubble.js', () => {
   });
 
   describe('keyboard shortcuts', () => {
-    it('closes bubble on Escape key', () => {
-      showBubble({ bottom: 100, left: 50, right: 250 }, []);
+    it('closes bubble on Escape key', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
       expect(_getBubbleContainer()).not.toBeNull();
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       expect(_getBubbleContainer()).toBeNull();
@@ -309,7 +309,7 @@ describe('bubble.js', () => {
   });
 
   describe('renderMarkdown XSS', () => {
-    it('escapes HTML tags in input', () => {
+    it('escapes HTML tags in input', async () => {
       const result = renderMarkdown('<script>alert("xss")</script>');
       expect(result).not.toContain('<script>');
       expect(result).toContain('&lt;script&gt;');
@@ -317,74 +317,74 @@ describe('bubble.js', () => {
   });
 
   describe('renderMarkdown lists', () => {
-    it('renders list items', () => {
+    it('renders list items', async () => {
       const result = renderMarkdown('- item one\n- item two');
       expect(result).toContain('<li>item one</li>');
     });
   });
 
   describe('renderMarkdown images', () => {
-    it('renders https image markdown as img tag', () => {
+    it('renders https image markdown as img tag', async () => {
       const result = renderMarkdown('![diagram](https://example.com/img.png)');
       expect(result).toContain('<img class="response-img"');
       expect(result).toContain('src="https://example.com/img.png"');
       expect(result).toContain('alt="diagram"');
     });
 
-    it('rejects non-https image URLs', () => {
+    it('rejects non-https image URLs', async () => {
       const result = renderMarkdown('![pic](http://example.com/img.png)');
       expect(result).not.toContain('<img');
       expect(result).toContain('![pic]');
     });
 
-    it('rejects javascript: URLs', () => {
+    it('rejects javascript: URLs', async () => {
       const result = renderMarkdown('![xss](javascript:alert(1))');
       expect(result).not.toContain('<img');
     });
 
-    it('rejects data: URLs', () => {
+    it('rejects data: URLs', async () => {
       const result = renderMarkdown('![xss](data:text/html,<script>alert(1)</script>)');
       expect(result).not.toContain('<img');
     });
 
-    it('escapes alt text to prevent XSS', () => {
+    it('escapes alt text to prevent XSS', async () => {
       const result = renderMarkdown('![<script>xss</script>](https://example.com/img.png)');
       expect(result).toContain('&lt;script&gt;');
       expect(result).not.toContain('alt="<script>');
     });
 
-    it('escapes double quotes in alt text', () => {
+    it('escapes double quotes in alt text', async () => {
       const result = renderMarkdown('![x" onerror="alert(1)](https://example.com/img.png)');
       // Quotes escaped — onerror stays inside the alt value, not a separate attribute
       expect(result).toContain('&quot;');
       expect(result).not.toMatch(/alt="[^"]*"\s+onerror="/);
     });
 
-    it('escapes double quotes in URLs', () => {
+    it('escapes double quotes in URLs', async () => {
       const result = renderMarkdown('![x](https://evil.com/x" onerror="alert(1))');
       // Quotes escaped — onerror stays inside the src value, not a separate attribute
       expect(result).toContain('&quot;');
       expect(result).not.toMatch(/src="[^"]*"\s+onerror="/);
     });
 
-    it('does not render images inside code blocks', () => {
+    it('does not render images inside code blocks', async () => {
       const result = renderMarkdown('```\n![alt](https://example.com/img.png)\n```');
       expect(result).not.toContain('<img');
       expect(result).toContain('<pre><code>');
     });
 
-    it('handles placeholder pattern in raw text without crashing', () => {
+    it('handles placeholder pattern in raw text without crashing', async () => {
       const result = renderMarkdown('The pattern %%IMAGE_0%% is used internally');
       expect(result).toBeDefined();
     });
 
-    it('renders multiple images', () => {
+    it('renders multiple images', async () => {
       const text = '![a](https://example.com/1.png)\n![b](https://example.com/2.png)';
       const result = renderMarkdown(text);
       expect((result.match(/<img/g) || []).length).toBe(2);
     });
 
-    it('mixes images with other markdown', () => {
+    it('mixes images with other markdown', async () => {
       const text = '**bold** and ![img](https://example.com/pic.png) and `code`';
       const result = renderMarkdown(text);
       expect(result).toContain('<strong>bold</strong>');
@@ -394,15 +394,15 @@ describe('bubble.js', () => {
   });
 
   describe('resize handle', () => {
-    it('renders a resize handle in the bubble', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('renders a resize handle in the bubble', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
       const handle = shadow.querySelector('.resize-handle');
       expect(handle).not.toBeNull();
     });
 
-    it('resizes bubble on mousedown + mousemove on handle', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('resizes bubble on mousedown + mousemove on handle', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
       const handle = shadow.querySelector('.resize-handle');
       const bubble = shadow.querySelector('.bubble');
@@ -417,8 +417,8 @@ describe('bubble.js', () => {
       expect(parseInt(bubble.style.height)).toBe(300);
     });
 
-    it('enforces minimum size of 300x200', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('enforces minimum size of 300x200', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
       const handle = shadow.querySelector('.resize-handle');
       const bubble = shadow.querySelector('.bubble');
@@ -432,8 +432,8 @@ describe('bubble.js', () => {
       expect(parseInt(bubble.style.height)).toBeGreaterThanOrEqual(200);
     });
 
-    it('stops resizing after mouseup', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('stops resizing after mouseup', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
       const handle = shadow.querySelector('.resize-handle');
       const bubble = shadow.querySelector('.bubble');
@@ -448,8 +448,8 @@ describe('bubble.js', () => {
       expect(bubble.style.width).toBe(widthAfterRelease);
     });
 
-    it('close button still works after resize', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('close button still works after resize', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
       const handle = shadow.querySelector('.resize-handle');
       const bubble = shadow.querySelector('.bubble');
@@ -464,8 +464,8 @@ describe('bubble.js', () => {
       expect(document.querySelector('#dobby-ai-bubble')).toBeNull();
     });
 
-    it('cleans up resize listeners when bubble is hidden during resize', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('cleans up resize listeners when bubble is hidden during resize', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
       const handle = shadow.querySelector('.resize-handle');
 
@@ -479,16 +479,16 @@ describe('bubble.js', () => {
   });
 
   describe('pin button', () => {
-    it('renders a pin button in the bubble header', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('renders a pin button in the bubble header', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
       const pinBtn = shadow.querySelector('.pin-btn');
       expect(pinBtn).not.toBeNull();
       expect(pinBtn.title).toBe('Pin');
     });
 
-    it('toggles pinned state on click', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('toggles pinned state on click', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const host = document.querySelector('#dobby-ai-bubble');
       const shadow = host.shadowRoot;
       const pinBtn = shadow.querySelector('.pin-btn');
@@ -507,8 +507,8 @@ describe('bubble.js', () => {
       expect(pinBtn.title).toBe('Pin');
     });
 
-    it('close button still works when pinned', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('close button still works when pinned', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const host = document.querySelector('#dobby-ai-bubble');
       const shadow = host.shadowRoot;
       shadow.querySelector('.pin-btn').click(); // pin it
@@ -517,8 +517,8 @@ describe('bubble.js', () => {
       expect(document.querySelector('#dobby-ai-bubble')).toBeNull();
     });
 
-    it('Escape key closes bubble when pinned', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('Escape key closes bubble when pinned', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const host = document.querySelector('#dobby-ai-bubble');
       const shadow = host.shadowRoot;
       shadow.querySelector('.pin-btn').click(); // pin it
@@ -527,21 +527,21 @@ describe('bubble.js', () => {
       expect(document.querySelector('#dobby-ai-bubble')).toBeNull();
     });
 
-    it('pin resets to unpinned on new bubble open', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('pin resets to unpinned on new bubble open', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const host1 = document.querySelector('#dobby-ai-bubble');
       host1.shadowRoot.querySelector('.pin-btn').click(); // pin it
       expect(host1._isPinned).toBe(true);
       // Open new bubble (replaces the old one)
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test2');
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test2');
       const host2 = document.querySelector('#dobby-ai-bubble');
       expect(host2._isPinned).toBe(false);
     });
   });
 
   describe('draggable when pinned', () => {
-    it('header has draggable class when pinned', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('header has draggable class when pinned', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const host = document.querySelector('#dobby-ai-bubble');
       const shadow = host.shadowRoot;
       const header = shadow.querySelector('.bubble-header');
@@ -554,8 +554,8 @@ describe('bubble.js', () => {
       expect(header.classList.contains('draggable')).toBe(false);
     });
 
-    it('header is not draggable when unpinned', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('header is not draggable when unpinned', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const shadow = document.querySelector('#dobby-ai-bubble').shadowRoot;
       const header = shadow.querySelector('.bubble-header');
 
@@ -570,8 +570,8 @@ describe('bubble.js', () => {
       expect(host.style.left).toBe(initialLeft);
     });
 
-    it('moves bubble when dragging header while pinned', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('moves bubble when dragging header while pinned', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const host = document.querySelector('#dobby-ai-bubble');
       const shadow = host.shadowRoot;
       const pinBtn = shadow.querySelector('.pin-btn');
@@ -590,8 +590,8 @@ describe('bubble.js', () => {
       expect(parseInt(host.style.top)).toBe(initialTop + 150);
     });
 
-    it('stops dragging on mouseup', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('stops dragging on mouseup', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const host = document.querySelector('#dobby-ai-bubble');
       const shadow = host.shadowRoot;
       shadow.querySelector('.pin-btn').click();
@@ -606,8 +606,8 @@ describe('bubble.js', () => {
       expect(host.style.left).toBe(leftAfterDrop);
     });
 
-    it('does not drag when clicking pin button', () => {
-      showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
+    it('does not drag when clicking pin button', async () => {
+      await showBubble({ top: 100, bottom: 120, left: 50, right: 200 }, 'test');
       const host = document.querySelector('#dobby-ai-bubble');
       const shadow = host.shadowRoot;
       const pinBtn = shadow.querySelector('.pin-btn');
@@ -624,8 +624,8 @@ describe('bubble.js', () => {
   });
 
   describe('image lightbox', () => {
-    it('opens lightbox overlay when image is clicked', () => {
-      showBubble({ bottom: 100, left: 50, right: 250 }, []);
+    it('opens lightbox overlay when image is clicked', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
       const container = _getBubbleContainer();
       const shadow = container.shadowRoot;
       const responseText = shadow.querySelector('.response-text');
@@ -639,8 +639,8 @@ describe('bubble.js', () => {
       expect(lightbox.querySelector('img').src).toBe('https://example.com/img.png');
     });
 
-    it('closes lightbox when overlay is clicked', () => {
-      showBubble({ bottom: 100, left: 50, right: 250 }, []);
+    it('closes lightbox when overlay is clicked', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
       const container = _getBubbleContainer();
       const shadow = container.shadowRoot;
       const responseText = shadow.querySelector('.response-text');

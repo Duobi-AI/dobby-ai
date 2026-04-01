@@ -13,9 +13,44 @@
   }
   @media (prefers-color-scheme: dark) {
     body { background: #1e1e28; color: #e4e4e7; }
-    .toggle-row { border-bottom-color: rgba(255,255,255,0.08); }
+    .toggle-row, .theme-row { border-bottom-color: rgba(255,255,255,0.08); }
     .status { color: #a1a1aa; }
     .settings-link { color: #a78bfa; }
+    .theme-segment { background: #2a2a3a; border-color: rgba(255,255,255,0.08); }
+    .theme-option { color: #a1a1aa; }
+    .theme-option:hover { color: #e4e4e7; }
+    .theme-option.active { background: #7c3aed; color: #fff; }
+  }
+  .theme-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .theme-segment {
+    display: flex;
+    border: 1px solid rgba(0,0,0,0.10);
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f4f4f5;
+  }
+  .theme-option {
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: #52525b;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+  }
+  .theme-option:hover { color: #18181b; }
+  .theme-option.active {
+    background: #7c3aed;
+    color: #fff;
+    border-radius: 4px;
   }
   .header {
     display: flex;
@@ -106,6 +141,14 @@
       <input type="checkbox" id="autosuggest-enabled" aria-label="Enable or disable auto-suggest">
       <span class="slider"></span>
     </label>
+  </div>
+  <div class="theme-row">
+    <span class="status">Theme</span>
+    <div class="theme-segment" id="theme-segment" role="group" aria-label="Theme">
+      <button class="theme-option active" data-theme="auto" aria-pressed="true">Auto</button>
+      <button class="theme-option" data-theme="light" aria-pressed="false">Light</button>
+      <button class="theme-option" data-theme="dark" aria-pressed="false">Dark</button>
+    </div>
   </div>
   <a class="settings-link" id="settings">Settings</a>
   <script src="popup.js"></script>
