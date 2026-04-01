@@ -9,13 +9,34 @@ export const Z_INDEX = {
 };
 
 export const THEME = {
+  // Accent — used sparingly: primary CTA, active states, brand mark
   ACCENT: '#7c3aed',
   ACCENT_LIGHT: '#a78bfa',
   ACCENT_BG: 'rgba(124, 58, 237, 0.1)',
   ACCENT_STRONG: 'rgba(124, 58, 237, 0.9)',
   ACCENT_BORDER: 'rgba(124, 58, 237, 0.6)',
   ACCENT_GLOW: 'rgba(124,58,237,0.4)',
+
+  // Typography
   FONT_STACK: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  FONT_DISPLAY: '"DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+
+  // Light mode — warm stone palette
+  BG_PRIMARY: '#fafaf9',
+  TEXT_PRIMARY: '#1c1917',
+  TEXT_SECONDARY: '#78716c',
+  BORDER: 'rgba(120, 113, 108, 0.12)',
+  SURFACE_HOVER: 'rgba(120, 113, 108, 0.06)',
+  SURFACE_ALT: 'rgba(120, 113, 108, 0.08)',
+
+  // Dark mode — warm dark palette
+  DARK_BG_PRIMARY: 'rgba(28, 25, 23, 0.95)',
+  DARK_TEXT_PRIMARY: '#e7e5e4',
+  DARK_TEXT_SECONDARY: '#a8a29e',
+  DARK_BORDER: 'rgba(168, 162, 158, 0.14)',
+  DARK_SURFACE_HOVER: 'rgba(168, 162, 158, 0.1)',
+  DARK_SURFACE_ALT: 'rgba(168, 162, 158, 0.08)',
+
   BACKDROP_BLUR: 'blur(12px)',
 };
 

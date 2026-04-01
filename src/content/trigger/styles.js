@@ -7,6 +7,13 @@ export function getToolbarStyles(theme) {
   const accentLight = THEME.ACCENT_LIGHT;
   const fontStack = THEME.FONT_STACK;
 
+  // Warm palette tokens
+  const text = isDark ? THEME.DARK_TEXT_PRIMARY : THEME.TEXT_PRIMARY;
+  const textSec = isDark ? THEME.DARK_TEXT_SECONDARY : THEME.TEXT_SECONDARY;
+  const border = isDark ? THEME.DARK_BORDER : THEME.BORDER;
+  const surfaceHover = isDark ? THEME.DARK_SURFACE_HOVER : THEME.SURFACE_HOVER;
+  const surfaceAlt = isDark ? THEME.DARK_SURFACE_ALT : THEME.SURFACE_ALT;
+
   return `
     :host { all: initial; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -20,11 +27,11 @@ export function getToolbarStyles(theme) {
       height: 36px;
       border-radius: 50%;
       overflow: hidden;
-      background: ${isDark ? 'rgba(28, 25, 38, 0.82)' : 'rgba(255, 255, 255, 0.82)'};
-      backdrop-filter: blur(12px) saturate(180%);
-      -webkit-backdrop-filter: blur(12px) saturate(180%);
-      border: 1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'};
-      box-shadow: 0 2px 12px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.15)'};
+      background: ${isDark ? 'rgba(28, 25, 23, 0.88)' : 'rgba(250, 250, 249, 0.88)'};
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid ${border};
+      box-shadow: 0 2px 12px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(28, 25, 23, 0.1)'};
       cursor: pointer;
       user-select: none;
       transition: width 0.22s cubic-bezier(0.4,0,0.2,1),
@@ -84,7 +91,7 @@ export function getToolbarStyles(theme) {
     .toolbar-sep {
       width: 1px;
       height: 18px;
-      background: ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'};
+      background: ${border};
       flex-shrink: 0;
     }
 
@@ -97,18 +104,19 @@ export function getToolbarStyles(theme) {
     .toolbar-action {
       background: none;
       border: none;
-      color: ${isDark ? '#e4e4e7' : '#18181b'};
+      color: ${text};
       font-size: 12px;
       font-family: ${fontStack};
       padding: 4px 8px;
       border-radius: 8px;
       cursor: pointer;
       white-space: nowrap;
-      transition: background 0.15s;
+      transition: background 0.12s ease-out, transform 0.12s ease-out;
     }
 
     .toolbar-action:hover {
-      background: ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)'};
+      background: ${surfaceHover};
+      transform: translateY(-1px);
     }
 
     /* Pencil / close icon button */
@@ -125,11 +133,11 @@ export function getToolbarStyles(theme) {
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: background 0.15s, color 0.15s;
+      transition: background 0.12s ease-out, color 0.12s ease-out;
     }
 
     .toolbar-pencil:hover {
-      background: ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)'};
+      background: ${surfaceHover};
     }
 
     .toolbar-pencil svg {
@@ -138,11 +146,11 @@ export function getToolbarStyles(theme) {
     }
 
     .toolbar-pencil.close-mode {
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
+      color: ${textSec};
     }
 
     .toolbar-pencil.close-mode:hover {
-      background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'};
+      background: ${surfaceHover};
     }
 
     /* Input mode container — sits between dog icon and pencil/close button */
@@ -171,16 +179,16 @@ export function getToolbarStyles(theme) {
       height: 24px;
       border: none;
       outline: none;
-      background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(124,58,237,0.06)'};
+      background: ${surfaceAlt};
       border-radius: 10px;
       padding: 0 8px;
       font-size: 11px;
       font-family: ${fontStack};
-      color: ${isDark ? '#e4e4e7' : '#18181b'};
+      color: ${text};
     }
 
     .toolbar-input-field::placeholder {
-      color: ${isDark ? '#71717a' : '#a1a1aa'};
+      color: ${textSec};
     }
 
     .toolbar-send {
@@ -196,11 +204,11 @@ export function getToolbarStyles(theme) {
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: opacity 0.15s;
+      transition: opacity 0.12s ease-out;
     }
 
     .toolbar-send:hover {
-      background: ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)'};
+      background: ${surfaceHover};
     }
 
     .toolbar-send.disabled {

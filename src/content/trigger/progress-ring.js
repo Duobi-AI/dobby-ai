@@ -56,9 +56,9 @@ export function _showProgressRing(x, y) {
     width: (SIZE - 6) + 'px',
     height: (SIZE - 6) + 'px',
     borderRadius: '50%',
-    background: 'rgba(245,240,255,0.92)',
+    background: 'rgba(250, 250, 249, 0.92)',
     backdropFilter: 'blur(8px)',
-    boxShadow: '0 2px 12px ' + THEME.ACCENT_GLOW + ', 0 0 0 1px rgba(124,58,237,0.15)',
+    boxShadow: '0 2px 12px rgba(28, 25, 23, 0.08), 0 0 0 1px rgba(120, 113, 108, 0.12)',
   });
   container.appendChild(backdrop);
 
