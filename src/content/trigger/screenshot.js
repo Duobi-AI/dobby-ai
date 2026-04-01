@@ -28,7 +28,7 @@ export function startScreenshotMode() {
     top: '16px',
     left: '50%',
     transform: 'translateX(-50%)',
-    background: THEME.ACCENT_STRONG,
+    background: 'rgba(28, 25, 23, 0.88)',
     color: 'white',
     padding: '10px 24px',
     borderRadius: '8px',
@@ -48,7 +48,7 @@ export function startScreenshotMode() {
   Object.assign(border.style, {
     position: 'fixed',
     inset: '0',
-    border: '2px solid ' + THEME.ACCENT_BORDER,
+    border: '2px solid rgba(120, 113, 108, 0.4)',
     pointerEvents: 'none',
     zIndex: String(Z_INDEX.TRIGGER),
   });
@@ -57,8 +57,8 @@ export function startScreenshotMode() {
   screenshotState.rect = document.createElement('div');
   Object.assign(screenshotState.rect.style, {
     position: 'fixed',
-    border: '2px dashed ' + THEME.ACCENT,
-    background: THEME.ACCENT_BG,
+    border: '2px dashed rgba(120, 113, 108, 0.5)',
+    background: 'rgba(120, 113, 108, 0.08)',
     display: 'none',
     zIndex: String(Z_INDEX.TRIGGER),
   });
@@ -105,7 +105,7 @@ export function startScreenshotMode() {
 
     // Lock the selection rectangle with solid border
     Object.assign(screenshotState.rect.style, {
-      border: '2px solid ' + THEME.ACCENT,
+      border: '2px solid rgba(120, 113, 108, 0.5)',
     });
 
 
@@ -166,7 +166,7 @@ function _showConfirmToolbar(overlay, banner, rect) {
   confirmBtn.textContent = 'Capture';
   Object.assign(confirmBtn.style, {
     ...btnBase,
-    background: THEME.ACCENT,
+    background: '#1c1917',
     color: 'white',
   });
   confirmBtn.addEventListener('click', async (e) => {
@@ -203,7 +203,7 @@ function _showConfirmToolbar(overlay, banner, rect) {
     toolbar.remove();
     Object.assign(screenshotState.rect.style, {
       display: 'none',
-      border: '2px dashed ' + THEME.ACCENT,
+      border: '2px dashed rgba(120, 113, 108, 0.5)',
       width: '0px',
       height: '0px',
     });

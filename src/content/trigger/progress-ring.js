@@ -78,7 +78,7 @@ export function _showProgressRing(x, y) {
   track.setAttribute('cy', String(HALF));
   track.setAttribute('r', String(RADIUS));
   track.setAttribute('fill', 'none');
-  track.setAttribute('stroke', 'rgba(124,58,237,0.3)');
+  track.setAttribute('stroke', 'rgba(120,113,108,0.3)');
   track.setAttribute('stroke-width', '3');
   svg.appendChild(track);
 
@@ -88,13 +88,13 @@ export function _showProgressRing(x, y) {
   fill.setAttribute('cy', String(HALF));
   fill.setAttribute('r', String(RADIUS));
   fill.setAttribute('fill', 'none');
-  fill.setAttribute('stroke', THEME.ACCENT);
+  fill.setAttribute('stroke', '#44403c');
   fill.setAttribute('stroke-width', '3');
   fill.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-dashoffset', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-linecap', 'round');
   fill.style.animation = 'dobby-ring-fill 0.5s linear forwards';
-  fill.style.filter = 'drop-shadow(0 0 4px rgba(124,58,237,0.6))';
+  fill.style.filter = 'drop-shadow(0 0 4px rgba(68,64,60,0.4))';
   svg.appendChild(fill);
 
   container.appendChild(svg);
@@ -105,7 +105,7 @@ export function _showProgressRing(x, y) {
   iconSvg.setAttribute('height', '10');
   iconSvg.setAttribute('viewBox', '0 0 24 24');
   iconSvg.setAttribute('fill', 'none');
-  iconSvg.setAttribute('stroke', THEME.ACCENT);
+  iconSvg.setAttribute('stroke', '#44403c');
   iconSvg.setAttribute('stroke-width', '2');
   iconSvg.setAttribute('stroke-linecap', 'round');
   Object.assign(iconSvg.style, {
