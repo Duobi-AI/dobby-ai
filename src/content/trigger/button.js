@@ -433,10 +433,16 @@ function exitInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
 
 // --- Public API ---
 
+let toolbarCreating = null;
+
 export async function showTrigger(x, y, selectionData = {}) {
   let host = document.getElementById('dobby-ai-toolbar-host');
   if (!host) {
-    host = await createToolbar();
+    if (!toolbarCreating) {
+      toolbarCreating = createToolbar();
+    }
+    host = await toolbarCreating;
+    toolbarCreating = null;
   }
 
   // Store selection data on host
