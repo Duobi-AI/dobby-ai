@@ -48,6 +48,41 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   });
 });
 
+// --- Keyboard Commands ---
+
+function notifyActiveTab(message) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tabId = tabs?.[0]?.id;
+    if (!tabId) return;
+    chrome.tabs.sendMessage(tabId, message).catch(() => {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: 'Dobby AI',
+        message: 'Cannot run on this page. Try a regular webpage.',
+      });
+    });
+  });
+}
+
+function toggleStoredSetting(storageKey, messageType) {
+  chrome.storage.local.get(storageKey, (data) => {
+    const enabled = data[storageKey] === false;
+    chrome.storage.local.set({ [storageKey]: enabled }, () => {
+      notifyActiveTab({ type: messageType, enabled });
+    });
+  });
+}
+
+chrome.commands.onCommand.addListener((command) => {
+  if (command === 'toggle-dobby') {
+    toggleStoredSetting('dobbyEnabled', 'DOBBY_TOGGLE');
+  }
+  if (command === 'toggle-screenshot-mode') {
+    toggleStoredSetting('screenshotEnabled', 'SCREENSHOT_TOGGLE');
+  }
+});
+
 // --- HMAC Signing ---
 
 export async function generateSignature(messages, timestamp, secret) {

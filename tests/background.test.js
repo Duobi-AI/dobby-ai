@@ -5,8 +5,10 @@ const mockCreate = vi.fn();
 const mockSendMessage = vi.fn();
 const mockStorageGet = vi.fn();
 const mockStorageSet = vi.fn();
+const mockTabsQuery = vi.fn();
 const connectListeners = [];
 const messageListeners = [];
+const commandListeners = [];
 
 global.chrome = {
   runtime: {
@@ -15,11 +17,15 @@ global.chrome = {
     onConnect: { addListener: vi.fn((fn) => connectListeners.push(fn)) },
     lastError: null,
   },
+  commands: {
+    onCommand: { addListener: vi.fn((fn) => commandListeners.push(fn)) },
+  },
   contextMenus: {
     create: mockCreate,
     onClicked: { addListener: vi.fn() },
   },
   tabs: {
+    query: mockTabsQuery,
     sendMessage: mockSendMessage,
   },
   storage: {
@@ -40,6 +46,7 @@ const mod = await import('../src/background/index.js');
 const { parseSSEStream, generateSignature } = mod;
 
 const clickHandler = chrome.contextMenus.onClicked.addListener.mock.calls[0][0];
+const commandHandler = commandListeners[0];
 
 describe('context menu registration', () => {
   it('registers onInstalled listener', () => {
@@ -84,6 +91,65 @@ describe('context menu click handler', () => {
 
   it('ignores whitespace-only selectionText', () => {
     clickHandler({ menuItemId: 'dobby-ai', selectionText: '   ' }, { id: 1 });
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('keyboard commands', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockTabsQuery.mockImplementation((query, cb) => cb([{ id: 1 }]));
+    mockStorageSet.mockImplementation((data, cb) => { if (cb) cb(); });
+    mockSendMessage.mockResolvedValue(undefined);
+  });
+
+  it('registers command listener', () => {
+    expect(commandListeners).toHaveLength(1);
+  });
+
+  it('toggles Dobby AI off when currently enabled', () => {
+    mockStorageGet.mockImplementation((key, cb) => cb({ dobbyEnabled: true }));
+
+    commandHandler('toggle-dobby');
+
+    expect(mockStorageSet).toHaveBeenCalledWith({ dobbyEnabled: false }, expect.any(Function));
+    expect(mockTabsQuery).toHaveBeenCalledWith({ active: true, currentWindow: true }, expect.any(Function));
+    expect(mockSendMessage).toHaveBeenCalledWith(1, {
+      type: 'DOBBY_TOGGLE',
+      enabled: false,
+    });
+  });
+
+  it('toggles Dobby AI on when currently disabled', () => {
+    mockStorageGet.mockImplementation((key, cb) => cb({ dobbyEnabled: false }));
+
+    commandHandler('toggle-dobby');
+
+    expect(mockStorageSet).toHaveBeenCalledWith({ dobbyEnabled: true }, expect.any(Function));
+    expect(mockSendMessage).toHaveBeenCalledWith(1, {
+      type: 'DOBBY_TOGGLE',
+      enabled: true,
+    });
+  });
+
+  it('toggles screenshot mode and notifies the active tab', () => {
+    mockStorageGet.mockImplementation((key, cb) => cb({ screenshotEnabled: true }));
+
+    commandHandler('toggle-screenshot-mode');
+
+    expect(mockStorageSet).toHaveBeenCalledWith({ screenshotEnabled: false }, expect.any(Function));
+    expect(mockSendMessage).toHaveBeenCalledWith(1, {
+      type: 'SCREENSHOT_TOGGLE',
+      enabled: false,
+    });
+  });
+
+  it('does not notify when there is no active tab', () => {
+    mockStorageGet.mockImplementation((key, cb) => cb({ dobbyEnabled: true }));
+    mockTabsQuery.mockImplementation((query, cb) => cb([]));
+
+    commandHandler('toggle-dobby');
+
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
 });
