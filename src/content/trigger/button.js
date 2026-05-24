@@ -43,6 +43,7 @@ const iconDataUri = 'data:image/svg+xml,' + encodeURIComponent(cockapooSvg);
 const pencilSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
 const closeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 const sendSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+const SELECTION_IMAGE_WAIT_MS = 1000;
 
 // --- Auto-hide timer ---
 let autoHideTimer = null;
@@ -282,44 +283,115 @@ function collapseToolbar(shadow) {
 
 // --- Morph into chat ---
 
+function normalizeImages(images) {
+  return Array.isArray(images) && images.length > 0 ? images : null;
+}
+
+function cloneSelectionForImageExtraction(selection) {
+  try {
+    if (!selection?.rangeCount) return null;
+    const range = selection.getRangeAt(0);
+    if (!range) return null;
+    const clonedRange = typeof range.cloneRange === 'function' ? range.cloneRange() : range;
+    return {
+      rangeCount: 1,
+      getRangeAt: () => clonedRange,
+    };
+  } catch (err) {
+    console.warn('[Dobby AI] Could not preserve selection for image extraction:', err.message);
+    return null;
+  }
+}
+
+function startSelectionImageExtraction(host, selectionRequestId) {
+  if (host._images || host._imagesPromise || !host._selectionForImages) {
+    return host._imagesPromise;
+  }
+
+  host._imagesPromise = extractImagesFromSelection(host._selectionForImages)
+    .then((images) => {
+      const normalized = normalizeImages(images);
+      if (host._selectionRequestId === selectionRequestId) {
+        host._images = normalized;
+      }
+      return normalized;
+    })
+    .catch((err) => {
+      console.warn('[Dobby AI] Selection image extraction failed:', err.message);
+      return null;
+    });
+
+  return host._imagesPromise;
+}
+
+function resolveSelectionImages(host, selectionRequestId, onResolved) {
+  const finish = (images) => {
+    if (!host.isConnected || host._selectionRequestId !== selectionRequestId) return;
+    onResolved(normalizeImages(images));
+  };
+
+  const imagesPromise = startSelectionImageExtraction(host, selectionRequestId);
+
+  if (imagesPromise) {
+    let settled = false;
+    let timeoutId = null;
+    const finishOnce = (images) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      finish(images);
+    };
+
+    timeoutId = setTimeout(() => finishOnce(host._images), SELECTION_IMAGE_WAIT_MS);
+    imagesPromise.then(finishOnce).catch(() => finishOnce(null));
+  } else {
+    finish(host._images);
+  }
+}
+
 function morphIntoBubble(host, shadow, label, instruction) {
+  if (host._isMorphing) return;
+  host._isMorphing = true;
+
   const toolbar = shadow.querySelector('.toolbar');
+  const selectionRequestId = host._selectionRequestId;
 
   clearAutoHide();
   removeSelectionHighlight();
 
-  // Get toolbar position — bubble will appear growing from here
-  const hostRect = host.getBoundingClientRect();
+  resolveSelectionImages(host, selectionRequestId, (images) => {
+    // Get toolbar position — bubble will appear growing from here
+    const hostRect = host.getBoundingClientRect();
 
-  // Pass a rect that positions the bubble at the toolbar's origin.
-  // createBubbleHost places bubble at selectionRect.bottom + 8,
-  // so we set bottom = toolbar.top - 8 so the bubble top = toolbar.top.
-  const selectionRect = {
-    top: hostRect.top - 16,
-    right: hostRect.right,
-    bottom: hostRect.top - 8,
-    left: hostRect.left,
-    width: hostRect.width,
-    height: hostRect.height,
-  };
+    // Pass a rect that positions the bubble at the toolbar's origin.
+    // createBubbleHost places bubble at selectionRect.bottom + 8,
+    // so we set bottom = toolbar.top - 8 so the bubble top = toolbar.top.
+    const selectionRect = {
+      top: hostRect.top - 16,
+      right: hostRect.right,
+      bottom: hostRect.top - 8,
+      left: hostRect.left,
+      width: hostRect.width,
+      height: hostRect.height,
+    };
 
-  // Build messages
-  const text = host._selectedText || '';
-  const images = host._images || null;
-  const messages = buildChatMessages(text, instruction, true, images);
+    // Build messages
+    const text = host._selectedText || '';
+    const messages = buildChatMessages(text, instruction, true, images);
 
-  // Crossfade: start bubble creation and toolbar fade simultaneously.
-  // showBubble is async (theme read) but the fade timer is independent of that.
-  showBubble(selectionRect, messages, text, instruction, images)
-    .catch((err) => console.error('[Dobby AI] Bubble creation failed:', err));
+    // Crossfade: start bubble creation and toolbar fade simultaneously.
+    // showBubble is async (theme read) but the fade timer is independent of that.
+    showBubble(selectionRect, messages, text, instruction, images)
+      .catch((err) => console.error('[Dobby AI] Bubble creation failed:', err));
 
-  // Fade out toolbar smoothly over the same duration as bubble entry animation
-  toolbar.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
-  toolbar.style.opacity = '0';
-  toolbar.style.transform = 'scale(0.9)';
+    // Fade out toolbar smoothly over the same duration as bubble entry animation
+    toolbar.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
+    toolbar.style.opacity = '0';
+    toolbar.style.transform = 'scale(0.9)';
 
-  // Remove toolbar after fade completes
-  setTimeout(() => hideTrigger(), 220);
+    // Remove toolbar after fade completes
+    setTimeout(() => hideTrigger(), 220);
+  });
 }
 
 // --- Selection highlight overlay ---
@@ -446,8 +518,14 @@ export async function showTrigger(x, y, selectionData = {}) {
   }
 
   // Store selection data on host
+  const selectionRequestId = (host._selectionRequestId || 0) + 1;
+  host._selectionRequestId = selectionRequestId;
+  host._isMorphing = false;
   host._selectedText = selectionData.text || '';
   host._anchorNode = selectionData.anchorNode || null;
+  host._images = normalizeImages(selectionData.images);
+  host._imagesPromise = null;
+  host._selectionForImages = host._images ? null : cloneSelectionForImageExtraction(selectionData.selection);
 
   // Position
   host.style.display = 'block';
@@ -494,9 +572,13 @@ export async function createTriggerButton() {
 
 export async function extractImagesFromSelection(selection, maxImages = 2) {
   const images = [];
-  if (!selection.rangeCount) return images;
+  if (!selection || !selection.rangeCount) return images;
 
   const range = selection.getRangeAt(0);
+  if (!range?.commonAncestorContainer || typeof range.intersectsNode !== 'function') {
+    return images;
+  }
+
   const container = range.commonAncestorContainer;
   const imgElements = container.nodeType === Node.ELEMENT_NODE
     ? container.querySelectorAll('img')

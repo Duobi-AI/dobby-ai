@@ -54,11 +54,38 @@ describe('autosuggest lifecycle', () => {
     vi.restoreAllMocks();
   });
 
-  it('attaches focusin listener when initAutosuggest() called', () => {
+  it('attaches focus listeners when initAutosuggest() called', () => {
     const spy = vi.spyOn(document, 'addEventListener');
     initAutosuggest();
     const focusinCall = spy.mock.calls.find((c) => c[0] === 'focusin');
+    const focusoutCall = spy.mock.calls.find((c) => c[0] === 'focusout');
     expect(focusinCall).toBeDefined();
+    expect(focusoutCall).toBeDefined();
+  });
+
+  it('does not register duplicate document listeners on repeated initAutosuggest() calls', () => {
+    const spy = vi.spyOn(document, 'addEventListener');
+
+    initAutosuggest();
+    initAutosuggest();
+    initAutosuggest();
+
+    expect(spy.mock.calls.filter((c) => c[0] === 'focusin')).toHaveLength(1);
+    expect(spy.mock.calls.filter((c) => c[0] === 'focusout')).toHaveLength(1);
+  });
+
+  it('does not attach duplicate textarea listeners after repeated initAutosuggest() calls', () => {
+    const addSpy = vi.spyOn(textarea, 'addEventListener');
+    const removeSpy = vi.spyOn(textarea, 'removeEventListener');
+
+    initAutosuggest();
+    initAutosuggest();
+    textarea.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+
+    expect(addSpy.mock.calls.filter((c) => c[0] === 'input')).toHaveLength(1);
+    expect(addSpy.mock.calls.filter((c) => c[0] === 'keydown')).toHaveLength(1);
+    expect(removeSpy.mock.calls.filter((c) => c[0] === 'input')).toHaveLength(0);
+    expect(removeSpy.mock.calls.filter((c) => c[0] === 'keydown')).toHaveLength(0);
   });
 
   it('starts monitoring textarea on focus', () => {
@@ -103,7 +130,20 @@ describe('autosuggest lifecycle', () => {
     initAutosuggest();
     destroyAutosuggest();
     const focusinRemove = removeSpy.mock.calls.find((c) => c[0] === 'focusin');
+    const focusoutRemove = removeSpy.mock.calls.find((c) => c[0] === 'focusout');
     expect(focusinRemove).toBeDefined();
+    expect(focusoutRemove).toBeDefined();
+  });
+
+  it('destroyAutosuggest removes listeners after repeated initAutosuggest() calls', () => {
+    const removeSpy = vi.spyOn(document, 'removeEventListener');
+
+    initAutosuggest();
+    initAutosuggest();
+    destroyAutosuggest();
+
+    expect(removeSpy.mock.calls.filter((c) => c[0] === 'focusin')).toHaveLength(1);
+    expect(removeSpy.mock.calls.filter((c) => c[0] === 'focusout')).toHaveLength(1);
   });
 
   it('cleans up on textarea blur', () => {

@@ -51,6 +51,7 @@ const { showBubble } = await import('../src/content/bubble/core.js');
 const { detectContentType } = await import('../src/content/detection.js');
 const { getSuggestedPresetsForType } = await import('../src/content/presets.js');
 const { buildChatMessages } = await import('../src/content/prompt.js');
+const { captureImage } = await import('../src/content/image-capture.js');
 const { setToolbarHost, setToolbarState } = await import('../src/content/shared/state.js');
 
 function getToolbarHost() {
@@ -498,6 +499,40 @@ describe('preset click opens bubble', () => {
     shadow.querySelector('.toolbar-action').click();
 
     expect(buildChatMessages).toHaveBeenCalledWith('test text', 'Summarize the following', true, null);
+  });
+
+  it('includes images intersecting the text selection when opening the bubble', async () => {
+    const image = { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,abc' } };
+    captureImage.mockResolvedValueOnce(image);
+
+    const container = document.createElement('div');
+    const img = document.createElement('img');
+    img.src = 'https://example.com/image.png';
+    container.appendChild(document.createTextNode('test text'));
+    container.appendChild(img);
+    document.body.appendChild(container);
+
+    const range = {
+      commonAncestorContainer: container,
+      intersectsNode: (node) => node === img,
+    };
+    const selection = {
+      rangeCount: 1,
+      getRangeAt: () => range,
+    };
+
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null, selection });
+    const shadow = getShadow();
+    const toolbar = shadow.querySelector('.toolbar');
+
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-action').click();
+    await getToolbarHost()._imagesPromise;
+    await Promise.resolve();
+
+    expect(captureImage).toHaveBeenCalledWith(img);
+    expect(buildChatMessages).toHaveBeenCalledWith('test text', 'Summarize the following', true, [image]);
+    expect(showBubble.mock.calls.at(-1)[4]).toEqual([image]);
   });
 
   it('removes toolbar after preset click', async () => {
