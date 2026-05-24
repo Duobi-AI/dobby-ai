@@ -1,5 +1,6 @@
 // tests/background.test.js
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../src/shared/autosuggest-limits.js';
 
 const mockCreate = vi.fn();
 const mockSendMessage = vi.fn();
@@ -496,7 +497,7 @@ describe('autosuggest-stream port', () => {
     expect(port.onMessage.addListener).not.toHaveBeenCalled();
   });
 
-  it('uses max_tokens of 50 when calling OpenAI directly', async () => {
+  it('uses the shared autosuggest token limit when calling OpenAI directly', async () => {
     const { port, getHandler } = createAutosuggestPort();
     const autosuggestHandler = connectListeners[1];
     autosuggestHandler(port);
@@ -517,7 +518,7 @@ describe('autosuggest-stream port', () => {
     const calledUrl = fetch.mock.calls[0][0];
     expect(calledUrl).toContain('openai.com');
     const body = JSON.parse(fetch.mock.calls[0][1].body);
-    expect(body.max_tokens).toBe(50);
+    expect(body.max_tokens).toBe(AUTOSUGGEST_MAX_SUGGESTION_TOKENS);
   });
 
   it('passes purpose=autosuggest to proxy when no user key', async () => {

@@ -13,6 +13,8 @@ const MAX_DOWNSCALE_ATTEMPTS = 2;
  * @returns {Promise<{type: string, image_url: {url: string}}|null>}
  */
 export async function captureImage(source) {
+  if (source == null) return null;
+
   try {
     const url = typeof source === 'string' ? source : source.src;
     if (!url) return null;

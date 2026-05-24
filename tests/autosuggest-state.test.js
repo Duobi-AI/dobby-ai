@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
+import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../src/shared/autosuggest-limits.js';
 
 describe('autosuggest constants', () => {
   it('exports AUTOSUGGEST timing constants', async () => {
@@ -7,7 +8,7 @@ describe('autosuggest constants', () => {
     expect(AUTOSUGGEST.DEBOUNCE_MS).toBe(500);
     expect(AUTOSUGGEST.MIN_CHARS).toBe(10);
     expect(AUTOSUGGEST.MAX_CONTEXT_CHARS).toBe(2000);
-    expect(AUTOSUGGEST.MAX_SUGGESTION_TOKENS).toBe(50);
+    expect(AUTOSUGGEST.MAX_SUGGESTION_TOKENS).toBe(AUTOSUGGEST_MAX_SUGGESTION_TOKENS);
     expect(AUTOSUGGEST.GHOST_OPACITY).toBe(0.4);
     expect(AUTOSUGGEST.GHOST_COLOR).toBe('#9ca3af');
   });

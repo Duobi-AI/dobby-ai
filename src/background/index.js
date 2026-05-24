@@ -1,6 +1,8 @@
 // src/background/index.js — Dobby AI API relay + streaming hub
 // All API calls from content scripts route through here (MV3 cross-origin constraint)
 
+import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../shared/autosuggest-limits.js';
+
 const PROXY_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev/chat';
 // HMAC_SECRET is intentionally in extension source — it's light obfuscation per spec.
 // Real defense is IP rate limiting on the proxy.
@@ -254,7 +256,7 @@ chrome.runtime.onConnect.addListener((port) => {
             model: 'gpt-4.1-mini',
             messages,
             stream: true,
-            max_tokens: 50,
+            max_tokens: AUTOSUGGEST_MAX_SUGGESTION_TOKENS,
           }),
           signal: abortController.signal,
         });

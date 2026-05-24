@@ -2,6 +2,7 @@
 import { validatePayload, verifyHmac } from './validate.js';
 import { checkRateLimit, incrementCounters } from './rate-limit.js';
 import { createChatStream } from './openai.js';
+import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../../src/shared/autosuggest-limits.js';
 
 const MAX_BODY_SIZE = 2097152; // 2MB
 
@@ -97,7 +98,7 @@ export default {
 
     if (!devBypass) await incrementCounters(ip, env.RATE_LIMIT_KV, purpose);
 
-    const maxTokens = purpose === 'autosuggest' ? 200 : undefined;
+    const maxTokens = purpose === 'autosuggest' ? AUTOSUGGEST_MAX_SUGGESTION_TOKENS : undefined;
     const openaiResponse = await createChatStream(body.messages, env.OPENAI_API_KEY, undefined, maxTokens);
 
     if (!openaiResponse.ok) {
