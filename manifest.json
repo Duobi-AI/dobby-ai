@@ -23,6 +23,22 @@
       "48": "icons/icon48.png"
     }
   },
+  "commands": {
+    "toggle-dobby": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+D",
+        "mac": "Command+Shift+D"
+      },
+      "description": "Toggle Dobby AI"
+    },
+    "toggle-screenshot-mode": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Toggle screenshot mode"
+    }
+  },
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
