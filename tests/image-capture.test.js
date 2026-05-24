@@ -1,6 +1,6 @@
 // tests/image-capture.test.js
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterAll, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll, beforeAll } from 'vitest';
 
 // Mock chrome.runtime.sendMessage for captureScreenshot
 global.chrome = {
@@ -42,17 +42,33 @@ afterAll(() => {
 
 const { captureImage, captureScreenshot, _downsizeBase64, _corsRefetch, _cropImage } = await import('../src/content/image-capture.js');
 
+function spyOnConsoleWarn() {
+  return vi.spyOn(console, 'warn').mockImplementation(() => {});
+}
+
 describe('captureImage', () => {
   it('returns null for empty string', async () => {
     expect(await captureImage('')).toBeNull();
   });
 
   it('returns null for null input', async () => {
-    expect(await captureImage(null)).toBeNull();
+    const warnSpy = spyOnConsoleWarn();
+    try {
+      expect(await captureImage(null)).toBeNull();
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('returns null for undefined input', async () => {
-    expect(await captureImage(undefined)).toBeNull();
+    const warnSpy = spyOnConsoleWarn();
+    try {
+      expect(await captureImage(undefined)).toBeNull();
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('returns image_url object for https URL', async () => {
@@ -108,9 +124,15 @@ describe('captureScreenshot', () => {
   });
 
   it('returns null when sendMessage throws', async () => {
+    const warnSpy = spyOnConsoleWarn();
     chrome.runtime.sendMessage.mockRejectedValue(new Error('no handler'));
-    const result = await captureScreenshot({ x: 0, y: 0, width: 100, height: 100 });
-    expect(result).toBeNull();
+    try {
+      const result = await captureScreenshot({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith('[Dobby AI] Screenshot capture failed:', 'no handler');
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('sends CAPTURE_SCREENSHOT message', async () => {
@@ -172,9 +194,15 @@ describe('_corsRefetch - canvas draw path', () => {
   });
 
   it('returns null when canvas getContext throws', async () => {
+    const warnSpy = spyOnConsoleWarn();
     mockCanvas.getContext = vi.fn(() => { throw new Error('canvas unsupported'); });
-    const result = await _corsRefetch('data:image/jpeg;base64,validdata');
-    expect(result).toBeNull();
+    try {
+      const result = await _corsRefetch('data:image/jpeg;base64,validdata');
+      expect(result).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith('[Dobby AI] Canvas operation failed:', 'canvas unsupported');
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
 
@@ -222,9 +250,15 @@ describe('_cropImage', () => {
   });
 
   it('returns null when canvas throws during draw', async () => {
+    const warnSpy = spyOnConsoleWarn();
     mockCanvas.getContext = vi.fn(() => null); // null ctx causes drawImage to throw
-    const result = await _cropImage('data:image/jpeg;base64,fullimage', { x: 0, y: 0, width: 50, height: 50 });
-    expect(result).toBeNull();
+    try {
+      const result = await _cropImage('data:image/jpeg;base64,fullimage', { x: 0, y: 0, width: 50, height: 50 });
+      expect(result).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith('[Dobby AI] Canvas operation failed:', expect.any(String));
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
 
@@ -252,10 +286,16 @@ describe('captureScreenshot - success path', () => {
   });
 
   it('returns null when canvas throws during crop', async () => {
+    const warnSpy = spyOnConsoleWarn();
     chrome.runtime.sendMessage.mockResolvedValue({ dataUrl: 'data:image/jpeg;base64,fullscreen' });
     mockCanvas.getContext = vi.fn(() => null);
-    const result = await captureScreenshot({ x: 0, y: 0, width: 200, height: 150 });
-    expect(result).toBeNull();
+    try {
+      const result = await captureScreenshot({ x: 0, y: 0, width: 200, height: 150 });
+      expect(result).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith('[Dobby AI] Canvas operation failed:', expect.any(String));
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
 
