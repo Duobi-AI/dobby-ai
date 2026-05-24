@@ -132,8 +132,32 @@ describe('keyboard commands', () => {
     });
   });
 
+  it('toggles Dobby AI off when the setting is unset', () => {
+    mockStorageGet.mockImplementation((key, cb) => cb({}));
+
+    commandHandler('toggle-dobby');
+
+    expect(mockStorageSet).toHaveBeenCalledWith({ dobbyEnabled: false }, expect.any(Function));
+    expect(mockSendMessage).toHaveBeenCalledWith(1, {
+      type: 'DOBBY_TOGGLE',
+      enabled: false,
+    });
+  });
+
   it('toggles screenshot mode and notifies the active tab', () => {
     mockStorageGet.mockImplementation((key, cb) => cb({ screenshotEnabled: true }));
+
+    commandHandler('toggle-screenshot-mode');
+
+    expect(mockStorageSet).toHaveBeenCalledWith({ screenshotEnabled: false }, expect.any(Function));
+    expect(mockSendMessage).toHaveBeenCalledWith(1, {
+      type: 'SCREENSHOT_TOGGLE',
+      enabled: false,
+    });
+  });
+
+  it('toggles screenshot mode off when the setting is unset', () => {
+    mockStorageGet.mockImplementation((key, cb) => cb({}));
 
     commandHandler('toggle-screenshot-mode');
 

@@ -67,7 +67,8 @@ function notifyActiveTab(message) {
 
 function toggleStoredSetting(storageKey, messageType) {
   chrome.storage.local.get(storageKey, (data) => {
-    const enabled = data[storageKey] === false;
+    const current = data[storageKey] !== false;
+    const enabled = !current;
     chrome.storage.local.set({ [storageKey]: enabled }, () => {
       notifyActiveTab({ type: messageType, enabled });
     });
