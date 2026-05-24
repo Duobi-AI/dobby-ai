@@ -1,5 +1,7 @@
 // src/content/shared/constants.js — Shared constants for Dobby AI extension
 
+import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../../shared/autosuggest-limits.js';
+
 export const Z_INDEX = {
   TRIGGER: 2147483647,
   SCREENSHOT_OVERLAY: 2147483646,
@@ -37,7 +39,7 @@ export const AUTOSUGGEST = {
   DEBOUNCE_MS: 500,
   MIN_CHARS: 10,
   MAX_CONTEXT_CHARS: 2000,
-  MAX_SUGGESTION_TOKENS: 50,
+  MAX_SUGGESTION_TOKENS: AUTOSUGGEST_MAX_SUGGESTION_TOKENS,
   GHOST_OPACITY: 0.4,
   GHOST_COLOR: '#9ca3af',
 };
