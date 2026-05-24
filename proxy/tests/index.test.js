@@ -1,5 +1,6 @@
 // proxy/tests/index.test.js
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../../src/shared/autosuggest-limits.js';
 
 // Mock modules before importing handler
 vi.mock('../src/validate.js', () => ({
@@ -205,7 +206,7 @@ describe('POST /chat', () => {
     expect(incrementCounters).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'chat');
   });
 
-  it('passes maxTokens=200 to createChatStream for autosuggest', async () => {
+  it('passes the shared autosuggest token limit to createChatStream for autosuggest', async () => {
     const req = makeRequest('/chat', {
       method: 'POST',
       body: { messages: [{ role: 'user', content: 'hi' }], signature: 'x', timestamp: 1, purpose: 'autosuggest' },
@@ -216,7 +217,7 @@ describe('POST /chat', () => {
       expect.any(Array),
       'sk-test',
       undefined,
-      200
+      AUTOSUGGEST_MAX_SUGGESTION_TOKENS
     );
   });
 

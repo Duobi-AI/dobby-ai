@@ -16,6 +16,7 @@ let focusoutHandler = null;
 
 export function initAutosuggest() {
   if (!autosuggestEnabled) return;
+  if (focusinHandler || focusoutHandler) return;
 
   focusinHandler = (e) => {
     if (e.target.tagName === 'TEXTAREA') attachToTextarea(e.target);
