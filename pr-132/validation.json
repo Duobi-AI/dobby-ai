@@ -1,0 +1,37 @@
+{
+  "extensionId": "mcgcaibicifplmgjiflaedoknemioajb",
+  "url": "http://127.0.0.1:55999/",
+  "selectedImageRequest": {
+    "purpose": "chat",
+    "totalTextChars": 611,
+    "hasImage": true,
+    "hasTruncationMarker": false,
+    "messageCount": 2
+  },
+  "longSelectionRequest": {
+    "purpose": "chat",
+    "totalTextChars": 6000,
+    "hasImage": false,
+    "hasTruncationMarker": true,
+    "messageCount": 2
+  },
+  "selectedImageBubble": {
+    "hasBubble": true,
+    "imagePreviewCount": 1,
+    "responseText": "The selected chart image and text were included.",
+    "status": "29/30 free"
+  },
+  "longSelectionBubble": {
+    "hasBubble": true,
+    "imagePreviewCount": 0,
+    "responseText": "The long selected text was accepted within the proxy budget.",
+    "status": "29/30 free"
+  },
+  "pass": true,
+  "screenshots": [
+    "01-selected-image-toolbar.png",
+    "02-selected-image-toolbar-expanded.png",
+    "03-selected-image-bubble-preview.png",
+    "04-long-selection-budget-bubble.png"
+  ]
+}
