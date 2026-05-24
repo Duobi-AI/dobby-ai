@@ -7,12 +7,26 @@ const SYSTEM_MSG = {
 };
 
 describe('MAX_TEXT_LENGTH', () => {
-  it('is 6000', () => {
+  it('matches the proxy total text budget', () => {
     expect(MAX_TEXT_LENGTH).toBe(6000);
   });
 });
 
 describe('buildChatMessages', () => {
+  function totalTextChars(messages) {
+    return messages.reduce((total, message) => {
+      if (typeof message.content === 'string') {
+        return total + message.content.length;
+      }
+      if (Array.isArray(message.content)) {
+        return total + message.content
+          .filter((item) => item.type === 'text')
+          .reduce((sum, item) => sum + item.text.length, 0);
+      }
+      return total;
+    }, 0);
+  }
+
   it('always includes system message', () => {
     const result = buildChatMessages('hello world', '', false);
     expect(result[0]).toEqual(SYSTEM_MSG);
@@ -37,16 +51,16 @@ describe('buildChatMessages', () => {
     expect(result[1].content).toBe('text');
   });
 
-  it('truncates text longer than MAX_TEXT_LENGTH', () => {
+  it('truncates selected text so total text payload fits the proxy limit', () => {
     const longText = 'a'.repeat(MAX_TEXT_LENGTH + 500);
-    const result = buildChatMessages(longText, '', false);
+    const result = buildChatMessages(longText, 'Summarize the following', true);
     const userContent = result[1].content;
-    expect(userContent.length).toBe(MAX_TEXT_LENGTH + '...[truncated]'.length);
+    expect(totalTextChars(result)).toBeLessThanOrEqual(MAX_TEXT_LENGTH);
     expect(userContent).toContain('...[truncated]');
   });
 
-  it('does not truncate text at MAX_TEXT_LENGTH exactly', () => {
-    const text = 'a'.repeat(MAX_TEXT_LENGTH);
+  it('does not truncate when the total text payload fits the budget', () => {
+    const text = 'a'.repeat(1000);
     const result = buildChatMessages(text, '', false);
     expect(result[1].content).toBe(text);
   });
