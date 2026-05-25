@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
   pull-requests: write
 
 jobs:
@@ -23,25 +24,39 @@ jobs:
           sparse-checkout: manifest.json
           sparse-checkout-cone-mode: false
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run build
+
       - name: Package extension
         run: |
-          mkdir -p dist
-          zip -r dist/dobby-ai-dev.zip \
-            manifest.json \
-            background.js \
-            content.js \
-            detection.js \
-            presets.js \
-            prompt.js \
-            trigger.js \
-            popup.js \
-            icons/
+          for file in \
+            dist/manifest.json \
+            dist/background.js \
+            dist/content.js \
+            dist/popup.js \
+            dist/options.js \
+            dist/popup.html \
+            dist/options.html
+          do
+            if [ ! -f "$file" ]; then
+              echo "::error::Missing build output: $file"
+              exit 1
+            fi
+          done
+
+          (cd dist && zip -r ../dobby-ai-dev.zip .)
 
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4
         with:
           name: dobby-ai-pr-${{ github.event.pull_request.number }}
-          path: dist/dobby-ai-dev.zip
+          path: dobby-ai-dev.zip
           retention-days: 14
 
       - name: Analyze and post PR comment
@@ -51,7 +66,7 @@ jobs:
             const fs = require('fs');
 
             // --- Zip size ---
-            const zipPath = 'dist/dobby-ai-dev.zip';
+            const zipPath = 'dobby-ai-dev.zip';
             const stats = fs.statSync(zipPath);
             const sizeKB = (stats.size / 1024).toFixed(1);
 

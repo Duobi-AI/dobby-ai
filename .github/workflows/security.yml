@@ -17,7 +17,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .nvmrc
           cache: 'npm'
 
       - run: npm ci
@@ -26,20 +26,38 @@ jobs:
         id: audit
         continue-on-error: true
         run: |
+          set -o pipefail
+
           echo "## npm Audit Results" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          if npm audit --audit-level=moderate 2>&1 | tee /tmp/audit-output.txt; then
-            echo "AUDIT_PASS=true" >> "$GITHUB_ENV"
-            echo ":white_check_mark: No known vulnerabilities found." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "AUDIT_PASS=false" >> "$GITHUB_ENV"
-            echo ":warning: Vulnerabilities detected:" >> "$GITHUB_STEP_SUMMARY"
+
+          AUDIT_PASS=true
+
+          run_audit() {
+            local name="$1"
+            shift
+            local output_file="/tmp/audit-${name}.txt"
+
+            echo "### ${name}" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            cat /tmp/audit-output.txt >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+            if npm audit --audit-level=moderate "$@" 2>&1 | tee "$output_file"; then
+              echo ":white_check_mark: No known vulnerabilities found." >> "$GITHUB_STEP_SUMMARY"
+            else
+              AUDIT_PASS=false
+              echo ":warning: Vulnerabilities detected:" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              cat "$output_file" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            fi
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          run_audit root
+          run_audit proxy --prefix proxy
+
+          echo "AUDIT_PASS=$AUDIT_PASS" >> "$GITHUB_ENV"
 
       - name: Scan for dangerous code patterns
         id: patterns
