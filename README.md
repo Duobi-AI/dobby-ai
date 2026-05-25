@@ -9,12 +9,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/zhongnansu/dobby-ai/actions/workflows/ci.yml"><img src="https://github.com/zhongnansu/dobby-ai/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/zhongnansu/dobby-ai/actions/workflows/security.yml"><img src="https://github.com/zhongnansu/dobby-ai/actions/workflows/security.yml/badge.svg" alt="Security"></a>
-  <a href="https://github.com/zhongnansu/dobby-ai/actions/workflows/coverage.yml"><img src="https://github.com/zhongnansu/dobby-ai/actions/workflows/coverage.yml/badge.svg" alt="Coverage"></a>
+  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml/badge.svg" alt="Security"></a>
+  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml/badge.svg" alt="Coverage"></a>
   <img src="https://img.shields.io/badge/version-1.1.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/manifest-v3-green" alt="Manifest V3">
-  <a href="https://github.com/zhongnansu/dobby-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
+  <a href="https://github.com/Duobi-AI/dobby-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
   <a href="https://chromewebstore.google.com/detail/fobblgpebpnelefaneijkpbcljdlofoo?utm_source=item-share-cb"><img src="https://img.shields.io/badge/chrome-web%20store-orange?logo=googlechrome&logoColor=white" alt="Chrome Web Store"></a>
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome">
   <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/zhongnansu/67d3ff04e606234417bba6bca0f60d85/raw/tokens.json" alt="Repo Tokens">
@@ -57,7 +57,7 @@ Dobby AI is a Chrome extension that brings AI directly into your browsing workfl
 - **Preset prompts** — one-click actions like "Explain", "Debug", "Summarize", "Translate"
 - **Custom instructions** — click the pencil icon to type any prompt inline
 
-![Custom prompt demo](https://raw.githubusercontent.com/zhongnansu/dobby-ai/docs/pr-demo-gifs/toolbar-custom-prompt.gif)
+![Custom prompt demo](https://raw.githubusercontent.com/Duobi-AI/dobby-ai/docs/pr-demo-gifs/toolbar-custom-prompt.gif)
 
 ### UX
 - **Pin & drag** — pin the chat bubble and drag it anywhere on the page
@@ -75,7 +75,7 @@ Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/fob
 ### Manual Installation
 
 ```bash
-git clone https://github.com/zhongnansu/dobby-ai.git
+git clone https://github.com/Duobi-AI/dobby-ai.git
 cd dobby-ai
 npm install
 npm run build
@@ -175,10 +175,17 @@ When you select text, the detection engine analyzes it to suggest relevant prese
 
 | Workflow | Purpose |
 |----------|---------|
-| `ci.yml` | Build + tests + manifest linting on every push/PR |
-| `coverage.yml` | Code coverage reporting (80% threshold) |
-| `security.yml` | Security scanning |
-| `release.yml` | Build + GitHub Release + Chrome Web Store publish |
+| `ci.yml` | Extension build/tests, proxy tests, manifest linting, Playwright E2E, and packaging on every push/PR |
+| `coverage.yml` | PR coverage reporting with an 80% threshold |
+| `security.yml` | Root and proxy `npm audit`, dangerous pattern scan, and manifest permission audit |
+| `pr-preview.yml` | Built extension artifact from `dist/`, plus PR preview comment and permission diff |
+| `permission-guard.yml` | Fails PRs that add extension permissions until they are reviewed |
+| `auto-label.yml` | Applies PR labels based on changed files |
+| `release.yml` | Tag-based build, GitHub Release, and Chrome Web Store publish |
+| `version-bump.yml` | Manual version bump branch and release PR creation |
+| `token-count.yml` | Updates the repository token-count badge |
+
+E2E tests run inside `ci.yml`; there is no separate `e2e.yml` workflow.
 
 ## Contributing
 
