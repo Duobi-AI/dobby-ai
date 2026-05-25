@@ -15,7 +15,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .nvmrc
           cache: 'npm'
 
       - run: npm ci
@@ -50,32 +50,93 @@ jobs:
           files: dobby-ai-*.zip
           generate_release_notes: true
 
-      - name: Publish to Chrome Web Store
-        if: env.CHROME_CLIENT_ID != ''
+      - name: Check Chrome Web Store credentials
+        id: chrome_creds
         env:
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
         run: |
+          missing=0
+          for name in CHROME_CLIENT_ID CHROME_CLIENT_SECRET CHROME_REFRESH_TOKEN CHROME_EXTENSION_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::notice::$name is not configured; skipping Chrome Web Store publish."
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -eq 0 ]; then
+            echo "can_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "can_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to Chrome Web Store
+        if: steps.chrome_creds.outputs.can_publish == 'true'
+        env:
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+        run: |
+          set -euo pipefail
+
+          ZIP_FILE="dobby-ai-${GITHUB_REF#refs/tags/}.zip"
+
           # Get access token
-          ACCESS_TOKEN=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+          TOKEN_RESPONSE=$(curl -sS -f -X POST "https://oauth2.googleapis.com/token" \
             -d "client_id=$CHROME_CLIENT_ID" \
             -d "client_secret=$CHROME_CLIENT_SECRET" \
             -d "refresh_token=$CHROME_REFRESH_TOKEN" \
-            -d "grant_type=refresh_token" | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).access_token))")
+            -d "grant_type=refresh_token")
+
+          ACCESS_TOKEN=$(node -e "
+            const response = JSON.parse(process.argv[1]);
+            if (!response.access_token) {
+              console.error('OAuth response did not include an access token');
+              process.exit(1);
+            }
+            process.stdout.write(response.access_token);
+          " "$TOKEN_RESPONSE")
 
           # Upload zip
-          UPLOAD_RESULT=$(curl -s -X PUT \
+          UPLOAD_STATUS=$(curl -sS -o /tmp/chrome-upload.json -w "%{http_code}" -X PUT \
             "https://www.googleapis.com/upload/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "x-goog-api-version: 2" \
-            -T dobby-ai-${GITHUB_REF#refs/tags/}.zip)
-          echo "Upload result: $UPLOAD_RESULT"
+            -T "$ZIP_FILE")
+          cat /tmp/chrome-upload.json
+          echo
+          if [ "$UPLOAD_STATUS" -lt 200 ] || [ "$UPLOAD_STATUS" -ge 300 ]; then
+            echo "::error::Chrome Web Store upload failed with HTTP $UPLOAD_STATUS"
+            exit 1
+          fi
+          node -e "
+            const fs = require('fs');
+            const response = JSON.parse(fs.readFileSync('/tmp/chrome-upload.json', 'utf8'));
+            if (response.error) {
+              console.error('Chrome Web Store upload failed:', JSON.stringify(response.error));
+              process.exit(1);
+            }
+          "
 
           # Publish
-          PUBLISH_RESULT=$(curl -s -X POST \
+          PUBLISH_STATUS=$(curl -sS -o /tmp/chrome-publish.json -w "%{http_code}" -X POST \
             "https://www.googleapis.com/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID/publish" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "x-goog-api-version: 2")
-          echo "Publish result: $PUBLISH_RESULT"
+          cat /tmp/chrome-publish.json
+          echo
+          if [ "$PUBLISH_STATUS" -lt 200 ] || [ "$PUBLISH_STATUS" -ge 300 ]; then
+            echo "::error::Chrome Web Store publish failed with HTTP $PUBLISH_STATUS"
+            exit 1
+          fi
+          node -e "
+            const fs = require('fs');
+            const response = JSON.parse(fs.readFileSync('/tmp/chrome-publish.json', 'utf8'));
+            if (response.error) {
+              console.error('Chrome Web Store publish failed:', JSON.stringify(response.error));
+              process.exit(1);
+            }
+          "
