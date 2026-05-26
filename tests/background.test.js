@@ -412,6 +412,30 @@ describe('chat-stream integration', () => {
     expect(calledUrl).toContain('workers.dev');
   });
 
+  it('records chat usage with remaining free quota', async () => {
+    const { port, getHandler } = createStreamPort();
+    const connectHandler = connectListeners[0];
+    connectHandler(port);
+
+    fetch.mockResolvedValue(makeSSEResponse([
+      'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]));
+
+    const handler = getHandler();
+    await handler({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    await vi.waitFor(() => {
+      expect(mockStorageSet).toHaveBeenCalledWith({
+        dobbyUsage: expect.objectContaining({
+          chatRequests: 1,
+          freeChatRemaining: 25,
+          usingOwnKey: false,
+        }),
+      });
+    });
+  });
+
   it('calls OpenAI directly when user has API key', async () => {
     const { port, getHandler } = createStreamPort();
     const connectHandler = connectListeners[0];
@@ -593,6 +617,29 @@ describe('autosuggest-stream port', () => {
       expect(port.postMessage).toHaveBeenCalledWith({ type: 'token', text: 'Hello' });
       expect(port.postMessage).toHaveBeenCalledWith({ type: 'token', text: ' world' });
       expect(port.postMessage).toHaveBeenCalledWith({ type: 'done' });
+    });
+  });
+
+  it('records autosuggest usage', async () => {
+    const { port, getHandler } = createAutosuggestPort();
+    const autosuggestHandler = connectListeners[1];
+    autosuggestHandler(port);
+
+    fetch.mockResolvedValue(makeSSEResponse([
+      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]));
+
+    const handler = getHandler();
+    await handler({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    await vi.waitFor(() => {
+      expect(mockStorageSet).toHaveBeenCalledWith({
+        dobbyUsage: expect.objectContaining({
+          autosuggestRequests: 1,
+          usingOwnKey: false,
+        }),
+      });
     });
   });
 

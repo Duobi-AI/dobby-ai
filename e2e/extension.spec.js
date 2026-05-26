@@ -43,11 +43,11 @@ test('popup page loads and toggle works', async () => {
   // Click to toggle off
   await toggleLabel.click();
   const status = popupPage.locator('#status');
-  await expect(status).toHaveText('Disabled');
+  await expect(status).toHaveText('Off');
 
   // Click to toggle back on (toggleLabel already references .first())
   await toggleLabel.click();
-  await expect(status).toHaveText('Enabled');
+  await expect(status).toHaveText('On');
 
   await popupPage.close();
 });

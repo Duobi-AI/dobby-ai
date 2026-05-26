@@ -4,11 +4,57 @@
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../shared/autosuggest-limits.js';
 
 const PROXY_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev/chat';
+const USAGE_STORAGE_KEY = 'dobbyUsage';
 // HMAC_SECRET is intentionally in extension source — it's light obfuscation per spec.
 // Real defense is IP rate limiting on the proxy.
 const HMAC_SECRET = 'dobby-ai-v2-hmac-key-change-in-production';
 // Set to your dev token to bypass rate limits during development; leave empty for normal user behavior
 const DEV_BYPASS_TOKEN = '';
+
+function getUtcDay() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function createEmptyUsage() {
+  return {
+    day: getUtcDay(),
+    chatRequests: 0,
+    autosuggestRequests: 0,
+    screenshotRequests: 0,
+    freeChatRemaining: null,
+    usingOwnKey: false,
+    lastUpdated: Date.now(),
+  };
+}
+
+async function recordUsage(kind, details = {}) {
+  try {
+    const stored = await chrome.storage.local.get(USAGE_STORAGE_KEY);
+    const current = stored[USAGE_STORAGE_KEY];
+    const usage = current && current.day === getUtcDay() ? { ...current } : createEmptyUsage();
+
+    if (!details.rateLimited) {
+      if (kind === 'chat') usage.chatRequests = (usage.chatRequests || 0) + 1;
+      if (kind === 'autosuggest') usage.autosuggestRequests = (usage.autosuggestRequests || 0) + 1;
+      if (kind === 'screenshot') usage.screenshotRequests = (usage.screenshotRequests || 0) + 1;
+    }
+
+    if (kind === 'chat' && details.remaining != null && !details.usingOwnKey) {
+      usage.freeChatRemaining = details.remaining;
+    }
+    if (details.remaining === 0 && !details.usingOwnKey) {
+      usage.freeChatRemaining = 0;
+    }
+    if (details.usingOwnKey != null) {
+      usage.usingOwnKey = details.usingOwnKey;
+    }
+    usage.lastUpdated = Date.now();
+
+    await chrome.storage.local.set({ [USAGE_STORAGE_KEY]: usage });
+  } catch (e) {
+    console.warn('[Dobby AI] Failed to record usage:', e.message);
+  }
+}
 
 // --- Context Menu ---
 
@@ -187,6 +233,7 @@ chrome.runtime.onConnect.addListener((port) => {
       if (response.status === 429) {
         let data;
         try { data = await response.json(); } catch (e) { console.warn('[Dobby AI] Failed to parse rate limit response'); data = { remaining: 0 }; }
+        await recordUsage('chat', { remaining: data.remaining ?? 0, usingOwnKey: false, rateLimited: true });
         try { port.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0, resetAt: data.resetAt }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
         return;
       }
@@ -207,6 +254,7 @@ chrome.runtime.onConnect.addListener((port) => {
       for await (const token of parseSSEStream(reader)) {
         try { port.postMessage({ type: 'token', text: token }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); break; }
       }
+      await recordUsage('chat', { remaining, usingOwnKey });
       try { port.postMessage({ type: 'done', remaining, usingOwnKey }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -277,6 +325,7 @@ chrome.runtime.onConnect.addListener((port) => {
       if (response.status === 429) {
         let data;
         try { data = await response.json(); } catch (e) { data = { remaining: 0 }; }
+        await recordUsage('autosuggest', { usingOwnKey: false, rateLimited: true });
         try { port.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0 }); } catch (e) { /* port closed */ }
         return;
       }
@@ -293,6 +342,7 @@ chrome.runtime.onConnect.addListener((port) => {
       for await (const token of parseSSEStream(reader)) {
         try { port.postMessage({ type: 'token', text: token }); } catch (e) { break; }
       }
+      await recordUsage('autosuggest', { usingOwnKey: !!stored.userApiKey });
       try { port.postMessage({ type: 'done' }); } catch (e) { /* port closed */ }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -316,6 +366,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (chrome.runtime.lastError || !dataUrl) {
         sendResponse({ error: 'Screenshot failed' });
       } else {
+        recordUsage('screenshot');
         sendResponse({ dataUrl });
       }
     });

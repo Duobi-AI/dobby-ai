@@ -5,7 +5,7 @@ import { setDobbyEnabled, setAutosuggestEnabled, setScreenshotEnabled } from './
 import { initAutosuggest, destroyAutosuggest } from './autosuggest/index.js';
 import { registerListeners } from './trigger/selection.js';
 import { hideTrigger } from './trigger/button.js';
-import { showBubbleWithPresets, showBubble, hideBubble, getBubbleContainer } from './bubble/core.js';
+import { showBubbleWithPresets, showBubble, showHistoryBubble, hideBubble, getBubbleContainer } from './bubble/core.js';
 import { buildChatMessages } from './prompt.js';
 import { captureImage } from './image-capture.js';
 import { isClickInsideUI } from './shared/dom-utils.js';
@@ -55,8 +55,19 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 });
 
-// Context menu message handler
+// Context menu and popup action message handler
 chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'SHOW_HISTORY') {
+    const rect = {
+      top: window.innerHeight / 3 - 8,
+      bottom: window.innerHeight / 3,
+      left: window.innerWidth / 4,
+      right: window.innerWidth * 3 / 4,
+    };
+    (async () => { await showHistoryBubble(rect); })();
+    return;
+  }
+
   if (msg.type === 'SHOW_BUBBLE') {
     const rect = {
       top: window.innerHeight / 3 - 8,
