@@ -69,7 +69,7 @@ async function loadPopup(initialStorage = {}) {
       sendMessage: vi.fn(() => Promise.resolve()),
     },
     runtime: {
-      getManifest: vi.fn(() => ({ version: '1.1.0' })),
+      getManifest: vi.fn(() => ({ version: '1.2.0' })),
       openOptionsPage: vi.fn(),
     },
   };
@@ -84,7 +84,7 @@ describe('popup.js', () => {
 
   describe('initial state', () => {
     it('renders the manifest version', () => {
-      expect(document.getElementById('version').textContent).toBe('v1.1.0');
+      expect(document.getElementById('version').textContent).toBe('v1.2.0');
     });
 
     it('loads default toggle states', () => {
