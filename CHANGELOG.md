@@ -5,6 +5,22 @@ All notable changes to Dobby AI (formerly Ask AI) will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-26
+
+### Added
+- Popup usage monitor with API status, request/token totals, and quick actions for history, clearing usage, and settings
+- Keyboard shortcuts for toggling Dobby AI and screenshot mode
+- Per-message copy button for AI responses
+- Popup controls for theme, screenshot mode, and auto-suggest behavior
+
+### Changed
+- Hardened CI/CD workflows and refreshed release documentation
+
+### Fixed
+- Dependency advisories in extension and proxy lockfiles
+- Auto-suggest initialization and token-limit handling
+- Selected image handling, prompt budgeting, and null image capture inputs
+
 ## [2.1.0] - 2026-03-11
 
 ### Changed
@@ -78,7 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Page context injection (title + URL)
 - CI/CD workflows (tests, coverage, security, release, PR preview, permission guard)
 
-[2.1.0]: https://github.com/zhongnansu/dobby-ai/compare/v2.0.0...v2.1.0
-[2.0.0]: https://github.com/zhongnansu/dobby-ai/compare/v1.1.0...v2.0.0
-[1.1.0]: https://github.com/zhongnansu/dobby-ai/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/zhongnansu/dobby-ai/releases/tag/v1.0.0
+[1.2.0]: https://github.com/Duobi-AI/dobby-ai/compare/v1.1.0...v1.2.0
+[2.1.0]: https://github.com/Duobi-AI/dobby-ai/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/Duobi-AI/dobby-ai/compare/v1.1.0...v2.0.0
+[1.1.0]: https://github.com/Duobi-AI/dobby-ai/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/Duobi-AI/dobby-ai/releases/tag/v1.0.0
