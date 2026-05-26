@@ -33,6 +33,7 @@ global.chrome = {
 vi.mock('../src/content/bubble/core.js', () => ({
   showBubble: vi.fn(),
   showBubbleWithPresets: vi.fn(),
+  showHistoryBubble: vi.fn(),
   hideBubble: vi.fn(),
   getBubbleContainer: vi.fn(),
 }));
@@ -83,7 +84,7 @@ vi.mock('../src/content/shared/dom-utils.js', () => ({
   }),
 }));
 
-const { showBubble, showBubbleWithPresets, hideBubble, getBubbleContainer } = await import('../src/content/bubble/core.js');
+const { showBubble, showBubbleWithPresets, showHistoryBubble, hideBubble, getBubbleContainer } = await import('../src/content/bubble/core.js');
 const { buildChatMessages } = await import('../src/content/prompt.js');
 const { captureImage } = await import('../src/content/image-capture.js');
 
@@ -164,6 +165,17 @@ describe('content/index.js', () => {
       expect(showBubble).not.toHaveBeenCalled();
       expect(showBubbleWithPresets).not.toHaveBeenCalled();
       expect(buildChatMessages).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('SHOW_HISTORY from popup', () => {
+    it('opens the history bubble', () => {
+      const listener = messageListeners[3];
+      listener({ type: 'SHOW_HISTORY' });
+
+      expect(showHistoryBubble).toHaveBeenCalledWith(
+        expect.objectContaining({ bottom: expect.any(Number), left: expect.any(Number), right: expect.any(Number) }),
+      );
     });
   });
 

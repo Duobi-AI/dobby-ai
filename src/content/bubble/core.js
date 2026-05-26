@@ -360,6 +360,15 @@ export async function showBubble(selectionRect, messages, selectedText, instruct
   activateResponseSection(shadow, messages);
 }
 
+export async function showHistoryBubble(selectionRect) {
+  const shadow = await initBubble(selectionRect, '', 'History', false, null);
+  const responseSection = shadow.querySelector('.response-section');
+  if (responseSection) responseSection.classList.add('active');
+  const status = shadow.querySelector('.bubble-status');
+  if (status) status.textContent = 'history';
+  await showHistoryPanel(shadow);
+}
+
 export function hideBubble() {
   if (renderTimer) { clearTimeout(renderTimer); setRenderTimer(null); }
   if (currentRequest) {

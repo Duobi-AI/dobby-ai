@@ -4,22 +4,12 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    width: 200px;
+    width: 268px;
     padding: 12px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 13px;
     color: #18181b;
     background: #fff;
-  }
-  @media (prefers-color-scheme: dark) {
-    body { background: #1e1e28; color: #e4e4e7; }
-    .toggle-row, .theme-row { border-bottom-color: rgba(255,255,255,0.08); }
-    .status { color: #a1a1aa; }
-    .settings-link { color: #a78bfa; }
-    .theme-segment { background: #2a2a3a; border-color: rgba(255,255,255,0.08); }
-    .theme-option { color: #a1a1aa; }
-    .theme-option:hover { color: #e4e4e7; }
-    .theme-option.active { background: #7c3aed; color: #fff; }
   }
   .theme-row {
     display: flex;
@@ -56,9 +46,32 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     font-weight: 600;
     font-size: 14px;
+  }
+  .header-text { flex: 1; min-width: 0; }
+  .version { font-size: 11px; color: #71717a; font-weight: 400; }
+  .usage-card {
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #fafafa;
+  }
+  .usage-card.ok { border-color: rgba(22,163,74,0.18); }
+  .usage-card.warning { border-color: rgba(245,158,11,0.28); background: #fffbeb; }
+  .usage-card.danger { border-color: rgba(239,68,68,0.28); background: #fef2f2; }
+  .usage-primary {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  .usage-secondary {
+    margin-top: 4px;
+    color: #71717a;
+    font-size: 11px;
+    line-height: 1.4;
   }
   .toggle-row {
     display: flex;
@@ -68,7 +81,20 @@
     margin-bottom: 10px;
     border-bottom: 1px solid rgba(0,0,0,0.06);
   }
+  .toggle-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
   .status { font-size: 12px; color: #71717a; }
+  .toggle-label { font-size: 12px; color: inherit; }
+  .state-badge {
+    font-size: 11px;
+    color: #71717a;
+  }
+  .state-badge.on { color: #15803d; }
+  .state-badge.off { color: #b91c1c; }
   .toggle {
     position: relative;
     width: 36px;
@@ -117,31 +143,103 @@
     text-decoration: none;
     cursor: pointer;
   }
+  .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .quick-action {
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 7px;
+    background: #fff;
+    color: #18181b;
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+    min-height: 30px;
+    padding: 5px 6px;
+  }
+  .quick-action:hover { background: #f4f4f5; }
+  .quick-action:disabled { cursor: not-allowed; opacity: 0.55; }
+  .action-feedback {
+    min-height: 14px;
+    margin-top: -4px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: #71717a;
+    text-align: center;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1e1e28; color: #e4e4e7; }
+    .toggle-row, .theme-row, .usage-card, .quick-actions { border-color: rgba(255,255,255,0.08); }
+    .status, .usage-secondary, .action-feedback, .state-badge, .version { color: #a1a1aa; }
+    .settings-link { color: #a78bfa; }
+    .usage-card { background: #242432; }
+    .usage-card.warning { background: #3a3018; border-color: rgba(245,158,11,0.3); }
+    .usage-card.danger { background: #3a1f24; border-color: rgba(239,68,68,0.3); }
+    .state-badge.on { color: #86efac; }
+    .state-badge.off { color: #fca5a5; }
+    .quick-action { background: #2a2a3a; color: #e4e4e7; border-color: rgba(255,255,255,0.08); }
+    .quick-action:hover { background: #333348; }
+    .quick-action:disabled { color: #71717a; }
+    .theme-segment { background: #2a2a3a; border-color: rgba(255,255,255,0.08); }
+    .theme-option { color: #a1a1aa; }
+    .theme-option:hover { color: #e4e4e7; }
+    .theme-option.active { background: #7c3aed; color: #fff; }
+  }
 </style>
 </head>
 <body>
-  <div class="header">&#10022; Dobby AI</div>
+  <div class="header">
+    <span>&#10022;</span>
+    <div class="header-text">
+      <div>Dobby AI</div>
+      <div class="version" id="version"></div>
+    </div>
+  </div>
+  <div class="usage-card" id="usage-card">
+    <div class="usage-primary" id="usage-primary">Loading usage...</div>
+    <div class="usage-secondary" id="usage-secondary"></div>
+  </div>
   <div class="toggle-row">
-    <span class="status" id="status">Enabled</span>
+    <div class="toggle-copy">
+      <span class="toggle-label">Dobby on this browser</span>
+      <span class="state-badge" id="status">On</span>
+    </div>
     <label class="toggle">
       <input type="checkbox" id="enabled" checked aria-label="Enable or disable Dobby AI">
       <span class="slider"></span>
     </label>
   </div>
   <div class="toggle-row">
-    <span class="status" id="screenshot-status" title="Long-press anywhere to screenshot a region and ask AI about it.">Screenshot mode</span>
+    <div class="toggle-copy">
+      <span class="toggle-label" title="Long-press anywhere to screenshot a region and ask AI about it.">Long-press screenshots</span>
+      <span class="state-badge" id="screenshot-status">On</span>
+    </div>
     <label class="toggle">
       <input type="checkbox" id="screenshot-enabled" checked aria-label="Enable or disable screenshot mode">
       <span class="slider"></span>
     </label>
   </div>
   <div class="toggle-row">
-    <span class="status" id="autosuggest-status" title="Works in standard text fields (textarea). Gmail, Docs, and Notion support coming soon.">Auto-suggest</span>
+    <div class="toggle-copy">
+      <span class="toggle-label" title="Works in standard text fields (textarea). Gmail, Docs, and Notion support coming soon.">Text auto-suggest</span>
+      <span class="state-badge" id="autosuggest-status">Off</span>
+    </div>
     <label class="toggle">
       <input type="checkbox" id="autosuggest-enabled" aria-label="Enable or disable auto-suggest">
       <span class="slider"></span>
     </label>
   </div>
+  <div class="quick-actions">
+    <button class="quick-action" id="history">History</button>
+    <button class="quick-action" id="clear-history">Clear</button>
+    <button class="quick-action" id="settings">Settings</button>
+  </div>
+  <div class="action-feedback" id="action-feedback"></div>
   <div class="theme-row">
     <span class="status">Theme</span>
     <div class="theme-segment" id="theme-segment" role="group" aria-label="Theme">
@@ -150,7 +248,6 @@
       <button class="theme-option" data-theme="dark" aria-pressed="false">Dark</button>
     </div>
   </div>
-  <a class="settings-link" id="settings">Settings</a>
   <script src="popup.js"></script>
 </body>
 </html>

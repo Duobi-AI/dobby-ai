@@ -7,6 +7,11 @@ const keyStatus = document.getElementById('key-status');
 const hasKeySection = document.getElementById('has-key');
 const noKeySection = document.getElementById('no-key');
 const keyDisplay = document.getElementById('key-display');
+const versionEl = document.getElementById('extension-version');
+
+if (versionEl && chrome.runtime.getManifest) {
+  versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
+}
 
 function maskKey(key) {
   if (!key || key.length < 12) return '••••••••';

@@ -3,234 +3,290 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const storageGetCallbacks = {};
+let mockStorage;
+let mockTabs;
 
-// Set up DOM elements before importing popup.js
-document.body.innerHTML = `
-  <input type="checkbox" id="enabled" />
-  <span id="status"></span>
-  <input type="checkbox" id="screenshot-enabled" checked />
-  <span id="screenshot-status">Screenshot mode</span>
-  <input type="checkbox" id="autosuggest-enabled" />
-  <span id="autosuggest-status" title="Works in standard text fields (textarea). Gmail, Docs, and Notion support coming soon.">Auto-suggest</span>
-  <div id="theme-segment">
-    <button class="theme-option active" data-theme="auto">Auto</button>
-    <button class="theme-option" data-theme="light">Light</button>
-    <button class="theme-option" data-theme="dark">Dark</button>
-  </div>
-  <a id="settings" href="#">Settings</a>
-`;
+function currentUtcDay() {
+  return new Date().toISOString().split('T')[0];
+}
 
-global.chrome = {
-  storage: {
-    local: {
-      get: vi.fn((key, cb) => { storageGetCallbacks[key] = cb; }),
-      set: vi.fn(),
+function setupDom() {
+  document.body.innerHTML = `
+    <div id="version"></div>
+    <div id="usage-card" class="usage-card">
+      <div id="usage-primary"></div>
+      <div id="usage-secondary"></div>
+    </div>
+    <input type="checkbox" id="enabled" />
+    <span id="status"></span>
+    <input type="checkbox" id="screenshot-enabled" checked />
+    <span id="screenshot-status"></span>
+    <input type="checkbox" id="autosuggest-enabled" />
+    <span id="autosuggest-status"></span>
+    <button id="history">History</button>
+    <button id="clear-history">Clear</button>
+    <button id="settings">Settings</button>
+    <div id="action-feedback"></div>
+    <div id="theme-segment">
+      <button class="theme-option active" data-theme="auto">Auto</button>
+      <button class="theme-option" data-theme="light">Light</button>
+      <button class="theme-option" data-theme="dark">Dark</button>
+    </div>
+  `;
+}
+
+function getStorageResult(keys) {
+  if (Array.isArray(keys)) {
+    return keys.reduce((acc, key) => {
+      if (Object.prototype.hasOwnProperty.call(mockStorage, key)) acc[key] = mockStorage[key];
+      return acc;
+    }, {});
+  }
+  if (typeof keys === 'string') {
+    return Object.prototype.hasOwnProperty.call(mockStorage, keys) ? { [keys]: mockStorage[keys] } : {};
+  }
+  return {};
+}
+
+async function loadPopup(initialStorage = {}) {
+  vi.resetModules();
+  setupDom();
+  mockStorage = { ...initialStorage };
+  mockTabs = [];
+
+  global.chrome = {
+    storage: {
+      local: {
+        get: vi.fn((keys, cb) => cb(getStorageResult(keys))),
+        set: vi.fn((data, cb) => {
+          Object.assign(mockStorage, data);
+          if (cb) cb();
+        }),
+      },
     },
-  },
-  tabs: {
-    query: vi.fn((q, cb) => cb([])),
-    sendMessage: vi.fn(() => Promise.resolve()),
-  },
-  runtime: {
-    openOptionsPage: vi.fn(),
-  },
-};
+    tabs: {
+      query: vi.fn((query, cb) => cb(mockTabs)),
+      sendMessage: vi.fn(() => Promise.resolve()),
+    },
+    runtime: {
+      getManifest: vi.fn(() => ({ version: '1.1.0' })),
+      openOptionsPage: vi.fn(),
+    },
+  };
 
-await import('../src/popup.js');
-
-const toggle = document.getElementById('enabled');
-const status = document.getElementById('status');
-const settingsLink = document.getElementById('settings');
+  await import('../src/popup.js');
+}
 
 describe('popup.js', () => {
+  beforeEach(async () => {
+    await loadPopup();
+  });
+
   describe('initial state', () => {
-    it('loads enabled state from storage (default enabled)', () => {
-      // Trigger the storage callback with empty data (default = enabled)
-      storageGetCallbacks['dobbyEnabled']({});
-      expect(toggle.checked).toBe(true);
-      expect(status.textContent).toBe('Enabled');
+    it('renders the manifest version', () => {
+      expect(document.getElementById('version').textContent).toBe('v1.1.0');
     });
 
-    it('loads disabled state from storage when explicitly disabled', () => {
-      storageGetCallbacks['dobbyEnabled']({ dobbyEnabled: false });
-      expect(toggle.checked).toBe(false);
-      expect(status.textContent).toBe('Disabled');
+    it('loads default toggle states', () => {
+      expect(document.getElementById('enabled').checked).toBe(true);
+      expect(document.getElementById('status').textContent).toBe('On');
+      expect(document.getElementById('screenshot-enabled').checked).toBe(true);
+      expect(document.getElementById('screenshot-status').textContent).toBe('On');
+      expect(document.getElementById('autosuggest-enabled').checked).toBe(false);
+      expect(document.getElementById('autosuggest-status').textContent).toBe('Off');
     });
 
-    it('loads enabled state from storage when explicitly enabled', () => {
-      storageGetCallbacks['dobbyEnabled']({ dobbyEnabled: true });
-      expect(toggle.checked).toBe(true);
-      expect(status.textContent).toBe('Enabled');
+    it('loads explicit disabled/enabled settings from storage', async () => {
+      await loadPopup({
+        dobbyEnabled: false,
+        screenshotEnabled: false,
+        autosuggestEnabled: true,
+      });
+
+      expect(document.getElementById('enabled').checked).toBe(false);
+      expect(document.getElementById('status').textContent).toBe('Off');
+      expect(document.getElementById('screenshot-enabled').checked).toBe(false);
+      expect(document.getElementById('screenshot-status').textContent).toBe('Off');
+      expect(document.getElementById('autosuggest-enabled').checked).toBe(true);
+      expect(document.getElementById('autosuggest-status').textContent).toBe('On');
     });
   });
 
-  describe('toggle change', () => {
+  describe('usage status', () => {
+    it('shows default free-tier message before quota is synced', () => {
+      expect(document.getElementById('usage-primary').textContent).toBe('30 free questions/day');
+      expect(document.getElementById('usage-secondary').textContent).toContain('Ask once to sync');
+    });
+
+    it('shows remaining free quota and local counters', async () => {
+      await loadPopup({
+        dobbyUsage: {
+          day: currentUtcDay(),
+          freeChatRemaining: 18,
+          chatRequests: 12,
+          autosuggestRequests: 7,
+          screenshotRequests: 2,
+        },
+      });
+
+      expect(document.getElementById('usage-primary').textContent).toBe('18/30 free left');
+      expect(document.getElementById('usage-secondary').textContent).toContain('12 chats, 7 suggestions, 2 screenshots');
+      expect(document.getElementById('usage-card').classList.contains('ok')).toBe(true);
+    });
+
+    it('warns when free quota is low', async () => {
+      await loadPopup({
+        dobbyUsage: {
+          day: currentUtcDay(),
+          freeChatRemaining: 4,
+          chatRequests: 26,
+        },
+      });
+
+      expect(document.getElementById('usage-primary').textContent).toBe('4/30 free left');
+      expect(document.getElementById('usage-card').classList.contains('warning')).toBe(true);
+    });
+
+    it('shows limit reached when free quota is exhausted', async () => {
+      await loadPopup({
+        dobbyUsage: {
+          day: currentUtcDay(),
+          freeChatRemaining: 0,
+          chatRequests: 30,
+        },
+      });
+
+      expect(document.getElementById('usage-primary').textContent).toBe('Free quota used');
+      expect(document.getElementById('usage-card').classList.contains('danger')).toBe(true);
+    });
+
+    it('shows API key status when a key is configured', async () => {
+      await loadPopup({
+        userApiKey: 'sk-user',
+        dobbyUsage: {
+          day: currentUtcDay(),
+          chatRequests: 3,
+          autosuggestRequests: 2,
+          screenshotRequests: 1,
+        },
+      });
+
+      expect(document.getElementById('usage-primary').textContent).toBe('Using your API key');
+      expect(document.getElementById('usage-secondary').textContent).toContain('3 chats, 2 suggestions, 1 screenshots');
+    });
+
+    it('ignores stale usage from previous UTC days', async () => {
+      await loadPopup({
+        dobbyUsage: {
+          day: '2000-01-01',
+          freeChatRemaining: 1,
+          chatRequests: 29,
+        },
+      });
+
+      expect(document.getElementById('usage-primary').textContent).toBe('30 free questions/day');
+    });
+  });
+
+  describe('toggle changes', () => {
     beforeEach(() => {
       vi.clearAllMocks();
-      // Re-mock tabs.query so it provides tabs
-      chrome.tabs.query.mockImplementation((q, cb) => cb([]));
-      chrome.tabs.sendMessage.mockReturnValue(Promise.resolve());
+      mockTabs = [{ id: 1 }, { id: 2 }];
     });
 
-    it('updates status text to Disabled when unchecked', () => {
-      toggle.checked = false;
-      toggle.dispatchEvent(new Event('change'));
-      expect(status.textContent).toBe('Disabled');
-    });
+    it('persists and broadcasts Dobby enabled state', () => {
+      const input = document.getElementById('enabled');
+      input.checked = false;
+      input.dispatchEvent(new Event('change'));
 
-    it('updates status text to Enabled when checked', () => {
-      toggle.checked = true;
-      toggle.dispatchEvent(new Event('change'));
-      expect(status.textContent).toBe('Enabled');
-    });
-
-    it('calls chrome.storage.local.set with correct value', () => {
-      toggle.checked = true;
-      toggle.dispatchEvent(new Event('change'));
-      expect(chrome.storage.local.set).toHaveBeenCalledWith({ dobbyEnabled: true });
-
-      toggle.checked = false;
-      toggle.dispatchEvent(new Event('change'));
       expect(chrome.storage.local.set).toHaveBeenCalledWith({ dobbyEnabled: false });
+      expect(document.getElementById('status').textContent).toBe('Off');
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'DOBBY_TOGGLE', enabled: false });
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { type: 'DOBBY_TOGGLE', enabled: false });
     });
 
-    it('broadcasts DOBBY_TOGGLE message to all http/https tabs', () => {
-      const mockTabs = [{ id: 1 }, { id: 2 }];
-      chrome.tabs.query.mockImplementation((q, cb) => cb(mockTabs));
+    it('persists and broadcasts screenshot state', () => {
+      const input = document.getElementById('screenshot-enabled');
+      input.checked = false;
+      input.dispatchEvent(new Event('change'));
 
-      toggle.checked = true;
-      toggle.dispatchEvent(new Event('change'));
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({ screenshotEnabled: false });
+      expect(document.getElementById('screenshot-status').textContent).toBe('Off');
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'SCREENSHOT_TOGGLE', enabled: false });
+    });
 
-      expect(chrome.tabs.query).toHaveBeenCalledWith(
-        { url: ['http://*/*', 'https://*/*'] },
-        expect.any(Function),
-      );
-      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'DOBBY_TOGGLE', enabled: true });
-      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { type: 'DOBBY_TOGGLE', enabled: true });
+    it('persists and broadcasts autosuggest state', () => {
+      const input = document.getElementById('autosuggest-enabled');
+      input.checked = true;
+      input.dispatchEvent(new Event('change'));
+
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({ autosuggestEnabled: true });
+      expect(document.getElementById('autosuggest-status').textContent).toBe('On');
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'AUTOSUGGEST_TOGGLE', enabled: true });
     });
   });
 
-  describe('settings link', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
-    it('opens options page when clicked', () => {
-      settingsLink.click();
+  describe('quick actions', () => {
+    it('opens options page from Settings', () => {
+      document.getElementById('settings').click();
       expect(chrome.runtime.openOptionsPage).toHaveBeenCalled();
     });
-  });
 
-  describe('screenshot mode toggle', () => {
-    it('renders screenshot toggle', () => {
-      const toggle = document.getElementById('screenshot-enabled');
-      expect(toggle).not.toBeNull();
-      expect(toggle.type).toBe('checkbox');
+    it('disables history actions when there is no history', () => {
+      expect(document.getElementById('history').disabled).toBe(true);
+      expect(document.getElementById('clear-history').disabled).toBe(true);
     });
 
-    it('defaults to enabled', () => {
-      storageGetCallbacks['screenshotEnabled']({});
-      const toggle = document.getElementById('screenshot-enabled');
-      expect(toggle.checked).toBe(true);
+    it('opens history on the active tab when history exists', async () => {
+      await loadPopup({ chatHistory: [{ id: '1', text: 'hello' }] });
+      mockTabs = [{ id: 7 }];
+
+      document.getElementById('history').click();
+
+      expect(chrome.tabs.query).toHaveBeenCalledWith(
+        { active: true, currentWindow: true },
+        expect.any(Function),
+      );
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(7, { type: 'SHOW_HISTORY' });
+      await vi.waitFor(() => {
+        expect(document.getElementById('action-feedback').textContent).toBe('History opened on this page.');
+      });
     });
 
-    it('persists toggle state to chrome.storage', () => {
-      vi.clearAllMocks();
-      chrome.tabs.query.mockImplementation((q, cb) => cb([]));
-      const toggle = document.getElementById('screenshot-enabled');
-      toggle.checked = false;
-      toggle.dispatchEvent(new Event('change'));
-      expect(chrome.storage.local.set).toHaveBeenCalledWith({ screenshotEnabled: false });
+    it('shows feedback when history cannot open on the active tab', async () => {
+      await loadPopup({ chatHistory: [{ id: '1', text: 'hello' }] });
+      mockTabs = [];
+
+      document.getElementById('history').click();
+
+      expect(document.getElementById('action-feedback').textContent).toBe('Open a regular webpage to show history.');
     });
 
-    it('notifies content scripts on toggle', () => {
-      vi.clearAllMocks();
-      chrome.tabs.query.mockImplementation((q, cb) => cb([{ id: 1 }]));
-      chrome.tabs.sendMessage.mockReturnValue(Promise.resolve());
-      const toggle = document.getElementById('screenshot-enabled');
-      toggle.checked = false;
-      toggle.dispatchEvent(new Event('change'));
-      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'SCREENSHOT_TOGGLE', enabled: false });
+    it('clears chat history from storage', async () => {
+      await loadPopup({ chatHistory: [{ id: '1', text: 'hello' }] });
+
+      document.getElementById('clear-history').click();
+
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({ chatHistory: [] }, expect.any(Function));
+      expect(mockStorage.chatHistory).toEqual([]);
+      expect(document.getElementById('history').disabled).toBe(true);
+      expect(document.getElementById('action-feedback').textContent).toBe('History cleared.');
     });
   });
 
   describe('theme toggle', () => {
-    it('renders three theme option buttons', () => {
-      const options = document.querySelectorAll('.theme-option');
-      expect(options.length).toBe(3);
-      expect(options[0].dataset.theme).toBe('auto');
-      expect(options[1].dataset.theme).toBe('light');
-      expect(options[2].dataset.theme).toBe('dark');
-    });
-
-    it('defaults to Auto active when theme absent from storage', () => {
-      storageGetCallbacks['theme']({});
-      const options = document.querySelectorAll('.theme-option');
-      expect(options[0].classList.contains('active')).toBe(true);
-      expect(options[1].classList.contains('active')).toBe(false);
-      expect(options[2].classList.contains('active')).toBe(false);
-    });
-
-    it('loads light theme from storage and activates Light button', () => {
-      storageGetCallbacks['theme']({ theme: 'light' });
+    it('loads light theme from storage and activates Light button', async () => {
+      await loadPopup({ theme: 'light' });
       const options = document.querySelectorAll('.theme-option');
       expect(options[0].classList.contains('active')).toBe(false);
       expect(options[1].classList.contains('active')).toBe(true);
       expect(options[2].classList.contains('active')).toBe(false);
-    });
-
-    it('loads dark theme from storage and activates Dark button', () => {
-      storageGetCallbacks['theme']({ theme: 'dark' });
-      const options = document.querySelectorAll('.theme-option');
-      expect(options[0].classList.contains('active')).toBe(false);
-      expect(options[1].classList.contains('active')).toBe(false);
-      expect(options[2].classList.contains('active')).toBe(true);
     });
 
     it('persists theme to chrome.storage on click', () => {
       vi.clearAllMocks();
-      const darkBtn = document.querySelector('.theme-option[data-theme="dark"]');
-      darkBtn.click();
+      document.querySelector('.theme-option[data-theme="dark"]').click();
       expect(chrome.storage.local.set).toHaveBeenCalledWith({ theme: 'dark' });
-    });
-
-    it('updates active class on click', () => {
-      const lightBtn = document.querySelector('.theme-option[data-theme="light"]');
-      lightBtn.click();
-      const options = document.querySelectorAll('.theme-option');
-      expect(options[1].classList.contains('active')).toBe(true);
-      expect(options[0].classList.contains('active')).toBe(false);
-      expect(options[2].classList.contains('active')).toBe(false);
-    });
-  });
-
-  describe('autosuggest toggle', () => {
-    it('renders autosuggest toggle', () => {
-      const toggle = document.getElementById('autosuggest-enabled');
-      expect(toggle).not.toBeNull();
-      expect(toggle.type).toBe('checkbox');
-    });
-
-    it('defaults to disabled', () => {
-      chrome.storage.local.get.mockImplementation((key, cb) => cb({}));
-      const toggle = document.getElementById('autosuggest-enabled');
-      expect(toggle.checked).toBe(false);
-    });
-
-    it('persists toggle state to chrome.storage', () => {
-      const toggle = document.getElementById('autosuggest-enabled');
-      toggle.checked = true;
-      toggle.dispatchEvent(new Event('change'));
-      expect(chrome.storage.local.set).toHaveBeenCalledWith({ autosuggestEnabled: true });
-    });
-
-    it('notifies content scripts on toggle', () => {
-      chrome.tabs.query.mockImplementation((q, cb) => cb([{ id: 1 }]));
-      const toggle = document.getElementById('autosuggest-enabled');
-      toggle.checked = true;
-      toggle.dispatchEvent(new Event('change'));
-      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'AUTOSUGGEST_TOGGLE', enabled: true });
     });
   });
 });

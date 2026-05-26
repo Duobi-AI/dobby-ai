@@ -543,6 +543,7 @@ export async function showTrigger(x, y, selectionData = {}) {
 export function hideTrigger() {
   clearAutoHide();
   removeSelectionHighlight();
+  if (typeof document === 'undefined') return;
   if (outsideClickHandler) {
     document.removeEventListener('mousedown', outsideClickHandler, true);
     outsideClickHandler = null;
