@@ -5,6 +5,11 @@ All notable changes to Dobby AI (formerly Ask AI) will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-05-27
+
+### Changed
+- Replaced legacy logo assets with the approved centered Dobby AI cockapoo logo across the extension, docs, screenshots, and generated icon sizes
+
 ## [1.2.0] - 2026-05-26
 
 ### Added
@@ -94,6 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Page context injection (title + URL)
 - CI/CD workflows (tests, coverage, security, release, PR preview, permission guard)
 
+[1.2.1]: https://github.com/Duobi-AI/dobby-ai/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Duobi-AI/dobby-ai/compare/v1.1.0...v1.2.0
 [2.1.0]: https://github.com/Duobi-AI/dobby-ai/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/Duobi-AI/dobby-ai/compare/v1.1.0...v2.0.0

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Dobby AI",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Select text and get instant AI explanations inline on any page",
   "permissions": ["contextMenus", "activeTab", "storage", "notifications"],
   "host_permissions": [
