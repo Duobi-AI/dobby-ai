@@ -203,7 +203,7 @@ describe('event-driven behavior', () => {
     const host = getHost();
     const shadow = host.shadowRoot;
     const img = shadow.querySelector('.toolbar-icon img');
-    expect(img.src).toContain('data:image/svg+xml');
+    expect(img.src).toContain('data:image/png');
   });
 
   it('showTrigger passes selection data when provided', async () => {

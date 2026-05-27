@@ -1,41 +1,42 @@
-// scripts/generate-icons.js — Generate store icons from cockapoo SVG
+// scripts/generate-icons.js - Generate extension icons from the approved Dobby AI PNG mark
 const fs = require('fs');
-const { execSync } = require('child_process');
+const path = require('path');
+const { chromium } = require('@playwright/test');
 
-const cockapooSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="128" height="128">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#7c3aed"/>
-      <stop offset="100%" stop-color="#5b21b6"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-  <g transform="translate(0, 2) scale(0.9)" transform-origin="32 32">
-    <circle cx="32" cy="30" r="22" fill="#C4956A"/>
-    <circle cx="14" cy="22" r="8" fill="#B8845A"/>
-    <circle cx="50" cy="22" r="8" fill="#B8845A"/>
-    <circle cx="20" cy="12" r="7" fill="#D4A574"/>
-    <circle cx="44" cy="12" r="7" fill="#D4A574"/>
-    <circle cx="32" cy="10" r="7" fill="#C4956A"/>
-    <circle cx="26" cy="8" r="5" fill="#BF8F60"/>
-    <circle cx="38" cy="8" r="5" fill="#BF8F60"/>
-    <ellipse cx="10" cy="34" rx="7" ry="12" fill="#A07048" transform="rotate(-10 10 34)"/>
-    <ellipse cx="54" cy="34" rx="7" ry="12" fill="#A07048" transform="rotate(10 54 34)"/>
-    <ellipse cx="32" cy="34" rx="14" ry="11" fill="#E8C9A0"/>
-    <circle cx="24" cy="28" r="3.5" fill="#2D1B0E"/>
-    <circle cx="40" cy="28" r="3.5" fill="#2D1B0E"/>
-    <circle cx="25.2" cy="27" r="1.2" fill="white"/>
-    <circle cx="41.2" cy="27" r="1.2" fill="white"/>
-    <ellipse cx="32" cy="35" rx="4" ry="3" fill="#2D1B0E"/>
-    <ellipse cx="32" cy="34.5" rx="1.5" ry="0.8" fill="#5A3A1E" opacity="0.4"/>
-    <path d="M28 38 Q32 42 36 38" fill="none" stroke="#2D1B0E" stroke-width="1.2" stroke-linecap="round"/>
-    <ellipse cx="32" cy="41" rx="2.5" ry="3" fill="#E87B7B"/>
-  </g>
-</svg>`;
+const logoPath = path.resolve('icons/dobby-logo-source.png');
+const logoDataUri = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;
 
-// Save SVG
-fs.writeFileSync('icons/store-icon.svg', cockapooSvg);
-console.log('Created icons/store-icon.svg');
-console.log('');
-console.log('To convert to PNG, open icons/store-icon.svg in a browser and screenshot,');
-console.log('or use an online SVG-to-PNG converter at 128x128.');
+async function renderPng(size, outPath) {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({
+    viewport: { width: size, height: size },
+    deviceScaleFactor: 1,
+  });
+  await page.setContent(`
+    <!doctype html>
+    <html>
+      <body style="margin:0;background:transparent;width:${size}px;height:${size}px">
+        <img src="${logoDataUri}" width="${size}" height="${size}" style="display:block">
+      </body>
+    </html>
+  `);
+  await page.screenshot({ path: outPath, omitBackground: true });
+  await browser.close();
+  console.log(`Created ${path.relative(process.cwd(), outPath)}`);
+}
+
+(async () => {
+  await renderPng(16, path.resolve('icons/icon16.png'));
+  await renderPng(48, path.resolve('icons/icon48.png'));
+  await renderPng(128, path.resolve('icons/icon128.png'));
+  await renderPng(128, path.resolve('icons/store-icon-128.png'));
+  await renderPng(128, path.resolve('icons/store-icon.png'));
+  await renderPng(128, path.resolve('docs/images/store-icon.png'));
+
+  const brandLogoDataUri = fs.readFileSync(path.resolve('icons/store-icon.png')).toString('base64');
+  fs.writeFileSync(
+    path.resolve('src/shared/brand.js'),
+    `export const BRAND_NAME = 'Dobby AI';\n\nexport const BRAND_LOGO_DATA_URI = 'data:image/png;base64,${brandLogoDataUri}';\n`
+  );
+  console.log('Updated src/shared/brand.js');
+})();

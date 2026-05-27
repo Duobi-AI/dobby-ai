@@ -17,6 +17,7 @@ import { detectContentType } from '../detection.js';
 import { getSuggestedPresetsForType } from '../presets.js';
 import { buildChatMessages } from '../prompt.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
+import { BRAND_LOGO_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
 
 export async function detectTheme() {
   return new Promise((resolve) => {
@@ -96,7 +97,10 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
   }
   return `
     <div class="bubble-header">
-      <span class="bubble-logo">\u2726 Dobby AI</span>
+      <span class="bubble-logo">
+        <img class="bubble-logo-mark" src="${BRAND_LOGO_DATA_URI}" alt="" aria-hidden="true">
+        <span>${BRAND_NAME}</span>
+      </span>
       <span class="bubble-status"></span>
       <button class="pin-btn" title="Pin">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

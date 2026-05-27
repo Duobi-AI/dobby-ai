@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icons/store-icon.svg" alt="Dobby AI" width="80" />
+  <img src="icons/store-icon.png" alt="Dobby AI" width="80" />
 </p>
 
 <h1 align="center">Dobby AI</h1>

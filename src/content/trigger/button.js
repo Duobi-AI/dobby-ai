@@ -14,31 +14,7 @@ import { detectContentType } from '../detection.js';
 import { getSuggestedPresetsForType } from '../presets.js';
 import { captureImage } from '../image-capture.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
-
-// --- Cockapoo icon SVG ---
-const cockapooSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <circle cx="32" cy="30" r="22" fill="#C4956A"/>
-  <circle cx="14" cy="22" r="8" fill="#B8845A"/>
-  <circle cx="50" cy="22" r="8" fill="#B8845A"/>
-  <circle cx="20" cy="12" r="7" fill="#D4A574"/>
-  <circle cx="44" cy="12" r="7" fill="#D4A574"/>
-  <circle cx="32" cy="10" r="7" fill="#C4956A"/>
-  <circle cx="26" cy="8" r="5" fill="#BF8F60"/>
-  <circle cx="38" cy="8" r="5" fill="#BF8F60"/>
-  <ellipse cx="10" cy="34" rx="7" ry="12" fill="#A07048" transform="rotate(-10 10 34)"/>
-  <ellipse cx="54" cy="34" rx="7" ry="12" fill="#A07048" transform="rotate(10 54 34)"/>
-  <ellipse cx="32" cy="34" rx="14" ry="11" fill="#E8C9A0"/>
-  <circle cx="24" cy="28" r="3.5" fill="#2D1B0E"/>
-  <circle cx="40" cy="28" r="3.5" fill="#2D1B0E"/>
-  <circle cx="25.2" cy="27" r="1.2" fill="white"/>
-  <circle cx="41.2" cy="27" r="1.2" fill="white"/>
-  <ellipse cx="32" cy="35" rx="4" ry="3" fill="#2D1B0E"/>
-  <ellipse cx="32" cy="34.5" rx="1.5" ry="0.8" fill="#5A3A1E" opacity="0.4"/>
-  <path d="M28 38 Q32 42 36 38" fill="none" stroke="#2D1B0E" stroke-width="1.2" stroke-linecap="round"/>
-  <ellipse cx="32" cy="41" rx="2.5" ry="3" fill="#E87B7B"/>
-</svg>`;
-
-const iconDataUri = 'data:image/svg+xml,' + encodeURIComponent(cockapooSvg);
+import { BRAND_LOGO_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
 
 const pencilSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
 const closeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
@@ -95,8 +71,8 @@ async function createToolbar() {
   const iconDiv = document.createElement('div');
   iconDiv.className = 'toolbar-icon';
   const img = document.createElement('img');
-  img.src = iconDataUri;
-  img.alt = 'Dobby AI';
+  img.src = BRAND_LOGO_DATA_URI;
+  img.alt = BRAND_NAME;
   iconDiv.appendChild(img);
   row.appendChild(iconDiv);
 

@@ -45,10 +45,15 @@
   .header {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     margin-bottom: 8px;
     font-weight: 600;
     font-size: 14px;
+  }
+  .app-logo {
+    width: 24px;
+    height: 24px;
+    display: block;
   }
   .header-text { flex: 1; min-width: 0; }
   .version { font-size: 11px; color: #71717a; font-weight: 400; }
@@ -194,7 +199,7 @@
 </head>
 <body>
   <div class="header">
-    <span>&#10022;</span>
+    <img class="app-logo" src="icons/store-icon.png" alt="Dobby AI">
     <div class="header-text">
       <div>Dobby AI</div>
       <div class="version" id="version"></div>
