@@ -39,9 +39,18 @@ export function getStyles(theme) {
       gap: 8px;
     }
     .bubble-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       font-weight: 700;
       font-size: 14px;
       color: ${isDark ? accentLight : accent};
+    }
+    .bubble-logo-mark {
+      width: 20px;
+      height: 20px;
+      display: block;
+      border-radius: 5px;
     }
     .bubble-status {
       font-size: 12px;
