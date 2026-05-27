@@ -2,6 +2,8 @@
 
 Review captures for the logo unification change:
 
+![Approved logo asset](approved-logo.png)
+
 ![Popup logo](popup-logo.png)
 
 ![Options logo](options-logo.png)
