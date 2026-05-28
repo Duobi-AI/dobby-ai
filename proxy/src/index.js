@@ -1,8 +1,23 @@
 // proxy/src/index.js
 import { validatePayload, verifyHmac } from './validate.js';
-import { checkRateLimit, incrementCounters } from './rate-limit.js';
 import { createChatStream } from './openai.js';
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../../src/shared/autosuggest-limits.js';
+
+export { RateLimiter } from './rate-limit-do.js';
+
+// Routes an atomic check-and-increment through the per-IP RateLimiter Durable Object.
+// All rate-limit reads and writes happen inside the DO so they are strongly
+// consistent and serialized (no read-then-write race across concurrent requests).
+async function checkRateLimitDO(env, ip, purpose) {
+  const id = env.RATE_LIMITER.idFromName(ip);
+  const stub = env.RATE_LIMITER.get(id);
+  const res = await stub.fetch('https://rate-limiter/check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ip, purpose }),
+  });
+  return res.json();
+}
 
 const MAX_BODY_SIZE = 2097152; // 2MB
 
@@ -86,7 +101,7 @@ export default {
       && request.headers.get('X-Dev-Token') === env.DEV_BYPASS_TOKEN;
     const rateResult = devBypass
       ? { allowed: true, remaining: null }
-      : await checkRateLimit(ip, env.RATE_LIMIT_KV, purpose);
+      : await checkRateLimitDO(env, ip, purpose);
     if (!rateResult.allowed) {
       return jsonResponse(
         { error: rateResult.reason, remaining: rateResult.remaining ?? 0 },
@@ -95,8 +110,6 @@ export default {
         { 'Retry-After': String(rateResult.retryAfter || 60) }
       );
     }
-
-    if (!devBypass) await incrementCounters(ip, env.RATE_LIMIT_KV, purpose);
 
     const maxTokens = purpose === 'autosuggest' ? AUTOSUGGEST_MAX_SUGGESTION_TOKENS : undefined;
     const openaiResponse = await createChatStream(body.messages, env.OPENAI_API_KEY, undefined, maxTokens);

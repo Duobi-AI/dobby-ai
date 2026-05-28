@@ -8,11 +8,6 @@ vi.mock('../src/validate.js', () => ({
   verifyHmac: vi.fn(() => Promise.resolve(true)),
 }));
 
-vi.mock('../src/rate-limit.js', () => ({
-  checkRateLimit: vi.fn(() => Promise.resolve({ allowed: true, remaining: 29 })),
-  incrementCounters: vi.fn(() => Promise.resolve()),
-}));
-
 vi.mock('../src/openai.js', () => ({
   createChatStream: vi.fn(() =>
     Promise.resolve({
@@ -25,8 +20,31 @@ vi.mock('../src/openai.js', () => ({
 
 import handler from '../src/index.js';
 import { validatePayload, verifyHmac } from '../src/validate.js';
-import { checkRateLimit, incrementCounters } from '../src/rate-limit.js';
 import { createChatStream } from '../src/openai.js';
+
+// Result that the mock RateLimiter Durable Object stub will return for each request.
+let doRateResult = { allowed: true, remaining: 29 };
+// Records the payloads ({ ip, purpose }) the DO stub was asked to check.
+let doCalls = [];
+
+// Hand-rolled Durable Object namespace stub: idFromName(ip) -> stub, and the stub's
+// fetch() returns the configured doRateResult as a JSON Response, mirroring the real DO.
+function makeRateLimiterBinding() {
+  doCalls = [];
+  return {
+    idFromName: vi.fn((name) => ({ name })),
+    get: vi.fn((id) => ({
+      fetch: vi.fn(async (_url, init) => {
+        const body = JSON.parse(init.body);
+        doCalls.push(body);
+        return new Response(JSON.stringify(doRateResult), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }),
+    })),
+  };
+}
 
 function makeRequest(path, options = {}) {
   const url = `https://proxy.workers.dev${path}`;
@@ -43,7 +61,7 @@ function makeEnv(overrides = {}) {
     HMAC_SECRET: 'test-secret',
     ENABLED: 'true',
     ALLOWED_ORIGINS: 'chrome-extension://test-id,https://localhost',
-    RATE_LIMIT_KV: {},
+    RATE_LIMITER: makeRateLimiterBinding(),
     ...overrides,
   };
 }
@@ -105,8 +123,7 @@ describe('POST /chat', () => {
     vi.clearAllMocks();
     validatePayload.mockReturnValue({ valid: true });
     verifyHmac.mockResolvedValue(true);
-    checkRateLimit.mockResolvedValue({ allowed: true, remaining: 29 });
-    incrementCounters.mockResolvedValue();
+    doRateResult = { allowed: true, remaining: 29 };
     createChatStream.mockResolvedValue({ ok: true, status: 200, body: new ReadableStream() });
   });
 
@@ -133,7 +150,7 @@ describe('POST /chat', () => {
   });
 
   it('returns 429 when rate limited', async () => {
-    checkRateLimit.mockResolvedValue({ allowed: false, reason: 'Daily limit', remaining: 0 });
+    doRateResult = { allowed: false, reason: 'Daily limit', remaining: 0 };
     const req = makeRequest('/chat', {
       method: 'POST',
       body: { messages: [{ role: 'user', content: 'hi' }], signature: 'x', timestamp: 1 },
@@ -155,11 +172,11 @@ describe('POST /chat', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('text/event-stream');
     expect(res.headers.get('Cache-Control')).toBe('no-cache');
-    expect(incrementCounters).toHaveBeenCalled();
+    expect(doCalls.length).toBe(1);
   });
 
   it('returns remaining count in X-RateLimit-Remaining header', async () => {
-    checkRateLimit.mockResolvedValue({ allowed: true, remaining: 15 });
+    doRateResult = { allowed: true, remaining: 15 };
     const req = makeRequest('/chat', {
       method: 'POST',
       body: { messages: [{ role: 'user', content: 'hi' }], signature: 'x', timestamp: 1 },
@@ -191,8 +208,7 @@ describe('POST /chat', () => {
       headers: { 'Content-Type': 'application/json' },
     });
     await handler.fetch(req, makeEnv());
-    expect(checkRateLimit).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'autosuggest');
-    expect(incrementCounters).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'autosuggest');
+    expect(doCalls).toEqual([{ ip: '1.2.3.4', purpose: 'autosuggest' }]);
   });
 
   it('defaults purpose to chat when not specified', async () => {
@@ -202,8 +218,7 @@ describe('POST /chat', () => {
       headers: { 'Content-Type': 'application/json' },
     });
     await handler.fetch(req, makeEnv());
-    expect(checkRateLimit).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'chat');
-    expect(incrementCounters).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'chat');
+    expect(doCalls).toEqual([{ ip: '1.2.3.4', purpose: 'chat' }]);
   });
 
   it('passes the shared autosuggest token limit to createChatStream for autosuggest', async () => {
@@ -263,8 +278,7 @@ describe('dev bypass token', () => {
     vi.clearAllMocks();
     validatePayload.mockReturnValue({ valid: true });
     verifyHmac.mockResolvedValue(true);
-    checkRateLimit.mockResolvedValue({ allowed: true, remaining: 29 });
-    incrementCounters.mockResolvedValue();
+    doRateResult = { allowed: true, remaining: 29 };
     createChatStream.mockResolvedValue({ ok: true, status: 200, body: new ReadableStream() });
   });
 
@@ -274,10 +288,11 @@ describe('dev bypass token', () => {
       body: { messages: [{ role: 'user', content: 'hi' }], signature: 'x', timestamp: 1 },
       headers: { 'Content-Type': 'application/json', 'X-Dev-Token': 'my-secret-token' },
     });
-    const res = await handler.fetch(req, makeEnv({ DEV_BYPASS_TOKEN: 'my-secret-token' }));
+    const env = makeEnv({ DEV_BYPASS_TOKEN: 'my-secret-token' });
+    const res = await handler.fetch(req, env);
     expect(res.status).toBe(200);
-    expect(checkRateLimit).not.toHaveBeenCalled();
-    expect(incrementCounters).not.toHaveBeenCalled();
+    expect(env.RATE_LIMITER.idFromName).not.toHaveBeenCalled();
+    expect(doCalls.length).toBe(0);
   });
 
   it('applies rate limiting when X-Dev-Token does not match', async () => {
@@ -288,8 +303,7 @@ describe('dev bypass token', () => {
     });
     const res = await handler.fetch(req, makeEnv({ DEV_BYPASS_TOKEN: 'my-secret-token' }));
     expect(res.status).toBe(200);
-    expect(checkRateLimit).toHaveBeenCalled();
-    expect(incrementCounters).toHaveBeenCalled();
+    expect(doCalls.length).toBe(1);
   });
 
   it('applies rate limiting when DEV_BYPASS_TOKEN is not set', async () => {
@@ -300,7 +314,6 @@ describe('dev bypass token', () => {
     });
     const res = await handler.fetch(req, makeEnv());
     expect(res.status).toBe(200);
-    expect(checkRateLimit).toHaveBeenCalled();
-    expect(incrementCounters).toHaveBeenCalled();
+    expect(doCalls.length).toBe(1);
   });
 });
