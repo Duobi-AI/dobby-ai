@@ -1,8 +1,9 @@
 // tests/trigger.test.js
 // @vitest-environment jsdom
 
-import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest';
 import { setupChromeMocks, mockSelection as sharedMockSelection } from './helpers.js';
+import { screenshotState } from '../src/content/shared/state.js';
 
 // Mock the bubble module (trigger modules import from it)
 vi.mock('../src/content/bubble/core.js', () => ({
@@ -379,6 +380,107 @@ describe('screenshot mode', () => {
     toolbar = overlay.querySelector('[data-screenshot-toolbar]');
     expect(toolbar).not.toBeNull();
     cancelScreenshotMode();
+  });
+
+  describe('drag rect rAF coalescing', () => {
+    let rafCallbacks;
+    let originalRaf;
+    let originalCancelRaf;
+
+    beforeEach(() => {
+      rafCallbacks = new Map();
+      let nextId = 1;
+      originalRaf = global.requestAnimationFrame;
+      originalCancelRaf = global.cancelAnimationFrame;
+      global.requestAnimationFrame = vi.fn((cb) => {
+        const id = nextId++;
+        rafCallbacks.set(id, cb);
+        return id;
+      });
+      global.cancelAnimationFrame = vi.fn((id) => {
+        rafCallbacks.delete(id);
+      });
+    });
+
+    afterEach(() => {
+      global.requestAnimationFrame = originalRaf;
+      global.cancelAnimationFrame = originalCancelRaf;
+    });
+
+    function flushRaf() {
+      const cbs = [...rafCallbacks.values()];
+      rafCallbacks.clear();
+      cbs.forEach((cb) => cb());
+    }
+
+    it('coalesces rapid mousemoves into a single rAF and applies the latest coords', () => {
+      startScreenshotMode();
+      const overlay = document.querySelector('div[style*="crosshair"]');
+      overlay.dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 50, bubbles: true }));
+      const rect = overlay.querySelector('div[style*="dashed"]');
+
+      // Three rapid moves before any frame fires
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 100, clientY: 100, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, clientY: 150, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 220, bubbles: true }));
+
+      // Only one frame scheduled, DOM not yet resized (still at the initial 0px from mousedown)
+      expect(global.requestAnimationFrame).toHaveBeenCalledTimes(1);
+      expect(rect.style.width).toBe('0px');
+
+      // Frame applies the most recent coordinates exactly
+      flushRaf();
+      expect(rect.style.left).toBe('50px');
+      expect(rect.style.top).toBe('50px');
+      expect(rect.style.width).toBe('150px'); // |200 - 50|
+      expect(rect.style.height).toBe('170px'); // |220 - 50|
+
+      cancelScreenshotMode();
+    });
+
+    it('schedules a fresh frame after the previous one is applied', () => {
+      startScreenshotMode();
+      const overlay = document.querySelector('div[style*="crosshair"]');
+      overlay.dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 50, bubbles: true }));
+
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 100, clientY: 100, bubbles: true }));
+      expect(global.requestAnimationFrame).toHaveBeenCalledTimes(1);
+      flushRaf();
+
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 120, clientY: 120, bubbles: true }));
+      expect(global.requestAnimationFrame).toHaveBeenCalledTimes(2);
+
+      cancelScreenshotMode();
+    });
+
+    it('cancels the pending frame when the drag ends so no stale update lands', () => {
+      startScreenshotMode();
+      const overlay = document.querySelector('div[style*="crosshair"]');
+      overlay.dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 50, bubbles: true }));
+
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 200, bubbles: true }));
+      expect(screenshotState.rafId).not.toBeNull();
+
+      // End the drag — pending frame must be cancelled
+      overlay.dispatchEvent(new MouseEvent('mouseup', { clientX: 200, clientY: 200, bubbles: true }));
+      expect(global.cancelAnimationFrame).toHaveBeenCalled();
+      expect(screenshotState.rafId).toBeNull();
+      expect(screenshotState.pendingRect).toBeNull();
+
+      cancelScreenshotMode();
+    });
+
+    it('cancelScreenshotMode clears any pending frame', () => {
+      startScreenshotMode();
+      const overlay = document.querySelector('div[style*="crosshair"]');
+      overlay.dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 50, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 200, bubbles: true }));
+      expect(screenshotState.rafId).not.toBeNull();
+
+      cancelScreenshotMode();
+      expect(screenshotState.rafId).toBeNull();
+      expect(screenshotState.pendingRect).toBeNull();
+    });
   });
 
   it('does not start screenshot mode when clicking on scrollbar area', async () => {

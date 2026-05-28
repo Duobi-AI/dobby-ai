@@ -7,6 +7,17 @@ import { _removeProgressRing } from './progress-ring.js';
 import { showBubbleWithPresets } from '../bubble/core.js';
 import { captureScreenshot } from '../image-capture.js';
 
+// Cancels any pending drag-update animation frame scheduled by the mousemove
+// coalescing logic in selection.js, and clears the coalescing state. Operates
+// on shared screenshotState directly to avoid a circular import.
+function cancelPendingDragRect() {
+  if (screenshotState.rafId !== null) {
+    cancelAnimationFrame(screenshotState.rafId);
+    screenshotState.rafId = null;
+  }
+  screenshotState.pendingRect = null;
+}
+
 export function startScreenshotMode() {
   if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
   _removeProgressRing();
@@ -87,6 +98,9 @@ export function startScreenshotMode() {
   screenshotState.overlay.addEventListener('mouseup', (e) => {
     // Ignore the mouseup from the long-press release (no drag started yet)
     if (!screenshotState.dragStarted) return;
+
+    // Drag is ending — cancel any coalesced rAF so it can't apply a stale rect.
+    cancelPendingDragRect();
 
     const x = Math.min(screenshotState.startX, e.clientX);
     const y = Math.min(screenshotState.startY, e.clientY);
@@ -236,6 +250,7 @@ function _showConfirmToolbar(overlay, banner, rect) {
 }
 
 export function cancelScreenshotMode() {
+  cancelPendingDragRect();
   if (screenshotState.overlay) {
     if (screenshotState.overlay._escHandler) {
       document.removeEventListener('keydown', screenshotState.overlay._escHandler);
