@@ -62,6 +62,8 @@ export function getToolbarStyles(theme) {
       width: 28px;
       height: 28px;
       display: block;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 1.5px ${isDark ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.18)'});
     }
 
 

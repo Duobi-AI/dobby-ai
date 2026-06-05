@@ -47,10 +47,11 @@ export function getStyles(theme) {
       color: ${isDark ? accentLight : accent};
     }
     .bubble-logo-mark {
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
       display: block;
-      border-radius: 5px;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 1.5px ${isDark ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.18)'});
     }
     .bubble-status {
       font-size: 12px;
