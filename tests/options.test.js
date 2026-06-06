@@ -45,6 +45,20 @@ const noKeySection = document.getElementById('no-key');
 const keyDisplay = document.getElementById('key-display');
 
 describe('options.js', () => {
+  describe('theme', () => {
+    it('applies stored dark theme to the settings page', () => {
+      storageGetCallback({ theme: 'dark' });
+      expect(document.documentElement.dataset.themeMode).toBe('dark');
+      expect(document.documentElement.dataset.resolvedTheme).toBe('dark');
+    });
+
+    it('defaults to resolved light theme when no theme is stored', () => {
+      storageGetCallback({});
+      expect(document.documentElement.dataset.themeMode).toBe('auto');
+      expect(document.documentElement.dataset.resolvedTheme).toBe('light');
+    });
+  });
+
   describe('maskKey', () => {
     it('returns dots for short keys (less than 12 chars)', () => {
       // Load with a short key to see masking

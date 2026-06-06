@@ -11,6 +11,9 @@ function currentUtcDay() {
 }
 
 function setupDom() {
+  document.documentElement.removeAttribute('data-theme-mode');
+  document.documentElement.removeAttribute('data-resolved-theme');
+  document.documentElement.style.colorScheme = '';
   document.body.innerHTML = `
     <div id="version"></div>
     <div id="usage-card" class="usage-card">
@@ -281,12 +284,41 @@ describe('popup.js', () => {
       expect(options[0].classList.contains('active')).toBe(false);
       expect(options[1].classList.contains('active')).toBe(true);
       expect(options[2].classList.contains('active')).toBe(false);
+      expect(document.documentElement.dataset.themeMode).toBe('light');
+      expect(document.documentElement.dataset.resolvedTheme).toBe('light');
     });
 
     it('persists theme to chrome.storage on click', () => {
       vi.clearAllMocks();
       document.querySelector('.theme-option[data-theme="dark"]').click();
       expect(chrome.storage.local.set).toHaveBeenCalledWith({ theme: 'dark' });
+      expect(document.documentElement.dataset.themeMode).toBe('dark');
+      expect(document.documentElement.dataset.resolvedTheme).toBe('dark');
+    });
+
+    it('resolves auto theme from OS preference', async () => {
+      window.matchMedia = vi.fn(() => ({ matches: true }));
+      await loadPopup({ theme: 'auto' });
+      expect(document.documentElement.dataset.themeMode).toBe('auto');
+      expect(document.documentElement.dataset.resolvedTheme).toBe('dark');
+    });
+
+    it('updates auto theme when the OS color scheme changes', async () => {
+      let mediaHandler;
+      const mediaQuery = {
+        matches: false,
+        addEventListener: vi.fn((event, handler) => {
+          if (event === 'change') mediaHandler = handler;
+        }),
+      };
+      window.matchMedia = vi.fn(() => mediaQuery);
+
+      await loadPopup({ theme: 'auto' });
+      expect(document.documentElement.dataset.resolvedTheme).toBe('light');
+
+      mediaQuery.matches = true;
+      mediaHandler();
+      expect(document.documentElement.dataset.resolvedTheme).toBe('dark');
     });
   });
 });

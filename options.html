@@ -120,24 +120,41 @@
     .provider-panel { display: none; }
     .provider-panel.active { display: block; }
     .hint { font-size: 12px; color: #a1a1aa; margin-top: 4px; }
+    html[data-resolved-theme="dark"] body { background: #18181b; color: #e4e4e7; }
+    html[data-resolved-theme="dark"] .card { background: #27272a; border-color: #3f3f46; }
+    html[data-resolved-theme="dark"] .card p { color: #a1a1aa; }
+    html[data-resolved-theme="dark"] .input-group input { background: #18181b; border-color: #3f3f46; color: #e4e4e7; }
+    html[data-resolved-theme="dark"] .input-group input:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,0.15); }
+    html[data-resolved-theme="dark"] .current-key { background: #3f3f46; }
+    html[data-resolved-theme="dark"] .current-key .key-value { color: #a1a1aa; }
+    html[data-resolved-theme="dark"] .btn-danger { background: #27272a; border-color: #7f1d1d; color: #f87171; }
+    html[data-resolved-theme="dark"] .btn-danger:hover { background: #371717; }
+    html[data-resolved-theme="dark"] .usage-info { background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.2); color: #c4b5fd; }
+    html[data-resolved-theme="dark"] .provider-tab { background: #3f3f46; border-color: #52525b; color: #a1a1aa; }
+    html[data-resolved-theme="dark"] .provider-tab.active { background: #27272a; color: #e4e4e7; border-bottom-color: #27272a; }
+    html[data-resolved-theme="dark"] .provider-content { background: #27272a; border-color: #3f3f46; }
+    html[data-resolved-theme="dark"] .steps li::before { background: #a78bfa; }
+    html[data-resolved-theme="dark"] .steps a { color: #a78bfa; }
+    html[data-resolved-theme="dark"] .hint { color: #71717a; }
+    html[data-resolved-theme="dark"] .header .version { color: #71717a; }
     @media (prefers-color-scheme: dark) {
-      body { background: #18181b; color: #e4e4e7; }
-      .card { background: #27272a; border-color: #3f3f46; }
-      .card p { color: #a1a1aa; }
-      .input-group input { background: #18181b; border-color: #3f3f46; color: #e4e4e7; }
-      .input-group input:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,0.15); }
-      .current-key { background: #3f3f46; }
-      .current-key .key-value { color: #a1a1aa; }
-      .btn-danger { background: #27272a; border-color: #7f1d1d; color: #f87171; }
-      .btn-danger:hover { background: #371717; }
-      .usage-info { background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.2); color: #c4b5fd; }
-      .provider-tab { background: #3f3f46; border-color: #52525b; color: #a1a1aa; }
-      .provider-tab.active { background: #27272a; color: #e4e4e7; border-bottom-color: #27272a; }
-      .provider-content { background: #27272a; border-color: #3f3f46; }
-      .steps li::before { background: #a78bfa; }
-      .steps a { color: #a78bfa; }
-      .hint { color: #71717a; }
-      .header .version { color: #71717a; }
+      html:not([data-resolved-theme]) body { background: #18181b; color: #e4e4e7; }
+      html:not([data-resolved-theme]) .card { background: #27272a; border-color: #3f3f46; }
+      html:not([data-resolved-theme]) .card p { color: #a1a1aa; }
+      html:not([data-resolved-theme]) .input-group input { background: #18181b; border-color: #3f3f46; color: #e4e4e7; }
+      html:not([data-resolved-theme]) .input-group input:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,0.15); }
+      html:not([data-resolved-theme]) .current-key { background: #3f3f46; }
+      html:not([data-resolved-theme]) .current-key .key-value { color: #a1a1aa; }
+      html:not([data-resolved-theme]) .btn-danger { background: #27272a; border-color: #7f1d1d; color: #f87171; }
+      html:not([data-resolved-theme]) .btn-danger:hover { background: #371717; }
+      html:not([data-resolved-theme]) .usage-info { background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.2); color: #c4b5fd; }
+      html:not([data-resolved-theme]) .provider-tab { background: #3f3f46; border-color: #52525b; color: #a1a1aa; }
+      html:not([data-resolved-theme]) .provider-tab.active { background: #27272a; color: #e4e4e7; border-bottom-color: #27272a; }
+      html:not([data-resolved-theme]) .provider-content { background: #27272a; border-color: #3f3f46; }
+      html:not([data-resolved-theme]) .steps li::before { background: #a78bfa; }
+      html:not([data-resolved-theme]) .steps a { color: #a78bfa; }
+      html:not([data-resolved-theme]) .hint { color: #71717a; }
+      html:not([data-resolved-theme]) .header .version { color: #71717a; }
     }
   </style>
 </head>

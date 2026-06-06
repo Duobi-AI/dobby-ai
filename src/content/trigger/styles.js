@@ -23,8 +23,10 @@ export function getToolbarStyles(theme) {
       background: ${isDark ? 'rgba(28, 25, 38, 0.82)' : 'rgba(255, 255, 255, 0.82)'};
       backdrop-filter: blur(12px) saturate(180%);
       -webkit-backdrop-filter: blur(12px) saturate(180%);
-      border: 1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'};
-      box-shadow: 0 2px 12px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.15)'};
+      border: none;
+      box-shadow:
+        inset 0 0 0 1px ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'},
+        0 2px 12px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.15)'};
       cursor: pointer;
       user-select: none;
       transition: width 0.22s cubic-bezier(0.4,0,0.2,1),
