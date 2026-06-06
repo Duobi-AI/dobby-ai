@@ -9,6 +9,7 @@ import {
 } from '../shared/state.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
 import { removeElement } from '../shared/dom-utils.js';
+import { detectTheme, watchThemeChanges } from '../shared/theme.js';
 import { getStyles } from './styles.js';
 import { renderMarkdown, escapeHtml } from './markdown.js';
 import { startStreaming, handleFollowUp } from './stream.js';
@@ -19,23 +20,7 @@ import { buildChatMessages } from '../prompt.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
 import { BRAND_MARK_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
 
-export async function detectTheme() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get('theme', (data) => {
-      const stored = data.theme;
-      if (stored === 'light' || stored === 'dark') {
-        resolve(stored);
-        return;
-      }
-      // 'auto' or absent — fall back to OS preference
-      if (typeof window !== 'undefined' && window.matchMedia) {
-        resolve(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      } else {
-        resolve('light');
-      }
-    });
-  });
-}
+export { detectTheme };
 
 function truncatePreview(text, maxLen = 120) {
   if (!text) return '';
@@ -61,17 +46,11 @@ function createBubbleHost(selectionRect) {
   host._escHandler = (e) => { if (e.key === 'Escape') hideBubble(); };
   document.addEventListener('keydown', host._escHandler);
 
-  // Live-update theme when storage changes
-  host._storageChangeHandler = (changes) => {
-    if (!changes.theme) return;
-    const raw = changes.theme.newValue || 'auto';
-    const theme = (raw === 'light' || raw === 'dark') ? raw
-      : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    if (!bubbleHost || !bubbleHost.shadowRoot) return;
-    const styleEl = bubbleHost.shadowRoot.querySelector('style');
+  host._themeCleanup = watchThemeChanges((theme) => {
+    if (!host.shadowRoot) return;
+    const styleEl = host.shadowRoot.querySelector('style');
     if (styleEl) styleEl.textContent = getStyles(theme);
-  };
-  chrome.storage.onChanged.addListener(host._storageChangeHandler);
+  });
 
   setBubbleHost(host);
   return host;
@@ -387,8 +366,8 @@ export function hideBubble() {
       bubbleHost._resizeCleanup();
     }
     if (bubbleHost._escHandler) document.removeEventListener('keydown', bubbleHost._escHandler);
-    if (bubbleHost._storageChangeHandler) {
-      chrome.storage.onChanged.removeListener(bubbleHost._storageChangeHandler);
+    if (bubbleHost._themeCleanup) {
+      bubbleHost._themeCleanup();
     }
     removeElement(bubbleHost);
   }

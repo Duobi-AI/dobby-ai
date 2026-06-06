@@ -16,9 +16,36 @@ const usagePrimary = document.getElementById('usage-primary');
 const usageSecondary = document.getElementById('usage-secondary');
 const versionEl = document.getElementById('version');
 const themeOptions = document.querySelectorAll('.theme-option');
+const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)';
+let themeMode = 'auto';
+let colorSchemeQuery = null;
 
 function getUtcDay() {
   return new Date().toISOString().split('T')[0];
+}
+
+function normalizeThemeMode(value) {
+  return value === 'light' || value === 'dark' || value === 'auto' ? value : 'auto';
+}
+
+function getSystemTheme() {
+  if (typeof window.matchMedia === 'function') {
+    return window.matchMedia(COLOR_SCHEME_QUERY).matches ? 'dark' : 'light';
+  }
+  return 'light';
+}
+
+function resolveTheme(value) {
+  const mode = normalizeThemeMode(value);
+  return mode === 'auto' ? getSystemTheme() : mode;
+}
+
+function applyTheme(value) {
+  themeMode = normalizeThemeMode(value);
+  const resolvedTheme = resolveTheme(themeMode);
+  document.documentElement.dataset.themeMode = themeMode;
+  document.documentElement.dataset.resolvedTheme = resolvedTheme;
+  document.documentElement.style.colorScheme = resolvedTheme;
 }
 
 function getResetTimeLabel() {
@@ -99,6 +126,7 @@ function loadPopupState() {
     setSwitchState(screenshotToggle, screenshotStatus, data.screenshotEnabled !== false);
     setSwitchState(autosuggestToggle, autosuggestStatus, data.autosuggestEnabled === true);
     setActiveThemeOption(data.theme || 'auto');
+    applyTheme(data.theme || 'auto');
     renderUsage({ userApiKey: data.userApiKey, dobbyUsage: data.dobbyUsage });
     setHistoryState(data.chatHistory || []);
   });
@@ -177,5 +205,18 @@ themeOptions.forEach((btn) => {
     const value = btn.dataset.theme;
     chrome.storage.local.set({ theme: value });
     setActiveThemeOption(value);
+    applyTheme(value);
   });
 });
+
+if (typeof window.matchMedia === 'function') {
+  colorSchemeQuery = window.matchMedia(COLOR_SCHEME_QUERY);
+  const handleSystemThemeChange = () => {
+    if (themeMode === 'auto') applyTheme('auto');
+  };
+  if (typeof colorSchemeQuery.addEventListener === 'function') {
+    colorSchemeQuery.addEventListener('change', handleSystemThemeChange);
+  } else if (typeof colorSchemeQuery.addListener === 'function') {
+    colorSchemeQuery.addListener(handleSystemThemeChange);
+  }
+}

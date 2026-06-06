@@ -4,6 +4,7 @@
 
 import { getToolbarStyles } from './styles.js';
 import { detectTheme, showBubble } from '../bubble/core.js';
+import { watchThemeChanges } from '../shared/theme.js';
 import { buildChatMessages } from '../prompt.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
 import {
@@ -121,15 +122,9 @@ async function createToolbar() {
 
   shadow.appendChild(toolbar);
 
-  // Live-update theme when storage changes
-  host._storageChangeHandler = (changes) => {
-    if (!changes.theme) return;
-    const raw = changes.theme.newValue || 'auto';
-    const theme = (raw === 'light' || raw === 'dark') ? raw
-      : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  host._themeCleanup = watchThemeChanges((theme) => {
     style.textContent = getToolbarStyles(theme);
-  };
-  chrome.storage.onChanged.addListener(host._storageChangeHandler);
+  });
 
   // --- Event handlers ---
   toolbar.addEventListener('mouseenter', () => {
@@ -526,8 +521,8 @@ export function hideTrigger() {
   }
   const host = document.getElementById('dobby-ai-toolbar-host');
   if (host) {
-    if (host._storageChangeHandler) {
-      chrome.storage.onChanged.removeListener(host._storageChangeHandler);
+    if (host._themeCleanup) {
+      host._themeCleanup();
     }
     host.remove();
   }

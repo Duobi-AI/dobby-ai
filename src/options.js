@@ -8,9 +8,35 @@ const hasKeySection = document.getElementById('has-key');
 const noKeySection = document.getElementById('no-key');
 const keyDisplay = document.getElementById('key-display');
 const versionEl = document.getElementById('extension-version');
+const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)';
+let themeMode = 'auto';
 
 if (versionEl && chrome.runtime.getManifest) {
   versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
+}
+
+function normalizeThemeMode(value) {
+  return value === 'light' || value === 'dark' || value === 'auto' ? value : 'auto';
+}
+
+function getSystemTheme() {
+  if (typeof window.matchMedia === 'function') {
+    return window.matchMedia(COLOR_SCHEME_QUERY).matches ? 'dark' : 'light';
+  }
+  return 'light';
+}
+
+function resolveTheme(value) {
+  const mode = normalizeThemeMode(value);
+  return mode === 'auto' ? getSystemTheme() : mode;
+}
+
+function applyTheme(value) {
+  themeMode = normalizeThemeMode(value);
+  const resolvedTheme = resolveTheme(themeMode);
+  document.documentElement.dataset.themeMode = themeMode;
+  document.documentElement.dataset.resolvedTheme = resolvedTheme;
+  document.documentElement.style.colorScheme = resolvedTheme;
 }
 
 function maskKey(key) {
@@ -33,13 +59,33 @@ function showNoKey() {
 }
 
 // Load current state
-chrome.storage.local.get(['userApiKey'], (result) => {
+chrome.storage.local.get(['userApiKey', 'theme'], (result) => {
+  applyTheme(result.theme || 'auto');
   if (result.userApiKey) {
     showHasKey(result.userApiKey);
   } else {
     showNoKey();
   }
 });
+
+if (typeof chrome.storage.onChanged?.addListener === 'function') {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName && areaName !== 'local') return;
+    if (changes.theme) applyTheme(changes.theme.newValue);
+  });
+}
+
+if (typeof window.matchMedia === 'function') {
+  const colorSchemeQuery = window.matchMedia(COLOR_SCHEME_QUERY);
+  const handleSystemThemeChange = () => {
+    if (themeMode === 'auto') applyTheme('auto');
+  };
+  if (typeof colorSchemeQuery.addEventListener === 'function') {
+    colorSchemeQuery.addEventListener('change', handleSystemThemeChange);
+  } else if (typeof colorSchemeQuery.addListener === 'function') {
+    colorSchemeQuery.addListener(handleSystemThemeChange);
+  }
+}
 
 // Save key
 saveBtn.addEventListener('click', async () => {

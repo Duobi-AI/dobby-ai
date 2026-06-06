@@ -152,19 +152,30 @@ describe('bubble.js', () => {
   });
 
   describe('detectTheme', () => {
+    it('returns stored light or dark theme without checking OS preference', async () => {
+      window.matchMedia = vi.fn(() => ({ matches: false }));
+      chrome.storage.local.get = vi.fn((key, cb) => cb({ theme: 'dark' }));
+
+      expect(await detectTheme()).toBe('dark');
+      expect(window.matchMedia).not.toHaveBeenCalled();
+    });
+
     it('returns light when OS prefers light', async () => {
+      chrome.storage.local.get = vi.fn((key, cb) => cb({}));
       window.matchMedia = vi.fn(() => ({ matches: false }));
       expect(await detectTheme()).toBe('light');
       expect(window.matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
     });
 
     it('returns dark when OS prefers dark', async () => {
+      chrome.storage.local.get = vi.fn((key, cb) => cb({}));
       window.matchMedia = vi.fn(() => ({ matches: true }));
       expect(await detectTheme()).toBe('dark');
       expect(window.matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
     });
 
     it('defaults to light when matchMedia unavailable', async () => {
+      chrome.storage.local.get = vi.fn((key, cb) => cb({}));
       const original = window.matchMedia;
       window.matchMedia = undefined;
       expect(await detectTheme()).toBe('light');
