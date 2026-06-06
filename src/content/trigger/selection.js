@@ -24,6 +24,21 @@ const INTERACTIVE_TAGS = new Set([
   'INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'VIDEO', 'AUDIO', 'LABEL', 'OPTION',
 ]);
 
+// Applies the most recent drag rect to the DOM, then clears the pending rAF flag
+// so the next mousemove can schedule a fresh frame. Coordinates are read from
+// screenshotState.pendingRect (the latest move), keeping the final rect exact.
+function _applyPendingDragRect() {
+  screenshotState.rafId = null;
+  const pending = screenshotState.pendingRect;
+  if (!pending || !screenshotState.rect) return;
+  Object.assign(screenshotState.rect.style, {
+    left: pending.x + 'px',
+    top: pending.y + 'px',
+    width: pending.w + 'px',
+    height: pending.h + 'px',
+  });
+}
+
 export function isInteractiveElement(el) {
   if (!el || !el.tagName) return false;
   if (INTERACTIVE_TAGS.has(el.tagName)) return true;
@@ -142,18 +157,18 @@ export function registerListeners() {
       }
     }
 
-    // Screenshot region drag
+    // Screenshot region drag — coalesce DOM updates to at most one per animation frame
     if (screenshotState.overlay && screenshotState.rect && screenshotState.dragStarted) {
-      const x = Math.min(screenshotState.startX, e.clientX);
-      const y = Math.min(screenshotState.startY, e.clientY);
-      const w = Math.abs(e.clientX - screenshotState.startX);
-      const h = Math.abs(e.clientY - screenshotState.startY);
-      Object.assign(screenshotState.rect.style, {
-        left: x + 'px',
-        top: y + 'px',
-        width: w + 'px',
-        height: h + 'px',
-      });
+      // Store the latest pointer-derived rect; the scheduled rAF applies the freshest value.
+      screenshotState.pendingRect = {
+        x: Math.min(screenshotState.startX, e.clientX),
+        y: Math.min(screenshotState.startY, e.clientY),
+        w: Math.abs(e.clientX - screenshotState.startX),
+        h: Math.abs(e.clientY - screenshotState.startY),
+      };
+      if (screenshotState.rafId === null) {
+        screenshotState.rafId = requestAnimationFrame(_applyPendingDragRect);
+      }
     }
   });
 
