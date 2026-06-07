@@ -5,6 +5,18 @@ All notable changes to Dobby AI (formerly Ask AI) will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-06-07
+
+### Changed
+- Added scalable Dobby AI SVG logo assets for docs, README, popup, options, and reusable brand placements.
+- Updated the icon generation pipeline to produce SVG masters, Chrome extension PNG icons, docs copies, and bundled brand data from the approved source artwork.
+- Centralized semantic UI colors and shared theme resolution so future palette changes can be made from one source.
+- Applied the Hearthlight ivory, amber, walnut, and graphite palette across light and dark modes.
+
+### Fixed
+- Fixed light, dark, and auto theme propagation across popup, options, toolbar, and response bubble surfaces.
+- Centered the Dobby logo consistently in collapsed and expanded toolbar states.
+
 ## [1.2.1] - 2026-05-27
 
 ### Changed
@@ -99,6 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Page context injection (title + URL)
 - CI/CD workflows (tests, coverage, security, release, PR preview, permission guard)
 
+[1.2.2]: https://github.com/Duobi-AI/dobby-ai/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/Duobi-AI/dobby-ai/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Duobi-AI/dobby-ai/compare/v1.1.0...v1.2.0
 [2.1.0]: https://github.com/Duobi-AI/dobby-ai/compare/v2.0.0...v2.1.0
