@@ -17,13 +17,14 @@ describe('color palette', () => {
     expect(Object.keys(COLOR_PALETTE.dark).sort()).toEqual(Object.keys(COLOR_PALETTE.light).sort());
   });
 
-  it('preserves the current Dobby palette values', () => {
-    expect(COLOR_PALETTE.light.accent).toBe('#7c3aed');
-    expect(COLOR_PALETTE.light.backgroundPage).toBe('#fff');
-    expect(COLOR_PALETTE.light.textPrimary).toBe('#18181b');
-    expect(COLOR_PALETTE.dark.backgroundPage).toBe('#1e1e28');
-    expect(COLOR_PALETTE.dark.textPrimary).toBe('#e4e4e7');
-    expect(COLOR_PALETTE.dark.accentInteractive).toBe('#a78bfa');
+  it('preserves the Hearthlight palette values', () => {
+    expect(COLOR_PALETTE.light.accent).toBe('#d08a23');
+    expect(COLOR_PALETTE.light.backgroundPage).toBe('#fbf8f2');
+    expect(COLOR_PALETTE.light.textPrimary).toBe('#2b241c');
+    expect(COLOR_PALETTE.light.whiteHex).toBe('#2b241c');
+    expect(COLOR_PALETTE.dark.backgroundPage).toBe('#211c17');
+    expect(COLOR_PALETTE.dark.textPrimary).toBe('#f7f0e6');
+    expect(COLOR_PALETTE.dark.accentInteractive).toBe('#efa83e');
   });
 
   it('falls back to light for unknown resolved themes', () => {
@@ -33,8 +34,8 @@ describe('color palette', () => {
   it('applies semantic tokens as CSS custom properties', () => {
     applyColorVariables(document.documentElement, 'dark');
 
-    expect(document.documentElement.style.getPropertyValue('--color-background-page')).toBe('#1e1e28');
-    expect(document.documentElement.style.getPropertyValue('--color-accent-interactive')).toBe('#a78bfa');
+    expect(document.documentElement.style.getPropertyValue('--color-background-page')).toBe('#211c17');
+    expect(document.documentElement.style.getPropertyValue('--color-accent-interactive')).toBe('#efa83e');
   });
 
   it('keeps UI color literals centralized', () => {
