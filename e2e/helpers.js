@@ -151,34 +151,6 @@ async function clickInShadow(page, selector) {
 }
 
 /**
- * Fill an input inside the bubble's shadow DOM.
- */
-async function fillInShadow(page, selector, value) {
-  await page.evaluate(({ sel, val }) => {
-    const host = document.getElementById('dobby-ai-bubble');
-    if (!host || !host.shadowRoot) throw new Error('No bubble found');
-    const el = host.shadowRoot.querySelector(sel);
-    if (!el) throw new Error(`Element ${sel} not found in shadow DOM`);
-    el.value = val;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, { sel: selector, val: value });
-}
-
-/**
- * Press a key on an input inside the bubble's shadow DOM.
- */
-async function pressKeyInShadow(page, selector, key) {
-  await page.evaluate(({ sel, k }) => {
-    const host = document.getElementById('dobby-ai-bubble');
-    if (!host || !host.shadowRoot) throw new Error('No bubble found');
-    const el = host.shadowRoot.querySelector(sel);
-    if (!el) throw new Error(`Element ${sel} not found in shadow DOM`);
-    el.focus();
-    el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
-  }, { sel: selector, k: key });
-}
-
-/**
  * Get text content of an element inside the bubble's shadow DOM.
  */
 async function getTextInShadow(page, selector) {
@@ -225,10 +197,7 @@ module.exports = {
   waitForBubble,
   waitForStreamingStarted,
   clickInShadow,
-  fillInShadow,
-  pressKeyInShadow,
   getTextInShadow,
   isVisibleInShadow,
   countInShadow,
-  EXTENSION_PATH,
 };

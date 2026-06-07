@@ -1,12 +1,10 @@
-// src/content/shared/theme.js — Theme resolution shared by content UI surfaces
-
-const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)';
+export const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)';
 
 export function normalizeThemeMode(value) {
   return value === 'light' || value === 'dark' || value === 'auto' ? value : 'auto';
 }
 
-export function getSystemTheme() {
+function getSystemTheme() {
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     return window.matchMedia(COLOR_SCHEME_QUERY).matches ? 'dark' : 'light';
   }

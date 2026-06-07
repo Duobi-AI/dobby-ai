@@ -72,7 +72,7 @@ export function detectContentType(text, anchorNode) {
 
 // ─── Code heuristics ────────────────────────────────────────────────────────
 
-export function detectCodeHeuristics(text) {
+function detectCodeHeuristics(text) {
   const hasBraces = /[{}]/.test(text);
   const hasSemicolons = /;/.test(text);
   const hasIndentation = /^\s{2,}/m.test(text);
@@ -341,13 +341,4 @@ export function detectNaturalLanguage(text) {
   }
 
   return best;
-}
-
-/**
- * Backwards-compatible wrapper — calls detectContentType with no anchorNode.
- * @param {string} text - The selected text
- * @returns {{ type: string, subType: string|null, confidence: number, wordCount: number, charCount: number }}
- */
-export function detectContent(text) {
-  return detectContentType(text, null);
 }

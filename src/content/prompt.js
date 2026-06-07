@@ -1,7 +1,7 @@
 // prompt.js — OpenAI chat message format
 export const MAX_TEXT_LENGTH = 6000;
-export const MAX_INSTRUCTION_LENGTH = 500;
-export const MAX_SOURCE_CONTEXT_LENGTH = 500;
+const MAX_INSTRUCTION_LENGTH = 500;
+const MAX_SOURCE_CONTEXT_LENGTH = 500;
 
 const TRUNCATION_MARKER = '...[truncated]';
 const SYSTEM_PROMPT = 'You are Dobby AI, a helpful assistant. The user has selected text on a webpage and the full selected text is provided below. Do NOT attempt to access, fetch, or visit any URLs — the text content is already included in the message. A source URL may be provided as metadata only. Be concise and clear. Always respond in the same language as the selected text.';

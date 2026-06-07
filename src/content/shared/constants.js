@@ -10,16 +10,7 @@ export const Z_INDEX = {
   LIGHTBOX: 2147483647,
 };
 
-export const THEME = {
-  ACCENT: '#7c3aed',
-  ACCENT_LIGHT: '#a78bfa',
-  ACCENT_BG: 'rgba(124, 58, 237, 0.1)',
-  ACCENT_STRONG: 'rgba(124, 58, 237, 0.9)',
-  ACCENT_BORDER: 'rgba(124, 58, 237, 0.6)',
-  ACCENT_GLOW: 'rgba(124,58,237,0.4)',
-  FONT_STACK: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  BACKDROP_BLUR: 'blur(12px)',
-};
+export const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
 export const TIMING = {
   LONG_PRESS_DURATION: 1000,
@@ -41,5 +32,4 @@ export const AUTOSUGGEST = {
   MAX_CONTEXT_CHARS: 2000,
   MAX_SUGGESTION_TOKENS: AUTOSUGGEST_MAX_SUGGESTION_TOKENS,
   GHOST_OPACITY: 0.4,
-  GHOST_COLOR: '#9ca3af',
 };

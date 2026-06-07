@@ -47,31 +47,6 @@ export function setupChromeMocks(overrides = {}) {
 }
 
 /**
- * Set up common global dependency mocks for content script tests.
- */
-export function setupContentScriptMocks() {
-  global.detectContentType = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
-  global.detectContent = vi.fn(() => ({ type: 'general', subType: null, confidence: 'high' }));
-  global.getSuggestedPresetsForType = vi.fn(() => [
-    { id: 'explain', label: 'Explain this', instruction: 'Explain the following' },
-    { id: 'summarize', label: 'Summarize', instruction: 'Summarize the following' },
-  ]);
-  global.buildChatMessages = vi.fn((text, instruction) => [
-    { role: 'system', content: instruction },
-    { role: 'user', content: text },
-  ]);
-  global.requestChat = vi.fn(() => ({ cancel: vi.fn() }));
-  global.saveConversation = vi.fn(() => Promise.resolve());
-  global.getHistory = vi.fn(() => Promise.resolve([]));
-  global.clearHistory = vi.fn(() => Promise.resolve());
-  global.buildFollowUp = vi.fn((msgs, q) => [...msgs, { role: 'user', content: q }]);
-  global.showBubble = vi.fn();
-  global.showBubbleWithPresets = vi.fn();
-  global.hideBubble = vi.fn();
-  global._getBubbleContainer = vi.fn(() => null);
-}
-
-/**
  * Create a mock selection object for testing text selection behavior.
  */
 export function mockSelection(text, rect = { top: 100, right: 200, bottom: 120, left: 100 }) {

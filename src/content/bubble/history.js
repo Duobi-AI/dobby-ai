@@ -19,7 +19,7 @@ export async function showHistoryPanel(shadow) {
   const entries = await getHistory();
 
   if (entries.length === 0) {
-    body.innerHTML = '<div class="history-panel"><p style="text-align:center;color:#71717a">No history yet</p></div>';
+    body.innerHTML = '<div class="history-panel"><p class="history-empty">No history yet</p></div>';
     return;
   }
 
@@ -76,7 +76,7 @@ export async function showHistoryPanel(shadow) {
   clearLink.textContent = 'Clear all history';
   clearLink.addEventListener('click', async () => {
     await clearHistory();
-    body.innerHTML = '<div class="history-panel"><p style="text-align:center;color:#71717a">History cleared</p></div>';
+    body.innerHTML = '<div class="history-panel"><p class="history-empty">History cleared</p></div>';
   });
   panel.appendChild(clearLink);
 

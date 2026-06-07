@@ -1,11 +1,12 @@
 // src/content/bubble/styles.js — CSS-in-JS styles for Dobby AI chat bubble (Shadow DOM)
-import { THEME } from '../shared/constants.js';
+import { FONT_STACK } from '../shared/constants.js';
+import { getColorPalette } from '../../shared/color-palette.js';
 
 export function getStyles(theme) {
-  const isDark = theme === 'dark';
-  const accent = THEME.ACCENT;
-  const accentLight = THEME.ACCENT_LIGHT;
-  const fontStack = THEME.FONT_STACK;
+  const colors = getColorPalette(theme);
+  const accent = colors.accent;
+  const accentInteractive = colors.accentInteractive;
+  const fontStack = FONT_STACK;
   return `
     :host { all: initial; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -19,23 +20,23 @@ export function getStyles(theme) {
       display: flex;
       flex-direction: column;
       animation: bubble-enter 0.2s ease-out;
-      background: ${isDark ? 'rgba(30, 30, 40, 0.85)' : 'rgba(255, 255, 255, 0.85)'};
+      background: ${colors.surfaceGlass};
       backdrop-filter: blur(16px) saturate(180%);
       -webkit-backdrop-filter: blur(16px) saturate(180%);
-      border: 1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'};
-      box-shadow: 0 8px 32px ${isDark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.15)'};
-      color: ${isDark ? '#e4e4e7' : '#18181b'};
+      border: 1px solid ${colors.borderPanel};
+      box-shadow: 0 8px 32px ${colors.panelShadow};
+      color: ${colors.textPrimary};
       font-size: 14px;
       line-height: 1.5;
     }
     @supports not (backdrop-filter: blur(16px)) {
-      .bubble { background: ${isDark ? 'rgba(30, 30, 40, 0.98)' : 'rgba(255, 255, 255, 0.98)'}; }
+      .bubble { background: ${colors.surfaceGlassSolid}; }
     }
     .bubble-header {
       display: flex;
       align-items: center;
       padding: 10px 14px;
-      border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
+      border-bottom: 1px solid ${colors.borderDivider};
       gap: 8px;
     }
     .bubble-logo {
@@ -44,50 +45,50 @@ export function getStyles(theme) {
       gap: 6px;
       font-weight: 700;
       font-size: 14px;
-      color: ${isDark ? accentLight : accent};
+      color: ${accentInteractive};
     }
     .bubble-logo-mark {
       width: 22px;
       height: 22px;
       display: block;
       object-fit: contain;
-      filter: drop-shadow(0 1px 1.5px ${isDark ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.18)'});
+      filter: drop-shadow(0 1px 1.5px ${colors.iconShadow});
     }
     .bubble-status {
       font-size: 12px;
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
+      color: ${colors.textMuted};
       flex: 1;
     }
     .close-btn {
       background: none;
       border: none;
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
+      color: ${colors.textMuted};
       cursor: pointer;
       font-size: 16px;
       padding: 2px 6px;
       border-radius: 4px;
     }
-    .close-btn:hover { background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
+    .close-btn:hover { background: ${colors.surfaceCode}; }
     .pin-btn {
       background: none;
       border: none;
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
+      color: ${colors.textMuted};
       cursor: pointer;
       padding: 2px 6px;
       border-radius: 4px;
       transition: color 0.15s, transform 0.15s;
       transform: rotate(45deg);
     }
-    .pin-btn:hover { background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
+    .pin-btn:hover { background: ${colors.surfaceCode}; }
     .pin-btn.pinned {
       color: ${accent};
       transform: rotate(0deg);
     }
     .selected-text-preview {
       padding: 8px 14px;
-      border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
+      border-bottom: 1px solid ${colors.borderDivider};
       font-size: 12px;
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
+      color: ${colors.textMuted};
       max-height: 80px;
       overflow-y: auto;
       line-height: 1.4;
@@ -97,7 +98,7 @@ export function getStyles(theme) {
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: ${isDark ? accentLight : accent};
+      color: ${accentInteractive};
       margin-bottom: 2px;
     }
     .selected-text-preview .text {
@@ -121,7 +122,7 @@ export function getStyles(theme) {
     .message-user {
       align-self: flex-end;
       background: ${accent};
-      color: #fff;
+      color: ${colors.accentContrast};
       padding: 6px 12px;
       border-radius: 12px 12px 2px 12px;
       max-width: 85%;
@@ -132,7 +133,7 @@ export function getStyles(theme) {
     .message-ai {
       position: relative;
       align-self: flex-start;
-      background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
+      background: ${colors.surfaceMessage};
       padding: 8px 28px 8px 12px;
       border-radius: 12px 12px 12px 2px;
       max-width: 95%;
@@ -147,23 +148,23 @@ export function getStyles(theme) {
       cursor: pointer;
       padding: 4px;
       border-radius: 4px;
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
+      color: ${colors.textMuted};
       opacity: 0;
       transition: opacity 0.15s, background 0.15s;
       line-height: 1;
     }
     .message-ai:hover .copy-btn { opacity: 1; }
-    .copy-btn:hover { background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
-    .copy-btn.copied { color: #22c55e; }
+    .copy-btn:hover { background: ${colors.surfaceCode}; }
+    .copy-btn.copied { color: ${colors.successBright}; }
     .response-text code {
-      background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'};
+      background: ${colors.surfaceCode};
       padding: 1px 4px;
       border-radius: 3px;
       font-family: 'SF Mono', Monaco, Consolas, monospace;
       font-size: 13px;
     }
     .response-text pre {
-      background: ${isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.04)'};
+      background: ${colors.surfaceCodeBlock};
       padding: 10px;
       border-radius: 8px;
       overflow-x: auto;
@@ -190,13 +191,13 @@ export function getStyles(theme) {
       height: 60px;
       object-fit: cover;
       border-radius: 6px;
-      border: 1px solid rgba(0,0,0,0.1);
+      border: 1px solid ${colors.imageBorder};
     }
     .img-lightbox {
       position: fixed;
       inset: 0;
       z-index: 2147483647;
-      background: rgba(0, 0, 0, 0.8);
+      background: ${colors.overlayStrong};
       display: flex;
       align-items: center;
       justify-content: center;
@@ -207,13 +208,13 @@ export function getStyles(theme) {
       max-height: 90vh;
       border-radius: 8px;
       object-fit: contain;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 8px 32px ${colors.shadowLightbox};
     }
     .cursor {
       display: inline-block;
       width: 2px;
       height: 14px;
-      background: ${isDark ? accentLight : accent};
+      background: ${accentInteractive};
       margin-left: 2px;
       vertical-align: text-bottom;
     }
@@ -229,12 +230,12 @@ export function getStyles(theme) {
       align-items: center;
       padding: 8px 10px;
       gap: 6px;
-      border-top: 1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
+      border-top: 1px solid ${colors.borderDivider};
     }
     .follow-up-input {
       flex: 1;
-      border: 1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'};
-      background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)'};
+      border: 1px solid ${colors.borderStrong};
+      background: ${colors.surfaceInputSoft};
       border-radius: 8px;
       padding: 6px 10px;
       font-size: 13px;
@@ -243,10 +244,10 @@ export function getStyles(theme) {
       font-family: inherit;
     }
     .follow-up-input:focus {
-      border-color: ${isDark ? accentLight : accent};
+      border-color: ${accentInteractive};
     }
     .follow-up-input::placeholder {
-      color: ${isDark ? '#71717a' : '#a1a1aa'};
+      color: ${colors.textSubtle};
     }
     .action-btn {
       background: none;
@@ -255,16 +256,16 @@ export function getStyles(theme) {
       font-size: 16px;
       padding: 4px 6px;
       border-radius: 6px;
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
+      color: ${colors.textMuted};
     }
-    .action-btn:hover { background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
+    .action-btn:hover { background: ${colors.surfaceCode}; }
     .error-msg {
-      color: #ef4444;
+      color: ${colors.danger};
       padding: 8px 0;
     }
     .retry-btn {
-      background: ${isDark ? accentLight : accent};
-      color: white;
+      background: ${accentInteractive};
+      color: ${colors.accentContrast};
       border: none;
       padding: 4px 12px;
       border-radius: 6px;
@@ -279,13 +280,13 @@ export function getStyles(theme) {
     .rate-limit-msg .cta {
       display: inline-block;
       margin-top: 8px;
-      color: ${isDark ? accentLight : accent};
+      color: ${accentInteractive};
       cursor: pointer;
       text-decoration: underline;
     }
     .presets-section {
       padding: 8px 10px;
-      border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
+      border-bottom: 1px solid ${colors.borderDivider};
     }
     .presets-section.collapsed { display: none; }
     .preset-chips {
@@ -299,47 +300,48 @@ export function getStyles(theme) {
       cursor: pointer;
       border-radius: 10px;
       font-size: 12px;
-      color: ${isDark ? '#e4e4e7' : '#18181b'};
-      background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'};
+      color: ${colors.textPrimary};
+      background: ${colors.surfaceChip};
       white-space: nowrap;
       transition: background 0.15s;
     }
-    .preset-chip:hover { background: ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)'}; }
+    .preset-chip:hover { background: ${colors.accentSoft}; }
     .preset-input {
       width: 100%;
-      border: 1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'};
-      background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)'};
+      border: 1px solid ${colors.borderStrong};
+      background: ${colors.surfaceInputSoft};
       border-radius: 8px;
       padding: 5px 8px;
       font-size: 12px;
       outline: none;
       box-sizing: border-box;
-      color: ${isDark ? '#e4e4e7' : '#18181b'};
+      color: ${colors.textPrimary};
       font-family: inherit;
     }
-    .preset-input:focus { border-color: ${isDark ? accentLight : accent}; }
-    .preset-input::placeholder { color: ${isDark ? '#71717a' : '#a1a1aa'}; }
+    .preset-input:focus { border-color: ${accentInteractive}; }
+    .preset-input::placeholder { color: ${colors.textSubtle}; }
     .detection-badge {
       font-size: 10px;
-      color: ${isDark ? accentLight : accent};
+      color: ${accentInteractive};
       font-weight: 500;
       padding: 0 0 4px;
     }
     .response-section { display: none; }
     .response-section.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
     .history-panel { padding: 4px 0; }
+    .history-empty { text-align: center; color: ${colors.textMuted}; }
     .history-entry {
       padding: 8px 0;
-      border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
+      border-bottom: 1px solid ${colors.borderHistory};
       cursor: pointer;
     }
-    .history-entry:hover { background: ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'}; }
+    .history-entry:hover { background: ${colors.surfaceHistoryHover}; }
     .history-instruction { font-weight: 500; font-size: 13px; }
-    .history-meta { font-size: 11px; color: ${isDark ? '#71717a' : '#a1a1aa'}; margin-top: 2px; }
+    .history-meta { font-size: 11px; color: ${colors.textSubtle}; margin-top: 2px; }
     .clear-link {
       display: block;
       text-align: center;
-      color: #ef4444;
+      color: ${colors.danger};
       cursor: pointer;
       font-size: 12px;
       padding: 8px;
