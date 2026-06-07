@@ -121,22 +121,67 @@ jobs:
             }
           "
 
-          # Publish
-          PUBLISH_STATUS=$(curl -sS -o /tmp/chrome-publish.json -w "%{http_code}" -X POST \
-            "https://www.googleapis.com/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID/publish" \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "x-goog-api-version: 2")
-          cat /tmp/chrome-publish.json
-          echo
-          if [ "$PUBLISH_STATUS" -lt 200 ] || [ "$PUBLISH_STATUS" -ge 300 ]; then
-            echo "::error::Chrome Web Store publish failed with HTTP $PUBLISH_STATUS"
-            exit 1
-          fi
-          node -e "
-            const fs = require('fs');
-            const response = JSON.parse(fs.readFileSync('/tmp/chrome-publish.json', 'utf8'));
-            if (response.error) {
-              console.error('Chrome Web Store publish failed:', JSON.stringify(response.error));
-              process.exit(1);
-            }
-          "
+          is_retryable_publish_failure() {
+            local http_status="$1"
+            local response_file="$2"
+
+            case "$http_status" in
+              408|429|5??|000) return 0 ;;
+            esac
+
+            node - "$response_file" <<'NODE'
+          const fs = require('fs');
+          const path = process.argv[2];
+          let response;
+
+          try {
+            response = JSON.parse(fs.readFileSync(path, 'utf8'));
+          } catch {
+            process.exit(1);
+          }
+
+          const message = String(response?.error?.message || '');
+          const retryable = /homepage url is not reachable|timeout while connecting|temporar|try again|internal error|backend error|rate limit/i.test(message);
+          process.exit(retryable ? 0 : 1);
+          NODE
+          }
+
+          # Publishing can fail transiently while Chrome validates listing URLs.
+          MAX_PUBLISH_ATTEMPTS=3
+          for attempt in $(seq 1 "$MAX_PUBLISH_ATTEMPTS"); do
+            rm -f /tmp/chrome-publish.json
+            CURL_EXIT=0
+            PUBLISH_STATUS=$(curl -sS -o /tmp/chrome-publish.json -w "%{http_code}" -X POST \
+              "https://www.googleapis.com/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID/publish" \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -H "x-goog-api-version: 2") || CURL_EXIT=$?
+            if [ "$CURL_EXIT" -ne 0 ]; then
+              PUBLISH_STATUS=000
+            fi
+
+            if [ -f /tmp/chrome-publish.json ]; then
+              cat /tmp/chrome-publish.json
+              echo
+            fi
+
+            if [ "$CURL_EXIT" -eq 0 ] && [ "$PUBLISH_STATUS" -ge 200 ] && [ "$PUBLISH_STATUS" -lt 300 ]; then
+              node -e "
+                const fs = require('fs');
+                const response = JSON.parse(fs.readFileSync('/tmp/chrome-publish.json', 'utf8'));
+                if (response.error) {
+                  console.error('Chrome Web Store publish failed:', JSON.stringify(response.error));
+                  process.exit(1);
+                }
+              "
+              break
+            fi
+
+            if [ "$attempt" -eq "$MAX_PUBLISH_ATTEMPTS" ] || ! is_retryable_publish_failure "$PUBLISH_STATUS" /tmp/chrome-publish.json; then
+              echo "::error::Chrome Web Store publish failed with HTTP $PUBLISH_STATUS after $attempt attempt(s)"
+              exit 1
+            fi
+
+            delay=$((attempt * 20))
+            echo "::warning::Transient Chrome Web Store publish failure (HTTP $PUBLISH_STATUS). Retrying in ${delay}s ($attempt/$MAX_PUBLISH_ATTEMPTS)."
+            sleep "$delay"
+          done
