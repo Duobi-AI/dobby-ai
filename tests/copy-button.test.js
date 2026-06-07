@@ -6,6 +6,7 @@ import {
   clearRawResponses,
 } from '../src/content/shared/state.js';
 import { createCopyButton } from '../src/content/bubble/stream.js';
+import { getColorPalette } from '../src/shared/color-palette.js';
 
 describe('rawResponses state', () => {
   beforeEach(() => {
@@ -110,7 +111,9 @@ describe('copy button DOM', () => {
     await vi.waitFor(() => {
       expect(btn.title).toBe('Copy failed');
     });
-    expect(btn.style.color).toBe('rgb(239, 68, 68)');
+    const expected = document.createElement('span');
+    expected.style.color = getColorPalette('light').danger;
+    expect(btn.style.color).toBe(expected.style.color);
     vi.advanceTimersByTime(1500);
     expect(btn.title).toBe('Copy');
     expect(btn.style.color).toBe('');
