@@ -1,3 +1,6 @@
+import { applyColorVariables } from './shared/color-palette.js';
+import { COLOR_SCHEME_QUERY, normalizeThemeMode, resolveTheme } from './shared/theme.js';
+
 const FREE_CHAT_LIMIT = 30;
 const LOW_QUOTA_THRESHOLD = 5;
 
@@ -16,7 +19,6 @@ const usagePrimary = document.getElementById('usage-primary');
 const usageSecondary = document.getElementById('usage-secondary');
 const versionEl = document.getElementById('version');
 const themeOptions = document.querySelectorAll('.theme-option');
-const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)';
 let themeMode = 'auto';
 let colorSchemeQuery = null;
 
@@ -24,25 +26,10 @@ function getUtcDay() {
   return new Date().toISOString().split('T')[0];
 }
 
-function normalizeThemeMode(value) {
-  return value === 'light' || value === 'dark' || value === 'auto' ? value : 'auto';
-}
-
-function getSystemTheme() {
-  if (typeof window.matchMedia === 'function') {
-    return window.matchMedia(COLOR_SCHEME_QUERY).matches ? 'dark' : 'light';
-  }
-  return 'light';
-}
-
-function resolveTheme(value) {
-  const mode = normalizeThemeMode(value);
-  return mode === 'auto' ? getSystemTheme() : mode;
-}
-
 function applyTheme(value) {
   themeMode = normalizeThemeMode(value);
   const resolvedTheme = resolveTheme(themeMode);
+  applyColorVariables(document.documentElement, resolvedTheme);
   document.documentElement.dataset.themeMode = themeMode;
   document.documentElement.dataset.resolvedTheme = resolvedTheme;
   document.documentElement.style.colorScheme = resolvedTheme;

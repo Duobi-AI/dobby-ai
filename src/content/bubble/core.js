@@ -9,7 +9,7 @@ import {
 } from '../shared/state.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
 import { removeElement } from '../shared/dom-utils.js';
-import { detectTheme, watchThemeChanges } from '../shared/theme.js';
+import { detectTheme, watchThemeChanges } from '../../shared/theme.js';
 import { getStyles } from './styles.js';
 import { renderMarkdown, escapeHtml } from './markdown.js';
 import { startStreaming, handleFollowUp } from './stream.js';

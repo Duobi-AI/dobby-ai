@@ -2,9 +2,12 @@
 
 import { longPressState } from '../shared/state.js';
 import { removeElement } from '../shared/dom-utils.js';
-import { Z_INDEX, THEME } from '../shared/constants.js';
+import { Z_INDEX } from '../shared/constants.js';
+import { getColorPalette } from '../../shared/color-palette.js';
 
-export function _ensureProgressRingStyles() {
+const colors = getColorPalette('light');
+
+function _ensureProgressRingStyles() {
   if (document.getElementById('dobby-progress-ring-styles')) return;
   const style = document.createElement('style');
   style.id = 'dobby-progress-ring-styles';
@@ -56,9 +59,9 @@ export function _showProgressRing(x, y) {
     width: (SIZE - 6) + 'px',
     height: (SIZE - 6) + 'px',
     borderRadius: '50%',
-    background: 'rgba(245,240,255,0.92)',
+    background: colors.progressBackground,
     backdropFilter: 'blur(8px)',
-    boxShadow: '0 2px 12px ' + THEME.ACCENT_GLOW + ', 0 0 0 1px rgba(124,58,237,0.15)',
+    boxShadow: '0 2px 12px ' + colors.accentGlow + ', 0 0 0 1px ' + colors.accentBorderSubtle,
   });
   container.appendChild(backdrop);
 
@@ -78,7 +81,7 @@ export function _showProgressRing(x, y) {
   track.setAttribute('cy', String(HALF));
   track.setAttribute('r', String(RADIUS));
   track.setAttribute('fill', 'none');
-  track.setAttribute('stroke', 'rgba(124,58,237,0.3)');
+  track.setAttribute('stroke', colors.accentTrack);
   track.setAttribute('stroke-width', '3');
   svg.appendChild(track);
 
@@ -88,13 +91,13 @@ export function _showProgressRing(x, y) {
   fill.setAttribute('cy', String(HALF));
   fill.setAttribute('r', String(RADIUS));
   fill.setAttribute('fill', 'none');
-  fill.setAttribute('stroke', THEME.ACCENT);
+  fill.setAttribute('stroke', colors.accent);
   fill.setAttribute('stroke-width', '3');
   fill.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-dashoffset', String(CIRCUMFERENCE));
   fill.setAttribute('stroke-linecap', 'round');
   fill.style.animation = 'dobby-ring-fill 0.5s linear forwards';
-  fill.style.filter = 'drop-shadow(0 0 4px rgba(124,58,237,0.6))';
+  fill.style.filter = 'drop-shadow(0 0 4px ' + colors.accentGlowStrong + ')';
   svg.appendChild(fill);
 
   container.appendChild(svg);
@@ -105,7 +108,7 @@ export function _showProgressRing(x, y) {
   iconSvg.setAttribute('height', '10');
   iconSvg.setAttribute('viewBox', '0 0 24 24');
   iconSvg.setAttribute('fill', 'none');
-  iconSvg.setAttribute('stroke', THEME.ACCENT);
+  iconSvg.setAttribute('stroke', colors.accent);
   iconSvg.setAttribute('stroke-width', '2');
   iconSvg.setAttribute('stroke-linecap', 'round');
   Object.assign(iconSvg.style, {

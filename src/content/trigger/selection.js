@@ -24,7 +24,7 @@ const INTERACTIVE_TAGS = new Set([
   'INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'VIDEO', 'AUDIO', 'LABEL', 'OPTION',
 ]);
 
-export function isInteractiveElement(el) {
+function isInteractiveElement(el) {
   if (!el || !el.tagName) return false;
   if (INTERACTIVE_TAGS.has(el.tagName)) return true;
   if (el.isContentEditable) return true;
@@ -32,7 +32,7 @@ export function isInteractiveElement(el) {
   return false;
 }
 
-export function isScrollbarClick(e) {
+function isScrollbarClick(e) {
   // Page-level scrollbars
   if (e.clientX >= document.documentElement.clientWidth ||
     e.clientY >= document.documentElement.clientHeight) return true;

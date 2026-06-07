@@ -1,11 +1,11 @@
 // src/content/trigger/styles.js — CSS-in-JS styles for toolbar (Shadow DOM)
-import { THEME } from '../shared/constants.js';
+import { FONT_STACK } from '../shared/constants.js';
+import { getColorPalette } from '../../shared/color-palette.js';
 
 export function getToolbarStyles(theme) {
-  const isDark = theme === 'dark';
-  const accent = THEME.ACCENT;
-  const accentLight = THEME.ACCENT_LIGHT;
-  const fontStack = THEME.FONT_STACK;
+  const colors = getColorPalette(theme);
+  const accent = colors.accent;
+  const fontStack = FONT_STACK;
 
   return `
     :host { all: initial; }
@@ -20,13 +20,13 @@ export function getToolbarStyles(theme) {
       height: 36px;
       border-radius: 50%;
       overflow: hidden;
-      background: ${isDark ? 'rgba(28, 25, 38, 0.82)' : 'rgba(255, 255, 255, 0.82)'};
+      background: ${colors.surfaceToolbarGlass};
       backdrop-filter: blur(12px) saturate(180%);
       -webkit-backdrop-filter: blur(12px) saturate(180%);
       border: none;
       box-shadow:
-        inset 0 0 0 1px ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'},
-        0 2px 12px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.15)'};
+        inset 0 0 0 1px ${colors.borderPanel},
+        0 2px 12px ${colors.toolbarShadow};
       cursor: pointer;
       user-select: none;
       transition: width 0.22s cubic-bezier(0.4,0,0.2,1),
@@ -65,7 +65,7 @@ export function getToolbarStyles(theme) {
       height: 28px;
       display: block;
       object-fit: contain;
-      filter: drop-shadow(0 1px 1.5px ${isDark ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.18)'});
+      filter: drop-shadow(0 1px 1.5px ${colors.iconShadow});
     }
 
 
@@ -88,7 +88,7 @@ export function getToolbarStyles(theme) {
     .toolbar-sep {
       width: 1px;
       height: 18px;
-      background: ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'};
+      background: ${colors.borderStrong};
       flex-shrink: 0;
     }
 
@@ -101,7 +101,7 @@ export function getToolbarStyles(theme) {
     .toolbar-action {
       background: none;
       border: none;
-      color: ${isDark ? '#e4e4e7' : '#18181b'};
+      color: ${colors.textPrimary};
       font-size: 12px;
       font-family: ${fontStack};
       padding: 4px 8px;
@@ -112,7 +112,7 @@ export function getToolbarStyles(theme) {
     }
 
     .toolbar-action:hover {
-      background: ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)'};
+      background: ${colors.accentSoft};
     }
 
     /* Pencil / close icon button */
@@ -133,7 +133,7 @@ export function getToolbarStyles(theme) {
     }
 
     .toolbar-pencil:hover {
-      background: ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)'};
+      background: ${colors.accentSoft};
     }
 
     .toolbar-pencil svg {
@@ -142,11 +142,11 @@ export function getToolbarStyles(theme) {
     }
 
     .toolbar-pencil.close-mode {
-      color: ${isDark ? '#a1a1aa' : '#71717a'};
+      color: ${colors.textMuted};
     }
 
     .toolbar-pencil.close-mode:hover {
-      background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'};
+      background: ${colors.surfaceCode};
     }
 
     /* Input mode container — sits between dog icon and pencil/close button */
@@ -175,16 +175,16 @@ export function getToolbarStyles(theme) {
       height: 24px;
       border: none;
       outline: none;
-      background: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(124,58,237,0.06)'};
+      background: ${colors.surfaceToolbarInput};
       border-radius: 10px;
       padding: 0 8px;
       font-size: 11px;
       font-family: ${fontStack};
-      color: ${isDark ? '#e4e4e7' : '#18181b'};
+      color: ${colors.textPrimary};
     }
 
     .toolbar-input-field::placeholder {
-      color: ${isDark ? '#71717a' : '#a1a1aa'};
+      color: ${colors.textSubtle};
     }
 
     .toolbar-send {
@@ -204,7 +204,7 @@ export function getToolbarStyles(theme) {
     }
 
     .toolbar-send:hover {
-      background: ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.1)'};
+      background: ${colors.accentSoft};
     }
 
     .toolbar-send.disabled {

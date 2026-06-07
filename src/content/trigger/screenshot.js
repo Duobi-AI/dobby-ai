@@ -2,10 +2,13 @@
 
 import { screenshotState, resetScreenshotState, longPressState } from '../shared/state.js';
 import { removeElement } from '../shared/dom-utils.js';
-import { Z_INDEX, THEME } from '../shared/constants.js';
+import { FONT_STACK, Z_INDEX } from '../shared/constants.js';
 import { _removeProgressRing } from './progress-ring.js';
 import { showBubbleWithPresets } from '../bubble/core.js';
 import { captureScreenshot } from '../image-capture.js';
+import { getColorPalette } from '../../shared/color-palette.js';
+
+const colors = getColorPalette('light');
 
 export function startScreenshotMode() {
   if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
@@ -17,7 +20,7 @@ export function startScreenshotMode() {
     position: 'fixed',
     inset: '0',
     zIndex: String(Z_INDEX.SCREENSHOT_OVERLAY),
-    background: 'rgba(0, 0, 0, 0.4)',
+    background: colors.overlay,
     cursor: 'crosshair',
   });
 
@@ -28,16 +31,16 @@ export function startScreenshotMode() {
     top: '16px',
     left: '50%',
     transform: 'translateX(-50%)',
-    background: THEME.ACCENT_STRONG,
-    color: 'white',
+    background: colors.accentStrong,
+    color: colors.white,
     padding: '10px 24px',
     borderRadius: '8px',
     fontSize: '14px',
-    fontFamily: THEME.FONT_STACK,
+    fontFamily: FONT_STACK,
     fontWeight: '500',
     zIndex: String(Z_INDEX.TRIGGER),
     pointerEvents: 'none',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+    boxShadow: '0 4px 16px ' + colors.shadowBanner,
     letterSpacing: '0.3px',
   });
   banner.textContent = 'Drag to select a region \u2022 ESC to cancel';
@@ -48,7 +51,7 @@ export function startScreenshotMode() {
   Object.assign(border.style, {
     position: 'fixed',
     inset: '0',
-    border: '2px solid ' + THEME.ACCENT_BORDER,
+    border: '2px solid ' + colors.accentBorder,
     pointerEvents: 'none',
     zIndex: String(Z_INDEX.TRIGGER),
   });
@@ -57,8 +60,8 @@ export function startScreenshotMode() {
   screenshotState.rect = document.createElement('div');
   Object.assign(screenshotState.rect.style, {
     position: 'fixed',
-    border: '2px dashed ' + THEME.ACCENT,
-    background: THEME.ACCENT_BG,
+    border: '2px dashed ' + colors.accent,
+    background: colors.accentBackground,
     display: 'none',
     zIndex: String(Z_INDEX.TRIGGER),
   });
@@ -105,7 +108,7 @@ export function startScreenshotMode() {
 
     // Lock the selection rectangle with solid border
     Object.assign(screenshotState.rect.style, {
-      border: '2px solid ' + THEME.ACCENT,
+      border: '2px solid ' + colors.accent,
     });
 
 
@@ -155,10 +158,10 @@ function _showConfirmToolbar(overlay, banner, rect) {
     borderRadius: '6px',
     padding: '8px 16px',
     fontSize: '13px',
-    fontFamily: THEME.FONT_STACK,
+    fontFamily: FONT_STACK,
     fontWeight: '500',
     cursor: 'pointer',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+    boxShadow: '0 2px 8px ' + colors.shadowButton,
   };
 
   // Confirm button
@@ -166,8 +169,8 @@ function _showConfirmToolbar(overlay, banner, rect) {
   confirmBtn.textContent = 'Capture';
   Object.assign(confirmBtn.style, {
     ...btnBase,
-    background: THEME.ACCENT,
-    color: 'white',
+    background: colors.accent,
+    color: colors.white,
   });
   confirmBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -195,15 +198,15 @@ function _showConfirmToolbar(overlay, banner, rect) {
   reselectBtn.textContent = 'Reselect';
   Object.assign(reselectBtn.style, {
     ...btnBase,
-    background: 'rgba(255, 255, 255, 0.9)',
-    color: '#374151',
+    background: colors.screenshotButtonBackground,
+    color: colors.screenshotText,
   });
   reselectBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     toolbar.remove();
     Object.assign(screenshotState.rect.style, {
       display: 'none',
-      border: '2px dashed ' + THEME.ACCENT,
+      border: '2px dashed ' + colors.accent,
       width: '0px',
       height: '0px',
     });
@@ -216,8 +219,8 @@ function _showConfirmToolbar(overlay, banner, rect) {
   cancelBtn.textContent = 'Cancel';
   Object.assign(cancelBtn.style, {
     ...btnBase,
-    background: 'rgba(255, 255, 255, 0.9)',
-    color: '#6b7280',
+    background: colors.screenshotButtonBackground,
+    color: colors.screenshotTextMuted,
   });
   cancelBtn.addEventListener('click', (e) => {
     e.stopPropagation();

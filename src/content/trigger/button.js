@@ -4,7 +4,8 @@
 
 import { getToolbarStyles } from './styles.js';
 import { detectTheme, showBubble } from '../bubble/core.js';
-import { watchThemeChanges } from '../shared/theme.js';
+import { watchThemeChanges } from '../../shared/theme.js';
+import { getColorPalette } from '../../shared/color-palette.js';
 import { buildChatMessages } from '../prompt.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
 import {
@@ -21,6 +22,7 @@ const pencilSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const closeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 const sendSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
 const SELECTION_IMAGE_WAIT_MS = 1000;
+const colors = getColorPalette('light');
 
 // --- Auto-hide timer ---
 let autoHideTimer = null;
@@ -387,7 +389,7 @@ function showSelectionHighlight() {
       top: rect.top + 'px',
       width: rect.width + 'px',
       height: rect.height + 'px',
-      background: 'rgba(124, 58, 237, 0.13)',
+      background: colors.selectionHighlight,
       pointerEvents: 'none',
       zIndex: '2147483646',
       borderRadius: '2px',

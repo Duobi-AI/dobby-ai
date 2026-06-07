@@ -1,4 +1,6 @@
 // options.js — Dobby AI settings page
+import { applyColorVariables } from './shared/color-palette.js';
+import { COLOR_SCHEME_QUERY, normalizeThemeMode, resolveTheme } from './shared/theme.js';
 
 const apiKeyInput = document.getElementById('api-key-input');
 const saveBtn = document.getElementById('save-btn');
@@ -8,32 +10,16 @@ const hasKeySection = document.getElementById('has-key');
 const noKeySection = document.getElementById('no-key');
 const keyDisplay = document.getElementById('key-display');
 const versionEl = document.getElementById('extension-version');
-const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)';
 let themeMode = 'auto';
 
 if (versionEl && chrome.runtime.getManifest) {
   versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
 }
 
-function normalizeThemeMode(value) {
-  return value === 'light' || value === 'dark' || value === 'auto' ? value : 'auto';
-}
-
-function getSystemTheme() {
-  if (typeof window.matchMedia === 'function') {
-    return window.matchMedia(COLOR_SCHEME_QUERY).matches ? 'dark' : 'light';
-  }
-  return 'light';
-}
-
-function resolveTheme(value) {
-  const mode = normalizeThemeMode(value);
-  return mode === 'auto' ? getSystemTheme() : mode;
-}
-
 function applyTheme(value) {
   themeMode = normalizeThemeMode(value);
   const resolvedTheme = resolveTheme(themeMode);
+  applyColorVariables(document.documentElement, resolvedTheme);
   document.documentElement.dataset.themeMode = themeMode;
   document.documentElement.dataset.resolvedTheme = resolvedTheme;
   document.documentElement.style.colorScheme = resolvedTheme;

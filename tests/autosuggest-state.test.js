@@ -10,7 +10,6 @@ describe('autosuggest constants', () => {
     expect(AUTOSUGGEST.MAX_CONTEXT_CHARS).toBe(2000);
     expect(AUTOSUGGEST.MAX_SUGGESTION_TOKENS).toBe(AUTOSUGGEST_MAX_SUGGESTION_TOKENS);
     expect(AUTOSUGGEST.GHOST_OPACITY).toBe(0.4);
-    expect(AUTOSUGGEST.GHOST_COLOR).toBe('#9ca3af');
   });
 });
 

@@ -234,11 +234,10 @@ async function renderTransparentMark(outPath, size = 128) {
     height: 512,
   });
 
-  const brandLogoDataUri = fs.readFileSync(path.resolve('icons/store-icon.png')).toString('base64');
   const brandMarkDataUri = fs.readFileSync(path.resolve('icons/dobby-logo-mark.png')).toString('base64');
   fs.writeFileSync(
     path.resolve('src/shared/brand.js'),
-    `export const BRAND_NAME = 'Dobby AI';\n\nexport const BRAND_LOGO_DATA_URI = 'data:image/png;base64,${brandLogoDataUri}';\n\nexport const BRAND_MARK_DATA_URI = 'data:image/png;base64,${brandMarkDataUri}';\n`
+    `export const BRAND_NAME = 'Dobby AI';\n\nexport const BRAND_MARK_DATA_URI = 'data:image/png;base64,${brandMarkDataUri}';\n`
   );
   console.log('Updated src/shared/brand.js');
 })();

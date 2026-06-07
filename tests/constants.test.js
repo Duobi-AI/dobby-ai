@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-const { Z_INDEX, THEME, TIMING } = await import('../src/content/shared/constants.js');
+const { FONT_STACK, Z_INDEX, TIMING } = await import('../src/content/shared/constants.js');
 
 describe('constants', () => {
   it('exports Z_INDEX with correct layer ordering', () => {
@@ -14,14 +14,8 @@ describe('constants', () => {
     expect(Z_INDEX.LIGHTBOX).toBe(2147483647);
   });
 
-  it('exports THEME with accent colors', () => {
-    expect(THEME.ACCENT).toBe('#7c3aed');
-    expect(THEME.ACCENT_LIGHT).toBe('#a78bfa');
-    expect(THEME.ACCENT_BG).toContain('124, 58, 237');
-    expect(THEME.ACCENT_STRONG).toContain('124, 58, 237');
-    expect(THEME.ACCENT_BORDER).toContain('124, 58, 237');
-    expect(THEME.FONT_STACK).toContain('apple-system');
-    expect(THEME.BACKDROP_BLUR).toBe('blur(12px)');
+  it('exports the shared font stack', () => {
+    expect(FONT_STACK).toContain('apple-system');
   });
 
   it('exports TIMING constants', () => {

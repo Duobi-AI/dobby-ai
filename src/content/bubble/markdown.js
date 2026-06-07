@@ -5,7 +5,7 @@ export function escapeHtml(text) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-export function isValidImageUrl(url) {
+function isValidImageUrl(url) {
   try {
     const parsed = new URL(url);
     return parsed.protocol === 'https:';

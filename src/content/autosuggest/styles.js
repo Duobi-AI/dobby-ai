@@ -1,7 +1,9 @@
 // src/content/autosuggest/styles.js — CSS-in-JS styles for autosuggest ghost text overlay
 import { AUTOSUGGEST } from '../shared/constants.js';
+import { getColorPalette } from '../../shared/color-palette.js';
 
 export function getGhostTextStyles() {
+  const colors = getColorPalette('light');
   return `
     :host {
       position: absolute;
@@ -18,7 +20,7 @@ export function getGhostTextStyles() {
       visibility: hidden;
     }
     .ghost-text {
-      color: ${AUTOSUGGEST.GHOST_COLOR};
+      color: ${colors.ghostText};
       opacity: ${AUTOSUGGEST.GHOST_OPACITY};
     }
     .ghost-paw {
