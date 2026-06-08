@@ -33,6 +33,7 @@ vi.mock('../src/content/presets.js', () => ({
 
 const {
   showBubble,
+  showBubbleWithPresets,
   hideBubble,
   appendToken,
   setBubbleStatus,
@@ -631,6 +632,92 @@ describe('bubble.js', () => {
       document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 
       expect(host.style.left).toBe(initialLeft);
+    });
+  });
+
+  describe('accessibility — ARIA labels', () => {
+    it('icon-only header buttons have aria-labels', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
+      const shadow = _getBubbleContainer().shadowRoot;
+      expect(shadow.querySelector('.close-btn').getAttribute('aria-label')).toBe('Close chat');
+      expect(shadow.querySelector('.pin-btn').getAttribute('aria-label')).toBe('Pin chat bubble');
+      expect(shadow.querySelector('.history-btn').getAttribute('aria-label')).toBe('View history');
+      expect(shadow.querySelector('.follow-up-input').getAttribute('aria-label')).toBe('Ask a follow-up');
+    });
+  });
+
+  describe('accessibility — focus management', () => {
+    it('moves focus to the custom preset input when opening in preset mode', async () => {
+      await showBubbleWithPresets({ bottom: 100, left: 50, right: 250 }, 'some selected text', null, null);
+      const shadow = _getBubbleContainer().shadowRoot;
+      const input = shadow.querySelector('.preset-input');
+      expect(shadow.activeElement).toBe(input);
+    });
+  });
+
+  describe('accessibility — focus trap', () => {
+    it('Tab from last focusable wraps to the first', async () => {
+      await showBubbleWithPresets({ bottom: 100, left: 50, right: 250 }, 'some selected text', null, null);
+      const shadow = _getBubbleContainer().shadowRoot;
+      const bubble = shadow.querySelector('.bubble');
+      const focusable = Array.from(bubble.querySelectorAll(
+        'button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'
+      ));
+      const last = focusable[focusable.length - 1];
+      const first = focusable[0];
+      last.focus();
+      const evt = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+      last.dispatchEvent(evt);
+      expect(evt.defaultPrevented).toBe(true);
+      expect(shadow.activeElement).toBe(first);
+    });
+
+    it('Shift+Tab from first focusable wraps to the last', async () => {
+      await showBubbleWithPresets({ bottom: 100, left: 50, right: 250 }, 'some selected text', null, null);
+      const shadow = _getBubbleContainer().shadowRoot;
+      const bubble = shadow.querySelector('.bubble');
+      const focusable = Array.from(bubble.querySelectorAll(
+        'button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'
+      ));
+      const last = focusable[focusable.length - 1];
+      const first = focusable[0];
+      first.focus();
+      const evt = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+      first.dispatchEvent(evt);
+      expect(evt.defaultPrevented).toBe(true);
+      expect(shadow.activeElement).toBe(last);
+    });
+  });
+
+  describe('accessibility — keyboard-operable preset chips', () => {
+    it('chips have role=button and tabindex=0', async () => {
+      await showBubbleWithPresets({ bottom: 100, left: 50, right: 250 }, 'some selected text', null, null);
+      const shadow = _getBubbleContainer().shadowRoot;
+      const chip = shadow.querySelector('.preset-chip');
+      expect(chip).not.toBeNull();
+      expect(chip.getAttribute('role')).toBe('button');
+      expect(chip.getAttribute('tabindex')).toBe('0');
+    });
+
+    it('Enter on a chip activates it (same path as click)', async () => {
+      await showBubbleWithPresets({ bottom: 100, left: 50, right: 250 }, 'some selected text', null, null);
+      const shadow = _getBubbleContainer().shadowRoot;
+      const chip = shadow.querySelector('.preset-chip');
+      chip.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      // launchFromPreset builds messages and activates the response section
+      expect(promptModule.buildChatMessages).toHaveBeenCalled();
+      const responseSection = shadow.querySelector('.response-section');
+      expect(responseSection.classList.contains('active')).toBe(true);
+    });
+
+    it('Space on a chip activates it (same path as click)', async () => {
+      await showBubbleWithPresets({ bottom: 100, left: 50, right: 250 }, 'some selected text', null, null);
+      const shadow = _getBubbleContainer().shadowRoot;
+      const chip = shadow.querySelector('.preset-chip');
+      chip.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      expect(promptModule.buildChatMessages).toHaveBeenCalled();
+      const responseSection = shadow.querySelector('.response-section');
+      expect(responseSection.classList.contains('active')).toBe(true);
     });
   });
 

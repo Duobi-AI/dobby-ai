@@ -10,6 +10,20 @@ export function getStyles(theme) {
   return `
     :host { all: initial; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    .close-btn:focus-visible,
+    .pin-btn:focus-visible,
+    .history-btn:focus-visible,
+    .action-btn:focus-visible,
+    .retry-btn:focus-visible,
+    .copy-btn:focus-visible,
+    .preset-chip:focus-visible,
+    .preset-input:focus-visible,
+    .follow-up-input:focus-visible,
+    .history-entry:focus-visible {
+      outline: 2px solid ${accent};
+      outline-offset: 2px;
+    }
+    .copy-btn:focus-visible { opacity: 1; }
     .bubble {
       position: relative;
       font-family: ${fontStack};

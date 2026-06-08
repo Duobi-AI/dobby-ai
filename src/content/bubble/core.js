@@ -81,12 +81,12 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
         <span>${BRAND_NAME}</span>
       </span>
       <span class="bubble-status"></span>
-      <button class="pin-btn" title="Pin">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button class="pin-btn" title="Pin" aria-label="Pin chat bubble">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 17v5"/><path d="M9 11V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v7"/><path d="M5 15h14l-1.5-4H6.5L5 15z"/>
         </svg>
       </button>
-      <button class="close-btn" title="Close">\u2715</button>
+      <button class="close-btn" title="Close" aria-label="Close chat">\u2715</button>
     </div>
     ${previewHtml}
     ${showPresets ? '<div class="presets-section"></div>' : ''}
@@ -96,8 +96,8 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
         <span class="cursor blink"></span>
       </div>
       <div class="bubble-footer">
-        <input class="follow-up-input" placeholder="Ask a follow-up..." disabled />
-        <button class="action-btn history-btn" title="History">\ud83d\udd50</button>
+        <input class="follow-up-input" placeholder="Ask a follow-up..." aria-label="Ask a follow-up" disabled />
+        <button class="action-btn history-btn" title="History" aria-label="View history">\ud83d\udd50</button>
       </div>
     </div>
     <div class="resize-handle" title="Drag to resize">
@@ -107,6 +107,66 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
       </svg>
     </div>
   `;
+}
+
+const FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function getFocusableElements(shadow) {
+  const bubble = shadow.querySelector('.bubble');
+  if (!bubble) return [];
+  return Array.from(bubble.querySelectorAll(FOCUSABLE_SELECTOR)).filter((el) => {
+    if (el.offsetParent === null && el.getClientRects().length === 0) {
+      // Hidden (e.g. collapsed presets / inactive response section)
+      const cs = (typeof window !== 'undefined' && window.getComputedStyle)
+        ? window.getComputedStyle(el) : null;
+      if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) return false;
+    }
+    return true;
+  });
+}
+
+// Trap Tab/Shift+Tab focus within the bubble so it never escapes to the page.
+function setupFocusTrap(shadow) {
+  const bubble = shadow.querySelector('.bubble');
+  if (!bubble) return;
+  bubble.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const focusable = getFocusableElements(shadow);
+    if (focusable.length === 0) {
+      e.preventDefault();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = shadow.activeElement;
+    if (e.shiftKey) {
+      if (active === first || !focusable.includes(active)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else if (active === last || !focusable.includes(active)) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
+}
+
+// Move focus to the most relevant control after the bubble is populated:
+// the custom/preset input in preset mode, or the follow-up input in response
+// mode. Falls back to the first focusable control (e.g. close button) when the
+// follow-up input is still disabled during streaming.
+function focusInitialControl(shadow) {
+  const followUp = shadow.querySelector('.follow-up-input');
+  const target = shadow.querySelector('.presets-section:not(.collapsed) .preset-input')
+    || shadow.querySelector('.presets-section:not(.collapsed) .preset-chip')
+    || (followUp && !followUp.disabled ? followUp : null)
+    || (getFocusableElements(shadow)[0] || null);
+  if (target && typeof target.focus === 'function') target.focus();
 }
 
 function wireCommonEvents(shadow) {
@@ -252,7 +312,7 @@ async function initBubble(selectionRect, selectedText, previewLabel, showPresets
 
   createBubbleHost(selectionRect);
   bubbleHost._isPinned = false;
-  const shadow = bubbleHost.attachShadow({ mode: 'open' });
+  const shadow = bubbleHost.attachShadow({ mode: 'open', delegatesFocus: true });
 
   const style = document.createElement('style');
   style.textContent = getStyles(await detectTheme());
@@ -264,6 +324,7 @@ async function initBubble(selectionRect, selectedText, previewLabel, showPresets
   shadow.appendChild(bubble);
 
   wireCommonEvents(shadow);
+  setupFocusTrap(shadow);
   document.body.appendChild(bubbleHost);
   return shadow;
 }
@@ -313,11 +374,24 @@ export async function showBubbleWithPresets(selectionRect, selectedText, anchorN
     const chip = document.createElement('div');
     chip.className = 'preset-chip';
     chip.textContent = preset.label;
+    chip.setAttribute('role', 'button');
+    chip.setAttribute('tabindex', '0');
+    chip.setAttribute('aria-label', preset.label);
+    const activate = () => {
+      recordPresetUsage(buildTypeKey(detected.type, detected.subType), preset.label);
+      launchFromPreset(shadow, selectedText, preset.instruction, images);
+    };
     chip.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      recordPresetUsage(buildTypeKey(detected.type, detected.subType), preset.label);
-      launchFromPreset(shadow, selectedText, preset.instruction, images);
+      activate();
+    });
+    chip.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        e.stopPropagation();
+        activate();
+      }
     });
     chipsRow.appendChild(chip);
   });
@@ -334,6 +408,9 @@ export async function showBubbleWithPresets(selectionRect, selectedText, anchorN
     if (e.key === 'Escape') hideBubble();
   });
   presetsSection.appendChild(customInput);
+
+  // Move focus to the custom input now that preset controls exist.
+  focusInitialControl(shadow);
 }
 
 // Direct bubble (used by context menu — no preset selection needed)
@@ -341,6 +418,7 @@ export async function showBubble(selectionRect, messages, selectedText, instruct
   setCurrentMessages(messages);
   const shadow = await initBubble(selectionRect, selectedText, instruction || 'Selected text', false, images);
   activateResponseSection(shadow, messages);
+  focusInitialControl(shadow);
 }
 
 export async function showHistoryBubble(selectionRect) {
@@ -350,6 +428,7 @@ export async function showHistoryBubble(selectionRect) {
   const status = shadow.querySelector('.bubble-status');
   if (status) status.textContent = 'history';
   await showHistoryPanel(shadow);
+  focusInitialControl(shadow);
 }
 
 export function hideBubble() {
