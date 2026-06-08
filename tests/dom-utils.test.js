@@ -3,7 +3,13 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { removeElement, isClickInsideUI, getSelectedText, getSelectionRect } = await import('../src/content/shared/dom-utils.js');
+const {
+  removeElement,
+  stopShadowRootKeyboardEventPropagation,
+  isClickInsideUI,
+  getSelectedText,
+  getSelectionRect,
+} = await import('../src/content/shared/dom-utils.js');
 
 beforeEach(() => {
   document.body.innerHTML = '';
@@ -28,6 +34,49 @@ describe('removeElement', () => {
 
   it('is safe when called with undefined', () => {
     expect(() => removeElement(undefined)).not.toThrow();
+  });
+});
+
+describe('stopShadowRootKeyboardEventPropagation', () => {
+  it.each(['keydown', 'keypress', 'keyup'])('keeps %s events inside the shadow root', (eventType) => {
+    const host = document.createElement('div');
+    const shadow = host.attachShadow({ mode: 'open' });
+    const input = document.createElement('input');
+    shadow.appendChild(input);
+    document.body.appendChild(host);
+
+    const inputListener = vi.fn();
+    const pageListener = vi.fn();
+    input.addEventListener(eventType, inputListener);
+    document.addEventListener(eventType, pageListener);
+    stopShadowRootKeyboardEventPropagation(shadow);
+
+    input.dispatchEvent(new KeyboardEvent(eventType, {
+      key: 's',
+      bubbles: true,
+      composed: true,
+    }));
+
+    expect(inputListener).toHaveBeenCalledOnce();
+    expect(pageListener).not.toHaveBeenCalled();
+    document.removeEventListener(eventType, pageListener);
+  });
+
+  it('does not block non-keyboard events', () => {
+    const host = document.createElement('div');
+    const shadow = host.attachShadow({ mode: 'open' });
+    const button = document.createElement('button');
+    shadow.appendChild(button);
+    document.body.appendChild(host);
+
+    const pageListener = vi.fn();
+    document.addEventListener('click', pageListener);
+    stopShadowRootKeyboardEventPropagation(shadow);
+
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+
+    expect(pageListener).toHaveBeenCalledOnce();
+    document.removeEventListener('click', pageListener);
   });
 });
 

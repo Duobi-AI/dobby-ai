@@ -8,7 +8,7 @@ import {
   clearRawResponses,
 } from '../shared/state.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
-import { removeElement } from '../shared/dom-utils.js';
+import { removeElement, stopShadowRootKeyboardEventPropagation } from '../shared/dom-utils.js';
 import { detectTheme, watchThemeChanges } from '../../shared/theme.js';
 import { getStyles } from './styles.js';
 import { renderMarkdown, escapeHtml } from './markdown.js';
@@ -253,6 +253,10 @@ async function initBubble(selectionRect, selectedText, previewLabel, showPresets
   createBubbleHost(selectionRect);
   bubbleHost._isPinned = false;
   const shadow = bubbleHost.attachShadow({ mode: 'open' });
+  stopShadowRootKeyboardEventPropagation(shadow);
+  shadow.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hideBubble();
+  });
 
   const style = document.createElement('style');
   style.textContent = getStyles(await detectTheme());

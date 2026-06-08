@@ -194,6 +194,22 @@ describe('bubble.js', () => {
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
       expect(promptModule.buildFollowUp).toHaveBeenCalled();
     });
+
+    it('keeps typing shortcuts from reaching the host page', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+      const input = _getBubbleContainer().shadowRoot.querySelector('.follow-up-input');
+      const pageShortcut = vi.fn();
+      document.addEventListener('keydown', pageShortcut);
+
+      input.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 's',
+        bubbles: true,
+        composed: true,
+      }));
+
+      expect(pageShortcut).not.toHaveBeenCalled();
+      document.removeEventListener('keydown', pageShortcut);
+    });
   });
 
   describe('history preview', () => {
@@ -315,6 +331,17 @@ describe('bubble.js', () => {
       await showBubble({ bottom: 100, left: 50, right: 250 }, []);
       expect(_getBubbleContainer()).not.toBeNull();
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect(_getBubbleContainer()).toBeNull();
+    });
+
+    it('closes bubble on Escape from inside its shadow root', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
+      const input = _getBubbleContainer().shadowRoot.querySelector('.follow-up-input');
+      input.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        composed: true,
+      }));
       expect(_getBubbleContainer()).toBeNull();
     });
   });

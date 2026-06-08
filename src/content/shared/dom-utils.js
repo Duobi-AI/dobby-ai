@@ -4,6 +4,15 @@ export function removeElement(el) {
   if (el?.parentNode) el.parentNode.removeChild(el);
 }
 
+export function stopShadowRootKeyboardEventPropagation(shadowRoot) {
+  for (const eventType of ['keydown', 'keypress', 'keyup']) {
+    shadowRoot.addEventListener(eventType, (event) => {
+      // Keep composed keyboard events from reaching host-page bubble listeners.
+      event.stopPropagation();
+    });
+  }
+}
+
 export function isClickInsideUI(target, getBubbleContainer) {
   const trigger = document.getElementById('dobby-ai-trigger');
   if (trigger?.contains(target)) return true;
