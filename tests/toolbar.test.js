@@ -346,6 +346,24 @@ describe('input mode', () => {
     expect(sendBtn.classList.contains('disabled')).toBe(false);
   });
 
+  it('keeps typing shortcuts from reaching the host page', async () => {
+    await showTrigger(200, 100, { text: 'test text', anchorNode: null });
+    const shadow = getShadow();
+    shadow.querySelector('.toolbar').dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar-pencil').click();
+
+    const pageShortcut = vi.fn();
+    document.addEventListener('keydown', pageShortcut);
+    shadow.querySelector('.toolbar-input-field').dispatchEvent(new KeyboardEvent('keydown', {
+      key: 's',
+      bubbles: true,
+      composed: true,
+    }));
+
+    expect(pageShortcut).not.toHaveBeenCalled();
+    document.removeEventListener('keydown', pageShortcut);
+  });
+
   it('Enter with empty input does not call showBubble', async () => {
     await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
