@@ -19,6 +19,7 @@ import { getSuggestedPresetsForType } from '../presets.js';
 import { buildChatMessages } from '../prompt.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
 import { BRAND_MARK_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
+import type { BubbleHost, ChatMessage, ImageContentPart, SelectionRect } from '../../shared/types';
 
 export { detectTheme };
 
@@ -27,8 +28,8 @@ function truncatePreview(text, maxLen = 120) {
   return text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
 }
 
-function createBubbleHost(selectionRect) {
-  const host = document.createElement('div');
+function createBubbleHost(selectionRect: SelectionRect): BubbleHost {
+  const host = document.createElement('div') as BubbleHost;
   host.id = 'dobby-ai-bubble';
   const bubbleHeight = 420;
   const gap = 8;
@@ -341,7 +342,13 @@ export async function showBubbleWithPresets(selectionRect, selectedText, anchorN
 }
 
 // Direct bubble (used by context menu — no preset selection needed)
-export async function showBubble(selectionRect, messages, selectedText, instruction, images) {
+export async function showBubble(
+  selectionRect: SelectionRect,
+  messages: ChatMessage[],
+  selectedText: string,
+  instruction: string,
+  images?: ImageContentPart[] | null,
+) {
   setCurrentMessages(messages);
   const shadow = await initBubble(selectionRect, selectedText, instruction || 'Selected text', false, images);
   activateResponseSection(shadow, messages);

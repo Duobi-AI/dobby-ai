@@ -18,6 +18,7 @@ import { captureImage } from '../image-capture.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
 import { BRAND_MARK_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
 import { stopShadowRootKeyboardEventPropagation } from '../shared/dom-utils.js';
+import type { PreservedSelection, SelectionData, ToolbarHost } from '../../shared/types';
 
 const pencilSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
 const closeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
@@ -47,7 +48,7 @@ function clearAutoHide() {
 // --- Toolbar creation ---
 
 async function createToolbar() {
-  const host = document.createElement('div');
+  const host = document.createElement('div') as ToolbarHost;
   host.id = 'dobby-ai-toolbar-host';
   Object.assign(host.style, {
     position: 'fixed',
@@ -262,14 +263,14 @@ function normalizeImages(images) {
   return Array.isArray(images) && images.length > 0 ? images : null;
 }
 
-function cloneSelectionForImageExtraction(selection) {
+function cloneSelectionForImageExtraction(selection): PreservedSelection | null {
   try {
     if (!selection?.rangeCount) return null;
     const range = selection.getRangeAt(0);
     if (!range) return null;
     const clonedRange = typeof range.cloneRange === 'function' ? range.cloneRange() : range;
     return {
-      rangeCount: 1,
+      rangeCount: 1 as const,
       getRangeAt: () => clonedRange,
     };
   } catch (err) {
@@ -482,8 +483,8 @@ function exitInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
 
 let toolbarCreating = null;
 
-export async function showTrigger(x, y, selectionData = {}) {
-  let host = document.getElementById('dobby-ai-toolbar-host');
+export async function showTrigger(x, y, selectionData: SelectionData = {}) {
+  let host = document.getElementById('dobby-ai-toolbar-host') as ToolbarHost | null;
   if (!host) {
     if (!toolbarCreating) {
       toolbarCreating = createToolbar();
@@ -523,7 +524,7 @@ export function hideTrigger() {
     document.removeEventListener('mousedown', outsideClickHandler, true);
     outsideClickHandler = null;
   }
-  const host = document.getElementById('dobby-ai-toolbar-host');
+  const host = document.getElementById('dobby-ai-toolbar-host') as ToolbarHost | null;
   if (host) {
     if (host._themeCleanup) {
       host._themeCleanup();
@@ -538,7 +539,7 @@ export function hideTrigger() {
 // --- Legacy compatibility: createTriggerButton maps to showTrigger ---
 export async function createTriggerButton() {
   // For backwards compat: create toolbar in hidden state
-  let host = document.getElementById('dobby-ai-toolbar-host');
+  let host = document.getElementById('dobby-ai-toolbar-host') as ToolbarHost | null;
   if (!host) {
     host = await createToolbar();
   }
