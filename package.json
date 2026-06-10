@@ -8,14 +8,17 @@
     "dev": "node esbuild.config.js --watch",
     "test": "vitest run",
     "test:e2e": "npm run build && npx playwright test",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "@types/chrome": "^0.1.43",
     "@vitest/coverage-v8": "^3.2.4",
     "esbuild": "^0.27.4",
     "jsdom": "^28.1.0",
     "playwright": "^1.58.2",
+    "typescript": "^6.0.3",
     "vitest": "^3.0.0"
   }
 }
