@@ -1,7 +1,13 @@
+// @ts-check
+
+/** @typedef {import('../../shared/types').Preset} Preset */
+/** @typedef {import('../../shared/types').PresetUsage} PresetUsage */
+
 // src/content/shared/preset-usage.js — Tracks preset click frequency for reordering
 // Usage data is cached in a module-level variable for instant sync access.
 // Persisted to chrome.storage.local under the key "presetUsage".
 
+/** @type {PresetUsage} */
 let usageCache = {};
 
 /**
@@ -21,7 +27,7 @@ export function buildTypeKey(type, subType) {
 export function loadUsageData() {
   try {
     chrome.storage.local.get('presetUsage', (data) => {
-      usageCache = (data && data.presetUsage) || {};
+      usageCache = /** @type {PresetUsage} */ ((data && data.presetUsage) || {});
     });
   } catch {
     // Graceful fallback — storage unavailable in some contexts
@@ -52,9 +58,9 @@ export function recordPresetUsage(typeKey, label) {
 /**
  * Returns presets reordered by usage frequency if any preset has 5+ clicks.
  * Always returns a shallow copy — never mutates the input array.
- * @param {Array<{label: string, instruction: string}>} presets
+ * @param {Preset[]} presets
  * @param {string} typeKey - Key from buildTypeKey()
- * @returns {Array<{label: string, instruction: string}>}
+ * @returns {Preset[]}
  */
 export function getReorderedPresets(presets, typeKey) {
   const usage = usageCache[typeKey];

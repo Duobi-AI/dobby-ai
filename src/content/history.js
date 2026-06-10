@@ -1,3 +1,8 @@
+// @ts-check
+
+/** @typedef {import('../shared/types').HistoryEntry} HistoryEntry */
+/** @typedef {import('../shared/types').HistoryEntryDraft} HistoryEntryDraft */
+
 // history.js — Chat history storage (chrome.storage.local)
 
 export const MAX_HISTORY = 100;
@@ -9,7 +14,7 @@ function generateId() {
 
 /**
  * Save a completed conversation to history.
- * @param {{ text, instruction, response, pageUrl, pageTitle }} entry
+ * @param {HistoryEntryDraft} entry
  * @returns {Promise<void>}
  */
 export function saveConversation(entry) {
@@ -20,7 +25,7 @@ export function saveConversation(entry) {
         resolve();
         return;
       }
-      const history = result.chatHistory || [];
+      const history = /** @type {HistoryEntry[]} */ (result.chatHistory || []);
 
       // Errata #12: null safety for missing response
       const resp = entry.response || '';
@@ -50,7 +55,7 @@ export function saveConversation(entry) {
 
 /**
  * Get all history entries, most recent first.
- * @returns {Promise<Array>}
+ * @returns {Promise<HistoryEntry[]>}
  */
 export function getHistory() {
   return new Promise((resolve) => {
@@ -60,7 +65,7 @@ export function getHistory() {
         resolve([]);
         return;
       }
-      resolve(result.chatHistory || []);
+      resolve(/** @type {HistoryEntry[]} */ (result.chatHistory || []));
     });
   });
 }

@@ -1,3 +1,8 @@
+// @ts-check
+
+/** @typedef {import('../shared/types').ChatMessage} ChatMessage */
+/** @typedef {import('../shared/types').ImageContentPart} ImageContentPart */
+
 // prompt.js — OpenAI chat message format
 export const MAX_TEXT_LENGTH = 6000;
 const MAX_INSTRUCTION_LENGTH = 500;
@@ -31,8 +36,8 @@ function buildSourceSuffix(includePageContext) {
  * @param {string} selectedText
  * @param {string} instruction - Preset or custom instruction (can be empty/null)
  * @param {boolean} includePageContext
- * @param {Array} [images] - Optional array of {type: "image_url", image_url: {url}} objects
- * @returns {Array<{role: string, content: string|Array}>}
+ * @param {ImageContentPart[]} [images] - Optional image content objects
+ * @returns {ChatMessage[]}
  */
 export function buildChatMessages(selectedText, instruction, includePageContext, images) {
   const safeInstruction = instruction
@@ -43,6 +48,7 @@ export function buildChatMessages(selectedText, instruction, includePageContext,
   const textBudget = MAX_TEXT_LENGTH - SYSTEM_PROMPT.length - instructionPrefix.length - sourceSuffix.length;
   const text = truncateToBudget(selectedText || '', textBudget);
 
+  /** @type {ChatMessage[]} */
   const messages = [];
 
   // System message sets the assistant's role
@@ -57,6 +63,7 @@ export function buildChatMessages(selectedText, instruction, includePageContext,
 
   // When images are present, build multimodal content array
   if (images && images.length > 0) {
+    /** @type {import('../shared/types').ChatContentPart[]} */
     const contentParts = [];
     // If there's meaningful text, put it first
     if (text.trim()) {
@@ -78,9 +85,9 @@ export function buildChatMessages(selectedText, instruction, includePageContext,
 
 /**
  * Append a follow-up question to an existing conversation.
- * @param {Array} existingMessages
+ * @param {ChatMessage[]} existingMessages
  * @param {string} newQuestion
- * @returns {Array}
+ * @returns {ChatMessage[]}
  */
 export function buildFollowUp(existingMessages, newQuestion) {
   return [...existingMessages, { role: 'user', content: newQuestion }];
