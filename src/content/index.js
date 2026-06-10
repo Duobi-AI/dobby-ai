@@ -1,3 +1,5 @@
+// @ts-check
+
 // src/content/index.js — Content script entry point
 // Imports establish module initialization order
 
@@ -10,9 +12,12 @@ import { buildChatMessages } from './prompt.js';
 import { captureImage } from './image-capture.js';
 import { isClickInsideUI } from './shared/dom-utils.js';
 import { loadUsageData } from './shared/preset-usage.js';
+import { getLocalStorage } from '../shared/storage.js';
+
+/** @typedef {import('../shared/types').ContentRuntimeMessage} ContentRuntimeMessage */
 
 // Load initial enabled state
-chrome.storage.local.get('dobbyEnabled', (data) => {
+getLocalStorage('dobbyEnabled', (data) => {
   setDobbyEnabled(data.dobbyEnabled !== false);
 });
 
@@ -20,31 +25,31 @@ chrome.storage.local.get('dobbyEnabled', (data) => {
 loadUsageData();
 
 // Load screenshot mode state
-chrome.storage.local.get('screenshotEnabled', (data) => {
+getLocalStorage('screenshotEnabled', (data) => {
   setScreenshotEnabled(data.screenshotEnabled !== false); // default: enabled
 });
 
 // Load autosuggest state
-chrome.storage.local.get('autosuggestEnabled', (data) => {
+getLocalStorage('autosuggestEnabled', (data) => {
   const enabled = data.autosuggestEnabled === true;
   setAutosuggestEnabled(enabled);
   if (enabled) initAutosuggest();
 });
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) => {
   if (msg.type === 'DOBBY_TOGGLE') {
     setDobbyEnabled(msg.enabled);
     if (!msg.enabled) hideTrigger();
   }
 });
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) => {
   if (msg.type === 'SCREENSHOT_TOGGLE') {
     setScreenshotEnabled(msg.enabled);
   }
 });
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) => {
   if (msg.type === 'AUTOSUGGEST_TOGGLE') {
     setAutosuggestEnabled(msg.enabled);
     if (msg.enabled) {
@@ -56,7 +61,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 });
 
 // Context menu and popup action message handler
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) => {
   if (msg.type === 'SHOW_HISTORY') {
     const rect = {
       top: window.innerHeight / 3 - 8,

@@ -116,3 +116,44 @@ export type AutosuggestStreamResponse =
   | StreamErrorMessage
   | AutosuggestStreamDoneMessage
   | AutosuggestRateLimitedMessage;
+
+export type StreamErrorCode = number | 'RATE_LIMITED' | 'DISCONNECTED';
+
+export type ChatErrorDetails = {
+  remaining: number;
+  resetAt?: string | number;
+};
+
+export type ChatTokenHandler = (text: string) => void;
+export type ChatDoneHandler = (usage: {
+  remaining: number | null;
+  usingOwnKey: boolean;
+}) => void;
+export type ChatErrorHandler = (
+  code: StreamErrorCode,
+  message: string,
+  details?: ChatErrorDetails,
+) => void;
+
+export type AutosuggestDoneHandler = () => void;
+export type AutosuggestErrorHandler = (
+  code: StreamErrorCode,
+  message: string,
+) => void;
+
+export type PortMessageEvent<T> = Omit<chrome.events.Event<(message: T) => void>, 'addListener'> & {
+  addListener(callback: (message: T) => void): void;
+};
+
+export type TypedStreamPort<Request, Response> =
+  Omit<chrome.runtime.Port, 'postMessage' | 'onMessage'> & {
+    postMessage(message: Request): void;
+    onMessage: PortMessageEvent<Response>;
+  };
+
+export type ChatStreamPort = TypedStreamPort<ChatStreamRequest, ChatStreamResponse>;
+export type AutosuggestStreamPort =
+  TypedStreamPort<AutosuggestStreamRequest, AutosuggestStreamResponse>;
+export type ChatBackgroundPort = TypedStreamPort<ChatStreamResponse, ChatStreamRequest>;
+export type AutosuggestBackgroundPort =
+  TypedStreamPort<AutosuggestStreamResponse, AutosuggestStreamRequest>;

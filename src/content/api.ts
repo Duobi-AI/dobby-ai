@@ -1,16 +1,27 @@
 // api.js — Content script communication with background service worker
 // All API calls go through background.js (MV3 cross-origin restriction)
 
-/**
- * Request a chat completion via background service worker.
- * @param {Array} messages - OpenAI chat format messages
- * @param {Function} onToken - Called with each streamed token
- * @param {Function} onDone - Called when streaming completes
- * @param {Function} onError - Called with (code, message, data?) on error
- * @returns {{ cancel: Function }}
- */
-export function requestChat(messages, onToken, onDone, onError) {
-  const port = chrome.runtime.connect({ name: 'chat-stream' });
+import type {
+  AutosuggestDoneHandler,
+  AutosuggestErrorHandler,
+  AutosuggestStreamPort,
+  CaptureScreenshotResponse,
+  ChatDoneHandler,
+  ChatErrorHandler,
+  ChatMessage,
+  ChatStreamPort,
+  ChatTokenHandler,
+  StreamRequestHandle,
+} from '../shared/types';
+import { CAPTURE_SCREENSHOT_MESSAGE } from '../shared/runtime-messages';
+
+export function requestChat(
+  messages: ChatMessage[],
+  onToken: ChatTokenHandler,
+  onDone: ChatDoneHandler,
+  onError: ChatErrorHandler,
+): StreamRequestHandle {
+  const port = chrome.runtime.connect({ name: 'chat-stream' }) as ChatStreamPort;
 
   port.postMessage({ type: 'CHAT_REQUEST', messages });
 
@@ -43,16 +54,13 @@ export function requestChat(messages, onToken, onDone, onError) {
   return { cancel: () => port.disconnect() };
 }
 
-/**
- * Request an autosuggest completion via background service worker.
- * @param {Array} messages - OpenAI chat format messages
- * @param {Function} onToken - Called with each streamed token
- * @param {Function} onDone - Called when streaming completes
- * @param {Function} onError - Called with (code, message) on error
- * @returns {{ cancel: Function }}
- */
-export function requestAutosuggest(messages, onToken, onDone, onError) {
-  const port = chrome.runtime.connect({ name: 'autosuggest-stream' });
+export function requestAutosuggest(
+  messages: ChatMessage[],
+  onToken: ChatTokenHandler,
+  onDone: AutosuggestDoneHandler,
+  onError: AutosuggestErrorHandler,
+): StreamRequestHandle {
+  const port = chrome.runtime.connect({ name: 'autosuggest-stream' }) as AutosuggestStreamPort;
 
   port.postMessage({ type: 'AUTOSUGGEST_REQUEST', messages });
 
@@ -83,4 +91,8 @@ export function requestAutosuggest(messages, onToken, onDone, onError) {
   });
 
   return { cancel: () => port.disconnect() };
+}
+
+export function requestVisibleTabScreenshot(): Promise<CaptureScreenshotResponse> {
+  return chrome.runtime.sendMessage(CAPTURE_SCREENSHOT_MESSAGE) as Promise<CaptureScreenshotResponse>;
 }

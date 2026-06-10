@@ -1,4 +1,5 @@
 import type { ResolvedTheme, ThemeMode } from './types';
+import { getLocalStorage } from './storage';
 
 export const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)';
 
@@ -25,7 +26,7 @@ export function detectTheme(): Promise<ResolvedTheme> {
       return;
     }
 
-    chrome.storage.local.get('theme', (data) => {
+    getLocalStorage('theme', (data) => {
       resolve(resolveTheme(data?.theme));
     });
   });
@@ -54,7 +55,7 @@ export function watchThemeChanges(applyTheme: (theme: ResolvedTheme) => void): (
   };
 
   if (typeof chrome !== 'undefined' && chrome.storage?.local?.get) {
-    chrome.storage.local.get('theme', (data) => {
+    getLocalStorage('theme', (data) => {
       mode = normalizeThemeMode(data?.theme);
     });
   }

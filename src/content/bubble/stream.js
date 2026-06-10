@@ -12,6 +12,7 @@ import { saveConversation } from '../history.js';
 import { renderMarkdown } from './markdown.js';
 import { TIMING } from '../shared/constants.js';
 import { getColorPalette } from '../../shared/color-palette.js';
+import { OPEN_OPTIONS_MESSAGE } from '../../shared/runtime-messages.js';
 
 const colors = getColorPalette('light');
 
@@ -185,6 +186,6 @@ export function showRateLimitUI(shadow) {
   `;
 
   shadow.querySelector('.cta').addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS' });
+    chrome.runtime.sendMessage(OPEN_OPTIONS_MESSAGE);
   });
 }

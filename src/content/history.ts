@@ -1,4 +1,5 @@
 import type { HistoryEntry, HistoryEntryDraft } from '../shared/types';
+import { getLocalStorage, setLocalStorage } from '../shared/storage';
 
 // history.js — Chat history storage (chrome.storage.local)
 
@@ -14,13 +15,13 @@ function generateId(): string {
  */
 export function saveConversation(entry: HistoryEntryDraft): Promise<void> {
   return new Promise((resolve) => {
-    chrome.storage.local.get(['chatHistory'], (result) => {
+    getLocalStorage(['chatHistory'], (result) => {
       if (chrome.runtime.lastError) {
         console.warn('[Dobby AI] Failed to read history:', chrome.runtime.lastError.message);
         resolve();
         return;
       }
-      const history = (result.chatHistory || []) as HistoryEntry[];
+      const history = result.chatHistory || [];
 
       // Errata #12: null safety for missing response
       const resp = entry.response || '';
@@ -43,7 +44,7 @@ export function saveConversation(entry: HistoryEntryDraft): Promise<void> {
         history.length = MAX_HISTORY;
       }
 
-      chrome.storage.local.set({ chatHistory: history }, resolve);
+      setLocalStorage({ chatHistory: history }, resolve);
     });
   });
 }
@@ -53,13 +54,13 @@ export function saveConversation(entry: HistoryEntryDraft): Promise<void> {
  */
 export function getHistory(): Promise<HistoryEntry[]> {
   return new Promise((resolve) => {
-    chrome.storage.local.get(['chatHistory'], (result) => {
+    getLocalStorage(['chatHistory'], (result) => {
       if (chrome.runtime.lastError) {
         console.warn('[Dobby AI] Failed to read history:', chrome.runtime.lastError.message);
         resolve([]);
         return;
       }
-      resolve((result.chatHistory || []) as HistoryEntry[]);
+      resolve(result.chatHistory || []);
     });
   });
 }
@@ -69,7 +70,7 @@ export function getHistory(): Promise<HistoryEntry[]> {
  */
 export function clearHistory(): Promise<void> {
   return new Promise((resolve) => {
-    chrome.storage.local.set({ chatHistory: [] }, () => {
+    setLocalStorage({ chatHistory: [] }, () => {
       if (chrome.runtime.lastError) {
         console.warn('[Dobby AI] Failed to clear history:', chrome.runtime.lastError.message);
       }
