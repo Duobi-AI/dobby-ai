@@ -11,18 +11,18 @@ import { buildCompletionMessages, gatherPageContext } from './context.js';
 import { showGhostText, hideGhostText, acceptSuggestion } from './ghost-text.js';
 import { requestAutosuggest } from '../api.js';
 
-let focusinHandler = null;
-let focusoutHandler = null;
+let focusinHandler: ((event: FocusEvent) => void) | null = null;
+let focusoutHandler: ((event: FocusEvent) => void) | null = null;
 
 export function initAutosuggest() {
   if (!autosuggestEnabled) return;
   if (focusinHandler || focusoutHandler) return;
 
-  focusinHandler = (e) => {
-    if (e.target.tagName === 'TEXTAREA') attachToTextarea(e.target);
+  focusinHandler = (e: FocusEvent) => {
+    if ((e.target as HTMLElement).tagName === 'TEXTAREA') attachToTextarea(e.target as HTMLTextAreaElement);
   };
 
-  focusoutHandler = (e) => {
+  focusoutHandler = (e: FocusEvent) => {
     if (e.target === autosuggestActiveTextarea) detachFromTextarea();
   };
 
@@ -42,7 +42,7 @@ export function destroyAutosuggest() {
   }
 }
 
-function attachToTextarea(textarea) {
+function attachToTextarea(textarea: HTMLTextAreaElement) {
   if (autosuggestActiveTextarea) detachFromTextarea();
   setAutosuggestActiveTextarea(textarea);
   textarea.addEventListener('input', handleInput);
@@ -60,22 +60,22 @@ function detachFromTextarea() {
   setAutosuggestActiveTextarea(null);
 }
 
-function handleInput(e) {
+function handleInput(e: Event) {
   hideGhostText();
-  const text = e.target.value;
-  debouncedSuggest(text, (t) => requestSuggestionFromAPI(t, e.target));
+  const text = (e.target as HTMLTextAreaElement).value;
+  debouncedSuggest(text, (t) => requestSuggestionFromAPI(t, e.target as HTMLTextAreaElement));
 }
 
-function handleKeydown(e) {
+function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Tab' && autosuggestCurrentSuggestion) {
     e.preventDefault();
-    acceptSuggestion(autosuggestActiveTextarea);
+    acceptSuggestion(autosuggestActiveTextarea!);
   } else if (e.key === 'Escape' && autosuggestCurrentSuggestion) {
     hideGhostText();
   }
 }
 
-function requestSuggestionFromAPI(text, textarea) {
+function requestSuggestionFromAPI(text: string, textarea: HTMLTextAreaElement) {
   const messages = buildCompletionMessages(text, gatherPageContext(textarea));
 
   let accumulated = '';
