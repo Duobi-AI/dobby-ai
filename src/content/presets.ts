@@ -119,7 +119,7 @@ export const CODE_SUBTYPE_PRESETS = {
 // Presets prioritize native-language actions (summarize, explain) over translation,
 // since users selecting text in their own language usually want responses in that language.
 // The system prompt instructs the AI to respond in the same language as the selected text.
-function buildForeignPresets(language, label) {
+function buildForeignPresets(language: string, label?: string) {
   return {
     suggested: [
       { label: 'Summarize', instruction: 'Summarize the following' },

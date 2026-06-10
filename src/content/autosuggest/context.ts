@@ -1,13 +1,14 @@
 // src/content/autosuggest/context.js — Builds OpenAI chat-format messages for completion
 import { AUTOSUGGEST } from '../shared/constants.js';
+import type { AutosuggestPageContext, ChatMessage } from '../../shared/types';
 
 /**
  * Gather rich context from the textarea and surrounding page.
  * @param {HTMLTextAreaElement} textarea
  * @returns {object} pageContext for buildCompletionMessages
  */
-export function gatherPageContext(textarea) {
-  const ctx = {
+export function gatherPageContext(textarea: HTMLTextAreaElement): AutosuggestPageContext {
+  const ctx: AutosuggestPageContext = {
     pageTitle: document.title || '',
     pageUrl: window.location.href || '',
   };
@@ -24,13 +25,13 @@ export function gatherPageContext(textarea) {
   // Nearby form fields (sibling inputs with values)
   const form = textarea.closest('form');
   if (form) {
-    const fields = [];
+    const fields: string[] = [];
     for (const el of form.elements) {
       if (el === textarea) continue;
-      if ((el.tagName === 'INPUT' || el.tagName === 'SELECT') && el.value && el.type !== 'hidden' && el.type !== 'password') {
-        const name = el.labels?.[0]?.textContent?.trim() || el.placeholder || el.name || '';
-        if (name && el.value.length < 200) {
-          fields.push(`${name}: ${el.value}`);
+      if ((el.tagName === 'INPUT' || el.tagName === 'SELECT') && (el as HTMLInputElement).value && (el as HTMLInputElement).type !== 'hidden' && (el as HTMLInputElement).type !== 'password') {
+        const name = (el as HTMLInputElement).labels?.[0]?.textContent?.trim() || (el as HTMLInputElement).placeholder || (el as HTMLInputElement).name || '';
+        if (name && (el as HTMLInputElement).value.length < 200) {
+          fields.push(`${name}: ${(el as HTMLInputElement).value}`);
         }
       }
     }
@@ -42,7 +43,7 @@ export function gatherPageContext(textarea) {
   // Surrounding page text (nearest parent section or article, trimmed)
   const container = textarea.closest('article, section, [role="main"], main, .comment-body, .issue-body') || textarea.parentElement;
   if (container) {
-    const text = container.innerText || container.textContent || '';
+    const text = (container as HTMLElement).innerText || container.textContent || '';
     // Take first 500 chars of surrounding text, excluding the textarea's own content
     const surrounding = text.replaceAll(textarea.value, '').trim().substring(0, 500);
     if (surrounding.length > 20) {
@@ -53,7 +54,7 @@ export function gatherPageContext(textarea) {
   return ctx;
 }
 
-export function buildCompletionMessages(text, pageContext = {}) {
+export function buildCompletionMessages(text: string, pageContext: AutosuggestPageContext = {}): ChatMessage[] {
   const truncated = text.length > AUTOSUGGEST.MAX_CONTEXT_CHARS
     ? text.slice(-AUTOSUGGEST.MAX_CONTEXT_CHARS)
     : text;
