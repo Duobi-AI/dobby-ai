@@ -1,32 +1,31 @@
-// @ts-check
-
-// options.js — Dobby AI settings page
+// options.ts — Dobby AI settings page
 import { applyColorVariables } from './shared/color-palette.js';
 import { COLOR_SCHEME_QUERY, normalizeThemeMode, resolveTheme } from './shared/theme.js';
 import { getLocalStorage, removeLocalStorage } from './shared/storage.js';
 import { createValidateApiKeyMessage } from './shared/runtime-messages.js';
+import type { ThemeMode, ValidateApiKeyResponse } from './shared/types';
 
-/** @typedef {import('./shared/types').StorageState} StorageState */
-/** @typedef {import('./shared/types').ThemeMode} ThemeMode */
-/** @typedef {import('./shared/types').ValidateApiKeyResponse} ValidateApiKeyResponse */
+function requiredElement<T extends HTMLElement>(id: string): T {
+  const element = document.getElementById(id);
+  if (!element) throw new Error(`Missing required options element: ${id}`);
+  return element as T;
+}
 
-const apiKeyInput = /** @type {HTMLInputElement} */ (document.getElementById('api-key-input'));
-const saveBtn = /** @type {HTMLButtonElement} */ (document.getElementById('save-btn'));
-const removeBtn = document.getElementById('remove-btn');
-const keyStatus = document.getElementById('key-status');
-const hasKeySection = document.getElementById('has-key');
-const noKeySection = document.getElementById('no-key');
-const keyDisplay = document.getElementById('key-display');
+const apiKeyInput = requiredElement<HTMLInputElement>('api-key-input');
+const saveBtn = requiredElement<HTMLButtonElement>('save-btn');
+const removeBtn = requiredElement<HTMLButtonElement>('remove-btn');
+const keyStatus = requiredElement<HTMLElement>('key-status');
+const hasKeySection = requiredElement<HTMLElement>('has-key');
+const noKeySection = requiredElement<HTMLElement>('no-key');
+const keyDisplay = requiredElement<HTMLElement>('key-display');
 const versionEl = document.getElementById('extension-version');
-/** @type {ThemeMode} */
-let themeMode = 'auto';
+let themeMode: ThemeMode = 'auto';
 
 if (versionEl && chrome.runtime.getManifest) {
   versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
 }
 
-/** @param {unknown} value */
-function applyTheme(value) {
+function applyTheme(value: unknown): void {
   themeMode = normalizeThemeMode(value);
   const resolvedTheme = resolveTheme(themeMode);
   applyColorVariables(document.documentElement, resolvedTheme);
@@ -35,20 +34,18 @@ function applyTheme(value) {
   document.documentElement.style.colorScheme = resolvedTheme;
 }
 
-/** @param {string} key */
-function maskKey(key) {
+function maskKey(key: string): string {
   if (!key || key.length < 12) return '••••••••';
   return key.substring(0, 7) + '••••' + key.substring(key.length - 4);
 }
 
-/** @param {string} key */
-function showHasKey(key) {
+function showHasKey(key: string): void {
   hasKeySection.style.display = 'block';
   noKeySection.style.display = 'none';
   keyDisplay.textContent = maskKey(key);
 }
 
-function showNoKey() {
+function showNoKey(): void {
   hasKeySection.style.display = 'none';
   noKeySection.style.display = 'block';
   apiKeyInput.value = '';
@@ -104,7 +101,7 @@ saveBtn.addEventListener('click', async () => {
   keyStatus.textContent = 'Validating...';
   keyStatus.className = 'status info';
 
-  chrome.runtime.sendMessage(createValidateApiKeyMessage(key), (/** @type {ValidateApiKeyResponse} */ response) => {
+  chrome.runtime.sendMessage(createValidateApiKeyMessage(key), (response: ValidateApiKeyResponse) => {
     saveBtn.disabled = false;
     if (response && response.valid) {
       keyStatus.textContent = '';
@@ -129,11 +126,11 @@ removeBtn.addEventListener('click', () => {
 });
 
 // Provider tab switching
-/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.provider-tab')).forEach((tab) => {
+document.querySelectorAll<HTMLElement>('.provider-tab').forEach((tab) => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.provider-tab').forEach((t) => t.classList.remove('active'));
     document.querySelectorAll('.provider-panel').forEach((p) => p.classList.remove('active'));
     tab.classList.add('active');
-    document.getElementById(`panel-${tab.dataset.provider}`).classList.add('active');
+    requiredElement<HTMLElement>(`panel-${tab.dataset.provider}`).classList.add('active');
   });
 });
