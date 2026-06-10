@@ -1,12 +1,14 @@
-// proxy/src/index.js
+// proxy/src/index.ts
 import { validatePayload, verifyHmac } from './validate.js';
 import { checkRateLimit, incrementCounters } from './rate-limit.js';
 import { createChatStream } from './openai.js';
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../../src/shared/autosuggest-limits.js';
+import type { ProxyPurpose } from '../../src/shared/types';
+import type { ProxyEnv, ValidProxyPayload } from './types';
 
 const MAX_BODY_SIZE = 2097152; // 2MB
 
-function getCorsHeaders(request, env) {
+function getCorsHeaders(request: Request, env: ProxyEnv): Record<string, string> {
   const origin = request.headers.get('Origin') || '';
   const allowed = (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim());
   const allowOrigin = allowed.includes(origin) ? origin : '';
@@ -18,11 +20,16 @@ function getCorsHeaders(request, env) {
   };
 }
 
-function corsResponse(request, env) {
+function corsResponse(request: Request, env: ProxyEnv): Response {
   return new Response(null, { status: 204, headers: getCorsHeaders(request, env) });
 }
 
-function jsonResponse(data, status = 200, corsHeaders = {}, extraHeaders = {}) {
+function jsonResponse(
+  data: unknown,
+  status = 200,
+  corsHeaders: Record<string, string> = {},
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json', ...corsHeaders, ...extraHeaders },
@@ -30,7 +37,7 @@ function jsonResponse(data, status = 200, corsHeaders = {}, extraHeaders = {}) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request: Request, env: ProxyEnv): Promise<Response> {
     const corsHeaders = getCorsHeaders(request, env);
 
     if (request.method === 'OPTIONS') {
@@ -52,7 +59,7 @@ export default {
     }
 
     // Read body as text and check size (Content-Length header is optional and can be omitted)
-    let bodyText;
+    let bodyText: string;
     try {
       bodyText = await request.text();
     } catch {
@@ -63,7 +70,7 @@ export default {
       return jsonResponse({ error: 'Request body too large (max 2MB)' }, 413, corsHeaders);
     }
 
-    let body;
+    let body: unknown;
     try {
       body = JSON.parse(bodyText);
     } catch {
@@ -72,15 +79,15 @@ export default {
 
     const validation = validatePayload(body);
     if (!validation.valid) {
-      return jsonResponse({ error: validation.error }, 400, corsHeaders);
+      return jsonResponse({ error: (validation as { valid: false; error: string }).error }, 400, corsHeaders);
     }
 
-    const hmacValid = await verifyHmac(body, env.HMAC_SECRET);
+    const hmacValid = await verifyHmac(body as ValidProxyPayload, env.HMAC_SECRET);
     if (!hmacValid) {
       return jsonResponse({ error: 'Invalid signature' }, 403, corsHeaders);
     }
 
-    const purpose = body.purpose || 'chat';
+    const purpose: ProxyPurpose = (body as ValidProxyPayload).purpose || 'chat';
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const devBypass = env.DEV_BYPASS_TOKEN
       && request.headers.get('X-Dev-Token') === env.DEV_BYPASS_TOKEN;
@@ -99,7 +106,7 @@ export default {
     if (!devBypass) await incrementCounters(ip, env.RATE_LIMIT_KV, purpose);
 
     const maxTokens = purpose === 'autosuggest' ? AUTOSUGGEST_MAX_SUGGESTION_TOKENS : undefined;
-    const openaiResponse = await createChatStream(body.messages, env.OPENAI_API_KEY, undefined, maxTokens);
+    const openaiResponse = await createChatStream((body as ValidProxyPayload).messages, env.OPENAI_API_KEY, undefined, maxTokens);
 
     if (!openaiResponse.ok) {
       return jsonResponse({ error: 'Upstream error' }, 502, corsHeaders);

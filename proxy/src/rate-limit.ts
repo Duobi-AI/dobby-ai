@@ -1,4 +1,7 @@
-// proxy/src/rate-limit.js
+// proxy/src/rate-limit.ts
+import type { ProxyPurpose } from '../../src/shared/types';
+import type { KVNamespaceLike, RateLimitResult } from './types';
+
 const LIMITS = {
   perMinute: 5,
   perDay: 30,
@@ -10,23 +13,27 @@ const AUTOSUGGEST_LIMITS = {
   perDay: 200,
 };
 
-function minuteBucket() {
+function minuteBucket(): number {
   return Math.floor(Date.now() / 60000);
 }
 
-function dayBucket() {
+function dayBucket(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-function tenSecBucket() {
+function tenSecBucket(): number {
   return Math.floor(Date.now() / 10000);
 }
 
-function keyPrefix(purpose) {
+function keyPrefix(purpose: ProxyPurpose): string {
   return purpose === 'autosuggest' ? 'as' : 'rl';
 }
 
-export async function checkRateLimit(ip, kv, purpose = 'chat') {
+export async function checkRateLimit(
+  ip: string,
+  kv: KVNamespaceLike,
+  purpose: ProxyPurpose = 'chat',
+): Promise<RateLimitResult> {
   // Check block list first (shared across both purposes)
   const blocked = await kv.get(`blocked:${ip}`);
   if (blocked) {
@@ -61,7 +68,11 @@ export async function checkRateLimit(ip, kv, purpose = 'chat') {
   return { allowed: true, remaining: limits.perDay - dayCount - 1 };
 }
 
-export async function incrementCounters(ip, kv, purpose = 'chat') {
+export async function incrementCounters(
+  ip: string,
+  kv: KVNamespaceLike,
+  purpose: ProxyPurpose = 'chat',
+): Promise<void> {
   const prefix = keyPrefix(purpose);
 
   const minKey = `${prefix}:min:${ip}:${minuteBucket()}`;

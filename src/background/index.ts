@@ -1,24 +1,24 @@
-// @ts-check
-
-// src/background/index.js — Dobby AI API relay + streaming hub
+// src/background/index.ts — Dobby AI API relay + streaming hub
 // All API calls from content scripts route through here (MV3 cross-origin constraint)
 
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../shared/autosuggest-limits.js';
 import { getLocalStorage, setLocalStorage } from '../shared/storage.js';
 
-/** @typedef {import('../shared/types').AutosuggestBackgroundPort} AutosuggestBackgroundPort */
-/** @typedef {import('../shared/types').AutosuggestStreamRequest} AutosuggestStreamRequest */
-/** @typedef {import('../shared/types').BackgroundRuntimeMessage} BackgroundRuntimeMessage */
-/** @typedef {import('../shared/types').CaptureScreenshotResponse} CaptureScreenshotResponse */
-/** @typedef {import('../shared/types').ChatMessage} ChatMessage */
-/** @typedef {import('../shared/types').ChatBackgroundPort} ChatBackgroundPort */
-/** @typedef {import('../shared/types').ChatStreamRequest} ChatStreamRequest */
-/** @typedef {import('../shared/types').ContentRuntimeMessage} ContentRuntimeMessage */
-/** @typedef {import('../shared/types').ToggleMessageType} ToggleMessageType */
-/** @typedef {import('../shared/types').UsageRequestKind} UsageRequestKind */
-/** @typedef {import('../shared/types').UsageState} UsageState */
-/** @typedef {import('../shared/types').UsageUpdateDetails} UsageUpdateDetails */
-/** @typedef {import('../shared/types').ValidateApiKeyResponse} ValidateApiKeyResponse */
+import type {
+  AutosuggestBackgroundPort,
+  AutosuggestStreamRequest,
+  BackgroundRuntimeMessage,
+  CaptureScreenshotResponse,
+  ChatBackgroundPort,
+  ChatMessage,
+  ChatStreamRequest,
+  ContentRuntimeMessage,
+  ToggleMessageType,
+  UsageRequestKind,
+  UsageState,
+  UsageUpdateDetails,
+  ValidateApiKeyResponse,
+} from '../shared/types';
 
 const PROXY_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev/chat';
 const USAGE_STORAGE_KEY = 'dobbyUsage';
@@ -28,13 +28,11 @@ const HMAC_SECRET = 'dobby-ai-v2-hmac-key-change-in-production';
 // Set to your dev token to bypass rate limits during development; leave empty for normal user behavior
 const DEV_BYPASS_TOKEN = '';
 
-/** @returns {string} */
-function getUtcDay() {
+function getUtcDay(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-/** @returns {UsageState} */
-function createEmptyUsage() {
+function createEmptyUsage(): UsageState {
   return {
     day: getUtcDay(),
     chatRequests: 0,
@@ -46,11 +44,7 @@ function createEmptyUsage() {
   };
 }
 
-/**
- * @param {UsageRequestKind} kind
- * @param {UsageUpdateDetails} [details]
- */
-async function recordUsage(kind, details = {}) {
+async function recordUsage(kind: UsageRequestKind, details: UsageUpdateDetails = {}): Promise<void> {
   try {
     const stored = await getLocalStorage(USAGE_STORAGE_KEY);
     const current = stored[USAGE_STORAGE_KEY];
@@ -121,16 +115,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // --- Keyboard Commands ---
 
-/**
- * @param {number | undefined} tabId
- * @param {ContentRuntimeMessage} message
- */
-function sendContentMessage(tabId, message) {
-  return chrome.tabs.sendMessage(/** @type {number} */ (tabId), message);
+function sendContentMessage(tabId: number | undefined, message: ContentRuntimeMessage): Promise<unknown> {
+  return chrome.tabs.sendMessage(tabId as number, message);
 }
 
-/** @param {ContentRuntimeMessage} message */
-function notifyActiveTab(message) {
+function notifyActiveTab(message: ContentRuntimeMessage): void {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const tabId = tabs?.[0]?.id;
     if (!tabId) return;
@@ -145,11 +134,10 @@ function notifyActiveTab(message) {
   });
 }
 
-/**
- * @param {'dobbyEnabled' | 'screenshotEnabled'} storageKey
- * @param {ToggleMessageType} messageType
- */
-function toggleStoredSetting(storageKey, messageType) {
+function toggleStoredSetting(
+  storageKey: 'dobbyEnabled' | 'screenshotEnabled',
+  messageType: ToggleMessageType,
+): void {
   getLocalStorage(storageKey, (data) => {
     const current = data[storageKey] !== false;
     const enabled = !current;
@@ -170,13 +158,11 @@ chrome.commands.onCommand.addListener((command) => {
 
 // --- HMAC Signing ---
 
-/**
- * @param {ChatMessage[]} messages
- * @param {number} timestamp
- * @param {string} secret
- * @returns {Promise<string>}
- */
-export async function generateSignature(messages, timestamp, secret) {
+export async function generateSignature(
+  messages: ChatMessage[],
+  timestamp: number,
+  secret: string,
+): Promise<string> {
   const payload = `${timestamp}${JSON.stringify(messages)}`;
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -194,11 +180,9 @@ export async function generateSignature(messages, timestamp, secret) {
 
 // --- SSE Stream Parsing ---
 
-/**
- * @param {ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>} reader
- * @returns {AsyncGenerator<string>}
- */
-export async function* parseSSEStream(reader) {
+export async function* parseSSEStream(
+  reader: ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>,
+): AsyncGenerator<string> {
   const decoder = new TextDecoder();
   let buffer = '';
 
@@ -231,10 +215,10 @@ export async function* parseSSEStream(reader) {
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== 'chat-stream') return;
 
-  const chatPort = /** @type {ChatBackgroundPort} */ (port);
-  let abortController = null;
+  const chatPort = port as ChatBackgroundPort;
+  let abortController: AbortController | null = null;
 
-  chatPort.onMessage.addListener(async (/** @type {ChatStreamRequest} */ msg) => {
+  chatPort.onMessage.addListener(async (msg: ChatStreamRequest) => {
     if (msg.type !== 'CHAT_REQUEST') return;
 
     abortController = new AbortController();
@@ -245,7 +229,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
     try {
       const stored = await getLocalStorage('userApiKey');
-      let response;
+      let response: Response;
 
       if (stored.userApiKey) {
         // Direct to OpenAI with user's own key
@@ -267,7 +251,7 @@ chrome.runtime.onConnect.addListener((port) => {
         // Via proxy with HMAC signing
         const timestamp = Math.floor(Date.now() / 1000);
         const signature = await generateSignature(messages, timestamp, HMAC_SECRET);
-        const headers = { 'Content-Type': 'application/json' };
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (DEV_BYPASS_TOKEN) headers['X-Dev-Token'] = DEV_BYPASS_TOKEN;
         response = await fetch(PROXY_URL, {
           method: 'POST',
@@ -278,7 +262,7 @@ chrome.runtime.onConnect.addListener((port) => {
       }
 
       if (response.status === 429) {
-        let data;
+        let data: { remaining?: number; resetAt?: string | number };
         try { data = await response.json(); } catch (e) { console.warn('[Dobby AI] Failed to parse rate limit response'); data = { remaining: 0 }; }
         await recordUsage('chat', { remaining: data.remaining ?? 0, usingOwnKey: false, rateLimited: true });
         try { chatPort.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0, resetAt: data.resetAt }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
@@ -324,10 +308,10 @@ chrome.runtime.onConnect.addListener((port) => {
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== 'autosuggest-stream') return;
 
-  const autosuggestPort = /** @type {AutosuggestBackgroundPort} */ (port);
-  let abortController = null;
+  const autosuggestPort = port as AutosuggestBackgroundPort;
+  let abortController: AbortController | null = null;
 
-  autosuggestPort.onMessage.addListener(async (/** @type {AutosuggestStreamRequest} */ msg) => {
+  autosuggestPort.onMessage.addListener(async (msg: AutosuggestStreamRequest) => {
     if (msg.type !== 'AUTOSUGGEST_REQUEST') return;
 
     abortController = new AbortController();
@@ -338,7 +322,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
     try {
       const stored = await getLocalStorage('userApiKey');
-      let response;
+      let response: Response;
 
       if (stored.userApiKey) {
         // Direct to OpenAI with user's own key
@@ -360,7 +344,7 @@ chrome.runtime.onConnect.addListener((port) => {
         // Via proxy with HMAC signing — include purpose for rate limiting
         const timestamp = Math.floor(Date.now() / 1000);
         const signature = await generateSignature(messages, timestamp, HMAC_SECRET);
-        const headers = { 'Content-Type': 'application/json' };
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (DEV_BYPASS_TOKEN) headers['X-Dev-Token'] = DEV_BYPASS_TOKEN;
         response = await fetch(PROXY_URL, {
           method: 'POST',
@@ -371,7 +355,7 @@ chrome.runtime.onConnect.addListener((port) => {
       }
 
       if (response.status === 429) {
-        let data;
+        let data: { remaining?: number };
         try { data = await response.json(); } catch (e) { data = { remaining: 0 }; }
         await recordUsage('autosuggest', { usingOwnKey: false, rateLimited: true });
         try { autosuggestPort.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0 }); } catch (e) { /* port closed */ }
@@ -409,9 +393,9 @@ chrome.runtime.onConnect.addListener((port) => {
 // --- API Key Validation ---
 
 chrome.runtime.onMessage.addListener((
-  /** @type {BackgroundRuntimeMessage} */ msg,
+  msg: BackgroundRuntimeMessage,
   sender,
-  /** @type {(response: CaptureScreenshotResponse | ValidateApiKeyResponse) => void} */ sendResponse,
+  sendResponse: (response: CaptureScreenshotResponse | ValidateApiKeyResponse) => void,
 ) => {
   if (msg.type === 'CAPTURE_SCREENSHOT') {
     chrome.tabs.captureVisibleTab(null, { format: 'png' }, (dataUrl) => {
