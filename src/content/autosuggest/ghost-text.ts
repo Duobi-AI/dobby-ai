@@ -6,7 +6,7 @@ import {
 } from '../shared/state.js';
 import { getGhostTextStyles } from './styles.js';
 
-export function showGhostText(textarea, suggestion) {
+export function showGhostText(textarea: HTMLTextAreaElement, suggestion: string) {
   setAutosuggestCurrentSuggestion(suggestion);
 
   // Remove existing overlay if any
@@ -91,14 +91,14 @@ export function hideGhostText() {
   setAutosuggestCurrentSuggestion('');
 }
 
-export function acceptSuggestion(textarea) {
+export function acceptSuggestion(textarea: HTMLTextAreaElement) {
   const host = autosuggestOverlayHost;
   if (!host) return;
 
-  const ghost = host.shadowRoot.querySelector('.ghost-text');
+  const ghost = host.shadowRoot!.querySelector('.ghost-text');
   if (!ghost) return;
 
-  const suggestion = ghost.textContent;
+  const suggestion = ghost.textContent!;
   const pos = textarea.selectionStart;
 
   // Insert suggestion at cursor position

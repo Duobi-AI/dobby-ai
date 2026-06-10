@@ -7,7 +7,7 @@ import {
   setAutosuggestPendingRequest,
 } from '../shared/state.js';
 
-export function debouncedSuggest(text, callback) {
+export function debouncedSuggest(text: string, callback: (text: string) => void) {
   cancelPending();
   if (text.length < AUTOSUGGEST.MIN_CHARS) return;
   const timer = setTimeout(() => {

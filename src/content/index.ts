@@ -105,7 +105,7 @@ chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) 
 setTimeout(() => {
   document.addEventListener('mousedown', (e) => {
     const bubble = getBubbleContainer();
-    if (bubble && !bubble.contains(e.target)) {
+    if (bubble && !bubble.contains(e.target as Node | null)) {
       if (isClickInsideUI(e.target, getBubbleContainer)) return;
       if (bubble._isPinned) return;
       hideBubble();
