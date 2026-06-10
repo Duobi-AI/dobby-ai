@@ -1,23 +1,18 @@
-// @ts-check
-
-/** @typedef {import('../shared/types').HistoryEntry} HistoryEntry */
-/** @typedef {import('../shared/types').HistoryEntryDraft} HistoryEntryDraft */
+import type { HistoryEntry, HistoryEntryDraft } from '../shared/types';
 
 // history.js — Chat history storage (chrome.storage.local)
 
 export const MAX_HISTORY = 100;
 const MAX_RESPONSE_LENGTH = 2000;
 
-function generateId() {
+function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 }
 
 /**
  * Save a completed conversation to history.
- * @param {HistoryEntryDraft} entry
- * @returns {Promise<void>}
  */
-export function saveConversation(entry) {
+export function saveConversation(entry: HistoryEntryDraft): Promise<void> {
   return new Promise((resolve) => {
     chrome.storage.local.get(['chatHistory'], (result) => {
       if (chrome.runtime.lastError) {
@@ -25,7 +20,7 @@ export function saveConversation(entry) {
         resolve();
         return;
       }
-      const history = /** @type {HistoryEntry[]} */ (result.chatHistory || []);
+      const history = (result.chatHistory || []) as HistoryEntry[];
 
       // Errata #12: null safety for missing response
       const resp = entry.response || '';
@@ -55,9 +50,8 @@ export function saveConversation(entry) {
 
 /**
  * Get all history entries, most recent first.
- * @returns {Promise<HistoryEntry[]>}
  */
-export function getHistory() {
+export function getHistory(): Promise<HistoryEntry[]> {
   return new Promise((resolve) => {
     chrome.storage.local.get(['chatHistory'], (result) => {
       if (chrome.runtime.lastError) {
@@ -65,16 +59,15 @@ export function getHistory() {
         resolve([]);
         return;
       }
-      resolve(/** @type {HistoryEntry[]} */ (result.chatHistory || []));
+      resolve((result.chatHistory || []) as HistoryEntry[]);
     });
   });
 }
 
 /**
  * Clear all history.
- * @returns {Promise<void>}
  */
-export function clearHistory() {
+export function clearHistory(): Promise<void> {
   return new Promise((resolve) => {
     chrome.storage.local.set({ chatHistory: [] }, () => {
       if (chrome.runtime.lastError) {

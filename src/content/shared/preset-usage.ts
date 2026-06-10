@@ -1,14 +1,10 @@
-// @ts-check
-
-/** @typedef {import('../../shared/types').Preset} Preset */
-/** @typedef {import('../../shared/types').PresetUsage} PresetUsage */
+import type { Preset, PresetUsage } from '../../shared/types';
 
 // src/content/shared/preset-usage.js — Tracks preset click frequency for reordering
 // Usage data is cached in a module-level variable for instant sync access.
 // Persisted to chrome.storage.local under the key "presetUsage".
 
-/** @type {PresetUsage} */
-let usageCache = {};
+let usageCache: PresetUsage = {};
 
 /**
  * Builds a storage key from content type and optional sub-type.
@@ -16,7 +12,7 @@ let usageCache = {};
  * @param {string|null|undefined} subType - Optional sub-type (e.g. "javascript")
  * @returns {string} Key like "code:javascript" or just "code"
  */
-export function buildTypeKey(type, subType) {
+export function buildTypeKey(type: string, subType: string | null | undefined): string {
   return subType ? `${type}:${subType}` : type;
 }
 
@@ -24,10 +20,10 @@ export function buildTypeKey(type, subType) {
  * Loads usage data from chrome.storage.local into the module-level cache.
  * Call once at startup. If storage is unavailable, cache stays empty.
  */
-export function loadUsageData() {
+export function loadUsageData(): void {
   try {
     chrome.storage.local.get('presetUsage', (data) => {
-      usageCache = /** @type {PresetUsage} */ ((data && data.presetUsage) || {});
+      usageCache = ((data && data.presetUsage) || {}) as PresetUsage;
     });
   } catch {
     // Graceful fallback — storage unavailable in some contexts
@@ -40,7 +36,7 @@ export function loadUsageData() {
  * @param {string} typeKey - Key from buildTypeKey()
  * @param {string} label - The preset label that was clicked
  */
-export function recordPresetUsage(typeKey, label) {
+export function recordPresetUsage(typeKey: string, label: string): void {
   if (!typeKey || !label) return;
 
   if (!usageCache[typeKey]) {
@@ -62,7 +58,7 @@ export function recordPresetUsage(typeKey, label) {
  * @param {string} typeKey - Key from buildTypeKey()
  * @returns {Preset[]}
  */
-export function getReorderedPresets(presets, typeKey) {
+export function getReorderedPresets(presets: Preset[], typeKey: string): Preset[] {
   const usage = usageCache[typeKey];
   if (!usage) return presets;
 

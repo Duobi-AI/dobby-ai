@@ -1,31 +1,24 @@
-// @ts-check
-
-/** @typedef {import('./types').ResolvedTheme} ResolvedTheme */
-/** @typedef {import('./types').ThemeMode} ThemeMode */
+import type { ResolvedTheme, ThemeMode } from './types';
 
 export const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)';
 
-/** @param {unknown} value @returns {ThemeMode} */
-export function normalizeThemeMode(value) {
+export function normalizeThemeMode(value: unknown): ThemeMode {
   return value === 'light' || value === 'dark' || value === 'auto' ? value : 'auto';
 }
 
-/** @returns {ResolvedTheme} */
-function getSystemTheme() {
+function getSystemTheme(): ResolvedTheme {
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     return window.matchMedia(COLOR_SCHEME_QUERY).matches ? 'dark' : 'light';
   }
   return 'light';
 }
 
-/** @param {unknown} value @returns {ResolvedTheme} */
-export function resolveTheme(value) {
+export function resolveTheme(value: unknown): ResolvedTheme {
   const mode = normalizeThemeMode(value);
   return mode === 'auto' ? getSystemTheme() : mode;
 }
 
-/** @returns {Promise<ResolvedTheme>} */
-export function detectTheme() {
+export function detectTheme(): Promise<ResolvedTheme> {
   return new Promise((resolve) => {
     if (typeof chrome === 'undefined' || !chrome.storage?.local?.get) {
       resolve(resolveTheme('auto'));
@@ -38,12 +31,7 @@ export function detectTheme() {
   });
 }
 
-/**
- * @param {(theme: ResolvedTheme) => void} applyTheme
- * @returns {() => void}
- */
-export function watchThemeChanges(applyTheme) {
-  /** @type {ThemeMode} */
+export function watchThemeChanges(applyTheme: (theme: ResolvedTheme) => void): () => void {
   let mode = 'auto';
   const mediaQuery = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia(COLOR_SCHEME_QUERY)
@@ -51,7 +39,10 @@ export function watchThemeChanges(applyTheme) {
 
   const applyResolved = () => applyTheme(resolveTheme(mode));
 
-  const storageHandler = (changes, areaName) => {
+  const storageHandler = (
+    changes: Record<string, chrome.storage.StorageChange>,
+    areaName: string,
+  ) => {
     if (areaName && areaName !== 'local') return;
     if (!changes.theme) return;
     mode = normalizeThemeMode(changes.theme.newValue);
