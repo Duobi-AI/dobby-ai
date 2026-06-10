@@ -1,3 +1,5 @@
+import type { ResolvedTheme } from './types';
+
 // Central color source for every Dobby AI UI surface.
 // Change values here to update the product palette; components should only use semantic tokens.
 
@@ -143,11 +145,11 @@ export const COLOR_PALETTE = {
   }),
 };
 
-export function getColorPalette(theme) {
+export function getColorPalette(theme: ResolvedTheme) {
   return COLOR_PALETTE[theme === 'dark' ? 'dark' : 'light'];
 }
 
-export function applyColorVariables(element, theme) {
+export function applyColorVariables(element: HTMLElement, theme: ResolvedTheme) {
   const palette = getColorPalette(theme);
   Object.entries(palette).forEach(([name, value]) => {
     const cssName = name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
