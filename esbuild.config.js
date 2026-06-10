@@ -32,7 +32,7 @@ async function build() {
   if (isWatch) {
     const contexts = await Promise.all([
       esbuild.context({ ...sharedConfig, entryPoints: ['src/content/index.js'], outfile: `${DIST}/content.js` }),
-      esbuild.context({ ...sharedConfig, entryPoints: ['src/background/index.js'], outfile: `${DIST}/background.js` }),
+      esbuild.context({ ...sharedConfig, entryPoints: ['src/background/index.ts'], outfile: `${DIST}/background.js` }),
       esbuild.context({ ...sharedConfig, entryPoints: ['src/popup.js', 'src/options.js'], outdir: DIST }),
     ]);
     copyStaticAssets();
@@ -40,7 +40,7 @@ async function build() {
     console.log('Watching for changes...');
   } else {
     await esbuild.build({ ...sharedConfig, entryPoints: ['src/content/index.js'], outfile: `${DIST}/content.js` });
-    await esbuild.build({ ...sharedConfig, entryPoints: ['src/background/index.js'], outfile: `${DIST}/background.js` });
+    await esbuild.build({ ...sharedConfig, entryPoints: ['src/background/index.ts'], outfile: `${DIST}/background.js` });
     await esbuild.build({ ...sharedConfig, entryPoints: ['src/popup.js', 'src/options.js'], outdir: DIST });
     copyStaticAssets();
     console.log('Build complete → dist/');
