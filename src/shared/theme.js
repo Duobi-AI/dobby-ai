@@ -1,9 +1,16 @@
+// @ts-check
+
+/** @typedef {import('./types').ResolvedTheme} ResolvedTheme */
+/** @typedef {import('./types').ThemeMode} ThemeMode */
+
 export const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)';
 
+/** @param {unknown} value @returns {ThemeMode} */
 export function normalizeThemeMode(value) {
   return value === 'light' || value === 'dark' || value === 'auto' ? value : 'auto';
 }
 
+/** @returns {ResolvedTheme} */
 function getSystemTheme() {
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     return window.matchMedia(COLOR_SCHEME_QUERY).matches ? 'dark' : 'light';
@@ -11,11 +18,13 @@ function getSystemTheme() {
   return 'light';
 }
 
+/** @param {unknown} value @returns {ResolvedTheme} */
 export function resolveTheme(value) {
   const mode = normalizeThemeMode(value);
   return mode === 'auto' ? getSystemTheme() : mode;
 }
 
+/** @returns {Promise<ResolvedTheme>} */
 export function detectTheme() {
   return new Promise((resolve) => {
     if (typeof chrome === 'undefined' || !chrome.storage?.local?.get) {
@@ -29,7 +38,12 @@ export function detectTheme() {
   });
 }
 
+/**
+ * @param {(theme: ResolvedTheme) => void} applyTheme
+ * @returns {() => void}
+ */
 export function watchThemeChanges(applyTheme) {
+  /** @type {ThemeMode} */
   let mode = 'auto';
   const mediaQuery = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia(COLOR_SCHEME_QUERY)
