@@ -3,6 +3,8 @@
 // Dependencies (shared global scope via manifest.json content_scripts):
 // - chrome.runtime.sendMessage (for screenshot capture via background.js)
 
+import { requestVisibleTabScreenshot } from './api.js';
+
 const MAX_BASE64_SIZE = 1048576; // 1MB
 const MAX_DOWNSCALE_ATTEMPTS = 2;
 
@@ -61,9 +63,7 @@ export async function captureImage(source) {
  */
 export async function captureScreenshot(rect) {
   try {
-    const response = await chrome.runtime.sendMessage({
-      type: 'CAPTURE_SCREENSHOT',
-    });
+    const response = await requestVisibleTabScreenshot();
 
     if (!response || !response.dataUrl) return null;
 

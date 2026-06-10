@@ -1,4 +1,5 @@
 import type { Preset, PresetUsage } from '../../shared/types';
+import { getLocalStorage, setLocalStorage } from '../../shared/storage';
 
 // src/content/shared/preset-usage.js — Tracks preset click frequency for reordering
 // Usage data is cached in a module-level variable for instant sync access.
@@ -22,8 +23,8 @@ export function buildTypeKey(type: string, subType: string | null | undefined): 
  */
 export function loadUsageData(): void {
   try {
-    chrome.storage.local.get('presetUsage', (data) => {
-      usageCache = ((data && data.presetUsage) || {}) as PresetUsage;
+    getLocalStorage('presetUsage', (data) => {
+      usageCache = (data && data.presetUsage) || {};
     });
   } catch {
     // Graceful fallback — storage unavailable in some contexts
@@ -45,7 +46,7 @@ export function recordPresetUsage(typeKey: string, label: string): void {
   usageCache[typeKey][label] = (usageCache[typeKey][label] || 0) + 1;
 
   try {
-    chrome.storage.local.set({ presetUsage: usageCache });
+    setLocalStorage({ presetUsage: usageCache });
   } catch {
     // Persist failure is non-fatal — in-memory cache still works this session
   }
