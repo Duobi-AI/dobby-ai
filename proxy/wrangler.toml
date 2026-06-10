@@ -8,6 +8,19 @@ compatibility_date = "2024-01-01"
 binding = "RATE_LIMIT_KV"
 id = "d4714a769c944734babf5e75732207f7"
 
+# Durable Object: strongly-consistent, atomic rate-limit counters.
+# RateLimiter serves two roles via named instances:
+#   idFromName("<ip>")      — per-IP minute/day/burst counters (one DO per IP)
+#   idFromName("__global__") — service-wide daily counter shared across all IPs
+# Replaces the racy, eventually-consistent KV check-then-increment.
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RateLimiter"]
+
 # Secrets (set via `wrangler secret put <NAME>`):
 # - OPENAI_API_KEY
 # - HMAC_SECRET
