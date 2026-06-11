@@ -54,7 +54,7 @@ export function watchThemeChanges(applyTheme: (theme: ResolvedTheme) => void): (
     if (mode === 'auto') applyResolved();
   };
 
-  if (typeof chrome !== 'undefined' && chrome.storage?.local?.get) {
+  if (typeof chrome !== 'undefined' && (chrome.storage?.local?.get as unknown)) {
     getLocalStorage('theme', (data) => {
       mode = normalizeThemeMode(data?.theme);
     });

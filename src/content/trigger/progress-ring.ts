@@ -28,7 +28,7 @@ function _ensureProgressRingStyles() {
   document.head.appendChild(style);
 }
 
-export function _showProgressRing(x, y) {
+export function _showProgressRing(x: number, y: number): void {
   _removeProgressRing();
   _ensureProgressRingStyles();
 
@@ -142,7 +142,7 @@ export function _showProgressRing(x, y) {
   longPressState.ring = container;
 }
 
-export function _removeProgressRing() {
+export function _removeProgressRing(): void {
   if (longPressState.ring) {
     removeElement(longPressState.ring);
     longPressState.ring = null;

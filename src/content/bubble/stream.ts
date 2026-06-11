@@ -13,13 +13,14 @@ import { renderMarkdown } from './markdown.js';
 import { TIMING } from '../shared/constants.js';
 import { getColorPalette } from '../../shared/color-palette.js';
 import { OPEN_OPTIONS_MESSAGE } from '../../shared/runtime-messages.js';
+import type { ChatMessage } from '../../shared/types';
 
 const colors = getColorPalette('light');
 
 const COPY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 const CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
 
-export function createCopyButton(aiMsg, responseIdx) {
+export function createCopyButton(aiMsg: HTMLElement, responseIdx: number): void {
   const btn = document.createElement('button');
   btn.className = 'copy-btn';
   btn.title = 'Copy';
@@ -50,11 +51,11 @@ export function createCopyButton(aiMsg, responseIdx) {
   aiMsg.appendChild(btn);
 }
 
-export function startStreaming(shadow, messages) {
-  const responseEl = shadow.querySelector('.response-text');
-  const cursorEl = shadow.querySelector('.cursor');
-  const statusEl = shadow.querySelector('.bubble-status');
-  const followUpInput = shadow.querySelector('.follow-up-input');
+export function startStreaming(shadow: ShadowRoot, messages: ChatMessage[]): void {
+  const responseEl = shadow.querySelector<HTMLElement>('.response-text')!;
+  const cursorEl = shadow.querySelector<HTMLElement>('.cursor')!;
+  const statusEl = shadow.querySelector<HTMLElement>('.bubble-status')!;
+  const followUpInput = shadow.querySelector<HTMLInputElement>('.follow-up-input')!;
 
   // Create a new AI message container for this response
   const aiMsg = document.createElement('div');
@@ -81,7 +82,7 @@ export function startStreaming(shadow, messages) {
         setRenderTimer(setTimeout(() => {
           setRenderTimer(null);
           aiMsg.innerHTML = renderMarkdown(responseText);
-          const body = shadow.querySelector('.bubble-body');
+          const body = shadow.querySelector<HTMLElement>('.bubble-body')!;
           body.scrollTop = body.scrollHeight;
         }, TIMING.RENDER_DEBOUNCE));
       }
@@ -123,7 +124,7 @@ export function startStreaming(shadow, messages) {
       }
       saveConversation({
         text: historyText,
-        instruction: instruction?.content || '',
+        instruction: (instruction?.content as string) || '',
         response: responseText,
         pageUrl: window.location.href,
         pageTitle: document.title,
@@ -155,8 +156,8 @@ export function startStreaming(shadow, messages) {
   ));
 }
 
-export function handleFollowUp(shadow, question) {
-  const responseEl = shadow.querySelector('.response-text');
+export function handleFollowUp(shadow: ShadowRoot, question: string): void {
+  const responseEl = shadow.querySelector<HTMLElement>('.response-text')!;
 
   // Add user message bubble
   const userMsg = document.createElement('div');
@@ -165,7 +166,7 @@ export function handleFollowUp(shadow, question) {
   responseEl.appendChild(userMsg);
 
   // Scroll to show the user message
-  const body = shadow.querySelector('.bubble-body');
+  const body = shadow.querySelector<HTMLElement>('.bubble-body')!;
   body.scrollTop = body.scrollHeight;
 
   // Reset responseText for the new AI reply (previous messages stay in DOM)
@@ -175,8 +176,8 @@ export function handleFollowUp(shadow, question) {
   startStreaming(shadow, currentMessages);
 }
 
-export function showRateLimitUI(shadow) {
-  const body = shadow.querySelector('.bubble-body');
+export function showRateLimitUI(shadow: ShadowRoot): void {
+  const body = shadow.querySelector<HTMLElement>('.bubble-body')!;
   body.innerHTML = `
     <div class="rate-limit-msg">
       <p>You've used your 30 free questions today.</p>
@@ -185,7 +186,7 @@ export function showRateLimitUI(shadow) {
     </div>
   `;
 
-  shadow.querySelector('.cta').addEventListener('click', () => {
+  shadow.querySelector<HTMLElement>('.cta')!.addEventListener('click', () => {
     chrome.runtime.sendMessage(OPEN_OPTIONS_MESSAGE);
   });
 }

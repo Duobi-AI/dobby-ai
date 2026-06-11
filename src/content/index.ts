@@ -13,6 +13,7 @@ import { captureImage } from './image-capture.js';
 import { isClickInsideUI } from './shared/dom-utils.js';
 import { loadUsageData } from './shared/preset-usage.js';
 import { getLocalStorage } from '../shared/storage.js';
+import type { ImageContentPart } from '../shared/types';
 
 /** @typedef {import('../shared/types').ContentRuntimeMessage} ContentRuntimeMessage */
 
@@ -83,7 +84,7 @@ chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) 
 
     if (msg.image) {
       (async () => {
-        let images = [];
+        let images: ImageContentPart[] = [];
         const captured = await captureImage(msg.image);
         if (captured) images = [captured];
         if (images.length > 0) {
