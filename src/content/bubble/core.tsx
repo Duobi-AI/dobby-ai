@@ -128,25 +128,6 @@ function wireCommonEvents(shadow: ShadowRoot): void {
       document.removeEventListener('mouseup', onMouseUp);
     };
   });
-  // Image lightbox via event delegation
-  shadow.querySelector<HTMLElement>('.bubble-body')!.addEventListener('click', (e: MouseEvent) => {
-    if ((e.target as HTMLElement).classList.contains('response-img')) {
-      const overlay = document.createElement('div');
-      overlay.className = 'img-lightbox';
-      overlay.tabIndex = 0;
-      const img = document.createElement('img');
-      img.src = (e.target as HTMLImageElement).src;
-      img.alt = (e.target as HTMLImageElement).alt;
-      overlay.appendChild(img);
-      const dismiss = () => overlay.remove();
-      overlay.addEventListener('click', dismiss);
-      overlay.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Escape') { ev.stopPropagation(); dismiss(); }
-      });
-      shadow.appendChild(overlay);
-      overlay.focus();
-    }
-  });
   // Resize handle
   const resizeHandle = shadow.querySelector<HTMLElement>('.resize-handle');
   if (resizeHandle) {
@@ -212,7 +193,12 @@ async function initBubble(
   const shadow = bubbleHost!.attachShadow({ mode: 'open' });
   stopShadowRootKeyboardEventPropagation(shadow);
   shadow.addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Escape') hideBubble();
+    if (
+      (e as KeyboardEvent).key === 'Escape'
+      && !(e.target as Element).closest?.('.img-lightbox')
+    ) {
+      hideBubble();
+    }
   });
 
   const reactRoot = mountReactRoot(

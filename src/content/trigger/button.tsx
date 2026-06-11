@@ -5,24 +5,22 @@
 import { getToolbarStyles } from './styles.js';
 import { detectTheme, showBubble } from '../bubble/core.js';
 import { watchThemeChanges } from '../../shared/theme.js';
+import { mountReactRoot } from '../../shared/react-root.js';
 import { getColorPalette } from '../../shared/color-palette.js';
 import { buildChatMessages } from '../prompt.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
 import {
-  setToolbarHost, setToolbarState, toolbarState,
-  triggerButton, setTriggerButton,
+  setToolbarHost, setToolbarState,
+  setTriggerButton,
 } from '../shared/state.js';
 import { detectContentType } from '../detection.js';
 import { getSuggestedPresetsForType } from '../presets.js';
 import { captureImage } from '../image-capture.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
-import { BRAND_MARK_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
 import { stopShadowRootKeyboardEventPropagation } from '../shared/dom-utils.js';
-import type { ImageContentPart, PreservedSelection, SelectionData, ToolbarHost } from '../../shared/types';
+import { ToolbarShell } from './toolbar-shell.js';
+import type { ImageContentPart, PreservedSelection, Preset, SelectionData, ToolbarHost } from '../../shared/types';
 
-const pencilSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
-const closeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-const sendSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
 const SELECTION_IMAGE_WAIT_MS = 1000;
 const colors = getColorPalette('light');
 
@@ -43,8 +41,6 @@ function clearAutoHide(): void {
   }
 }
 
-// --- Active stream handle (isolated from shared state) ---
-
 // --- Toolbar creation ---
 
 async function createToolbar(): Promise<ToolbarHost> {
@@ -60,137 +56,47 @@ async function createToolbar(): Promise<ToolbarHost> {
   const shadow = host.attachShadow({ mode: 'open', delegatesFocus: true });
   stopShadowRootKeyboardEventPropagation(shadow);
 
-  // Inject styles
-  const style = document.createElement('style');
-  style.textContent = getToolbarStyles(await detectTheme());
-  shadow.appendChild(style);
+  const getPresets = () => {
+    const detected = detectContentType(host._selectedText || '', host._anchorNode || null);
+    host._detectedType = detected.type;
+    host._detectedSubType = detected.subType;
+    const presets = getSuggestedPresetsForType(detected.type, detected.subType);
+    return presets.length > 0
+      ? presets
+      : [
+        { label: 'Summarize', instruction: 'Summarize the following' },
+        { label: 'Explain', instruction: 'Explain the following in simple terms' },
+      ];
+  };
 
-  // Build toolbar DOM
-  const toolbar = document.createElement('div');
-  toolbar.className = 'toolbar';
+  const submitPreset = (preset: Preset) => {
+    recordPresetUsage(buildTypeKey(host._detectedType || 'default', host._detectedSubType || null), preset.label);
+    morphIntoBubble(host, shadow, preset.label, preset.instruction);
+  };
 
-  // --- Row: icon + expandable actions + morph header ---
-  const row = document.createElement('div');
-  row.className = 'toolbar-row';
+  const submitCustom = (instruction: string) => {
+    recordPresetUsage(buildTypeKey(host._detectedType || 'default', host._detectedSubType || null), 'Custom');
+    morphIntoBubble(host, shadow, 'Custom', instruction);
+  };
 
-  // Icon
-  const iconDiv = document.createElement('div');
-  iconDiv.className = 'toolbar-icon';
-  const img = document.createElement('img');
-  img.src = BRAND_MARK_DATA_URI;
-  img.alt = BRAND_NAME;
-  iconDiv.appendChild(img);
-  row.appendChild(iconDiv);
+  const renderToolbar = (styles: string) => (
+    <ToolbarShell
+      styles={styles}
+      host={host}
+      getPresets={getPresets}
+      onPreset={submitPreset}
+      onCustom={submitCustom}
+      onModeChange={setToolbarState}
+      onEnterInput={showSelectionHighlight}
+      onExitInput={removeSelectionHighlight}
+      onPauseAutoHide={clearAutoHide}
+      onResumeAutoHide={() => startAutoHide(host)}
+    />
+  );
 
-  // Expandable section (preset actions)
-  const expandSection = document.createElement('div');
-  expandSection.className = 'toolbar-expand';
-
-  const sep1 = document.createElement('div');
-  sep1.className = 'toolbar-sep';
-  expandSection.appendChild(sep1);
-
-  const actionsDiv = document.createElement('div');
-  actionsDiv.className = 'toolbar-actions';
-  expandSection.appendChild(actionsDiv);
-
-  const sep2 = document.createElement('div');
-  sep2.className = 'toolbar-sep';
-  expandSection.appendChild(sep2);
-
-  // Pencil / close toggle button
-  const pencilBtn = document.createElement('button');
-  pencilBtn.className = 'toolbar-pencil';
-  pencilBtn.innerHTML = pencilSvg;
-  pencilBtn.title = 'Custom prompt';
-  expandSection.appendChild(pencilBtn);
-
-  // Input mode section (hidden by default, overlays expand section)
-  const inputSection = document.createElement('div');
-  inputSection.className = 'toolbar-input-section';
-
-  const inputField = document.createElement('input');
-  inputField.className = 'toolbar-input-field';
-  inputField.type = 'text';
-  inputField.placeholder = 'Ask about this...';
-  inputSection.appendChild(inputField);
-
-  const sendBtn = document.createElement('button');
-  sendBtn.className = 'toolbar-send disabled';
-  sendBtn.innerHTML = sendSvg;
-  sendBtn.title = 'Send';
-  inputSection.appendChild(sendBtn);
-
-  row.appendChild(expandSection);
-  row.appendChild(inputSection);
-  toolbar.appendChild(row);
-
-  shadow.appendChild(toolbar);
-
-  host._themeCleanup = watchThemeChanges((theme) => {
-    style.textContent = getToolbarStyles(theme);
-  });
-
-  // --- Event handlers ---
-  toolbar.addEventListener('mouseenter', () => {
-    clearAutoHide();
-    if (toolbarState === 'collapsed') {
-      expandToolbar(host, shadow);
-    }
-  });
-
-  toolbar.addEventListener('mouseleave', () => {
-    if (toolbarState === 'expanded') {
-      collapseToolbar(shadow);
-      startAutoHide(host);
-    }
-    // If 'input' or 'morphed', do not collapse
-  });
-
-  // --- Input mode handlers ---
-  pencilBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (toolbarState === 'input') {
-      exitInputMode(shadow, pencilBtn, inputField, sendBtn, host);
-    } else {
-      enterInputMode(shadow, pencilBtn, inputField, sendBtn, host);
-    }
-  });
-
-  inputField.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const text = inputField.value.trim();
-      if (text) {
-        const detectedType = host._detectedType || 'default';
-        const detectedSubType = host._detectedSubType || null;
-        recordPresetUsage(buildTypeKey(detectedType, detectedSubType), 'Custom');
-        morphIntoBubble(host, shadow, 'Custom', text);
-      }
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      exitInputMode(shadow, pencilBtn, inputField, sendBtn, host);
-    }
-  });
-
-  sendBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const text = inputField.value.trim();
-    if (text) {
-      const detectedType = host._detectedType || 'default';
-      const detectedSubType = host._detectedSubType || null;
-      recordPresetUsage(buildTypeKey(detectedType, detectedSubType), 'Custom');
-      morphIntoBubble(host, shadow, 'Custom', text);
-    }
-  });
-
-  inputField.addEventListener('input', () => {
-    if (inputField.value.trim()) {
-      sendBtn.classList.remove('disabled');
-    } else {
-      sendBtn.classList.add('disabled');
-    }
-  });
+  const reactRoot = mountReactRoot(shadow, renderToolbar(getToolbarStyles(await detectTheme())));
+  host._reactCleanup = reactRoot.unmount;
+  host._themeCleanup = watchThemeChanges((theme) => reactRoot.render(renderToolbar(getToolbarStyles(theme))));
 
   document.body.appendChild(host);
   setToolbarHost(host);
@@ -198,63 +104,6 @@ async function createToolbar(): Promise<ToolbarHost> {
   setTriggerButton(host);
 
   return host;
-}
-
-// --- Expand / Collapse ---
-
-function expandToolbar(host: ToolbarHost, shadow: ShadowRoot): void {
-  const toolbar = shadow.querySelector<HTMLElement>('.toolbar')!;
-  const actionsDiv = shadow.querySelector<HTMLElement>('.toolbar-actions')!;
-
-  // Lazily detect content type
-  const text = host._selectedText || '';
-  const anchorNode = host._anchorNode || null;
-  const detected = detectContentType(text, anchorNode);
-  let presets = getSuggestedPresetsForType(detected.type, detected.subType);
-
-  // Store detected info for input mode
-  host._detectedType = detected.type;
-  host._detectedSubType = detected.subType;
-
-  // Fallback if 0 presets
-  if (!presets || presets.length === 0) {
-    presets = [
-      { label: 'Summarize', instruction: 'Summarize the following' },
-      { label: 'Explain', instruction: 'Explain the following in simple terms' },
-    ];
-  }
-
-  // Clear old actions
-  actionsDiv.innerHTML = '';
-
-  // Show first 2 presets
-  const shownPresets = presets.slice(0, 2);
-  shownPresets.forEach((preset) => {
-    const btn = document.createElement('button');
-    btn.className = 'toolbar-action';
-    btn.textContent = preset.label;
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      recordPresetUsage(buildTypeKey(detected.type, detected.subType), preset.label);
-      morphIntoBubble(host, shadow, preset.label, preset.instruction);
-    });
-    actionsDiv.appendChild(btn);
-  });
-
-  // Measure natural width and set CSS variable
-  toolbar.style.width = 'auto';
-  toolbar.classList.add('expanded');
-  const naturalWidth = toolbar.scrollWidth;
-  toolbar.style.width = '';
-  toolbar.style.setProperty('--toolbar-expanded-width', Math.max(naturalWidth + 8, 180) + 'px');
-  // Re-add expanded class (was set above but width was auto)
-  setToolbarState('expanded');
-}
-
-function collapseToolbar(shadow: ShadowRoot): void {
-  const toolbar = shadow.querySelector<HTMLElement>('.toolbar')!;
-  toolbar.classList.remove('expanded');
-  setToolbarState('collapsed');
 }
 
 // --- Morph into chat ---
@@ -421,90 +270,6 @@ function removeSelectionHighlight(): void {
   selectionHighlights = [];
 }
 
-// --- Input mode ---
-
-let outsideClickHandler: ((event: MouseEvent) => void) | null = null;
-
-function enterInputMode(
-  shadow: ShadowRoot,
-  pencilBtn: HTMLButtonElement,
-  inputField: HTMLInputElement,
-  sendBtn: HTMLButtonElement,
-  host: ToolbarHost,
-): void {
-  clearAutoHide();
-
-  // Show highlight overlay before focus steals the visual selection
-  showSelectionHighlight();
-
-  const expandSection = shadow.querySelector<HTMLElement>('.toolbar-expand')!;
-  const actionsDiv = shadow.querySelector<HTMLElement>('.toolbar-actions')!;
-  const inputSection = shadow.querySelector<HTMLElement>('.toolbar-input-section')!;
-  const seps = expandSection.querySelectorAll<HTMLElement>('.toolbar-sep');
-
-  actionsDiv.style.opacity = '0';
-  actionsDiv.style.pointerEvents = 'none';
-  seps.forEach(s => { s.style.opacity = '0'; });
-
-  pencilBtn.innerHTML = closeSvg;
-  pencilBtn.classList.add('close-mode');
-  pencilBtn.title = 'Cancel';
-
-  inputSection.classList.add('visible');
-
-  inputField.value = '';
-  sendBtn.classList.add('disabled');
-  setTimeout(() => inputField.focus(), 50);
-
-  setToolbarState('input');
-
-  outsideClickHandler = (e: MouseEvent) => {
-    if (!host.contains(e.target as Node | null) && !host.shadowRoot!.contains(e.target as Node | null)) {
-      exitInputMode(shadow, pencilBtn, inputField, sendBtn, host);
-    }
-  };
-  setTimeout(() => {
-    document.addEventListener('mousedown', outsideClickHandler!, true);
-  }, 0);
-}
-
-function exitInputMode(
-  shadow: ShadowRoot,
-  pencilBtn: HTMLButtonElement,
-  inputField: HTMLInputElement,
-  sendBtn: HTMLButtonElement,
-  host: ToolbarHost,
-): void {
-  removeSelectionHighlight();
-
-  const expandSection = shadow.querySelector<HTMLElement>('.toolbar-expand')!;
-  const actionsDiv = shadow.querySelector<HTMLElement>('.toolbar-actions')!;
-  const inputSection = shadow.querySelector<HTMLElement>('.toolbar-input-section')!;
-  const seps = expandSection.querySelectorAll<HTMLElement>('.toolbar-sep');
-
-  inputSection.classList.remove('visible');
-
-  actionsDiv.style.opacity = '';
-  actionsDiv.style.pointerEvents = '';
-  seps.forEach(s => { s.style.opacity = ''; });
-
-  pencilBtn.innerHTML = pencilSvg;
-  pencilBtn.classList.remove('close-mode');
-  pencilBtn.title = 'Custom prompt';
-
-  inputField.value = '';
-  sendBtn.classList.add('disabled');
-
-  setToolbarState('expanded');
-
-  startAutoHide(host);
-
-  if (outsideClickHandler) {
-    document.removeEventListener('mousedown', outsideClickHandler, true);
-    outsideClickHandler = null;
-  }
-}
-
 // --- Public API ---
 
 let toolbarCreating: Promise<ToolbarHost> | null = null;
@@ -546,15 +311,12 @@ export function hideTrigger(): void {
   clearAutoHide();
   removeSelectionHighlight();
   if (typeof document === 'undefined') return;
-  if (outsideClickHandler) {
-    document.removeEventListener('mousedown', outsideClickHandler, true);
-    outsideClickHandler = null;
-  }
   const host = document.getElementById('dobby-ai-toolbar-host') as ToolbarHost | null;
   if (host) {
     if (host._themeCleanup) {
       host._themeCleanup();
     }
+    host._reactCleanup?.();
     host.remove();
   }
   setToolbarHost(null);

@@ -18,6 +18,7 @@ export type SelectionData = {
 
 export interface ToolbarHost extends HTMLDivElement {
   _themeCleanup?: Cleanup;
+  _reactCleanup?: Cleanup;
   _detectedType?: ContentType;
   _detectedSubType?: ContentSubtype;
   _selectedText?: string;

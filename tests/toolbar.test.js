@@ -158,7 +158,7 @@ describe('hover expand/collapse', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
 
     expect(toolbar.classList.contains('expanded')).toBe(true);
     const actions = shadow.querySelectorAll('.toolbar-action');
@@ -170,7 +170,7 @@ describe('hover expand/collapse', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
 
     expect(detectContentType).toHaveBeenCalledWith('test text', document.body);
     expect(getSuggestedPresetsForType).toHaveBeenCalled();
@@ -181,10 +181,10 @@ describe('hover expand/collapse', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     expect(toolbar.classList.contains('expanded')).toBe(true);
 
-    toolbar.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
     expect(toolbar.classList.contains('expanded')).toBe(false);
   });
 
@@ -193,13 +193,13 @@ describe('hover expand/collapse', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
 
     // Enter input mode by clicking pencil
     const pencilBtn = shadow.querySelector('.toolbar-pencil');
     pencilBtn.click();
 
-    toolbar.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
     expect(toolbar.classList.contains('expanded')).toBe(true);
   });
 });
@@ -222,7 +222,7 @@ describe('auto-hide timer', () => {
 
     // Hover after 1 second
     vi.advanceTimersByTime(1000);
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
 
     // Wait past the original 3s timeout
     vi.advanceTimersByTime(3000);
@@ -235,8 +235,8 @@ describe('auto-hide timer', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    toolbar.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
 
     // Now the auto-hide should restart
     vi.advanceTimersByTime(3100);
@@ -251,7 +251,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
 
     const pencilBtn = shadow.querySelector('.toolbar-pencil');
     expect(pencilBtn).not.toBeNull();
@@ -263,7 +263,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
     const inputSection = shadow.querySelector('.toolbar-input-section');
@@ -278,7 +278,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     const pencilBtn = shadow.querySelector('.toolbar-pencil');
     pencilBtn.click();
 
@@ -291,7 +291,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     const pencilBtn = shadow.querySelector('.toolbar-pencil');
     pencilBtn.click(); // enter
     pencilBtn.click(); // exit (now it's close button)
@@ -308,7 +308,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
     const inputField = shadow.querySelector('.toolbar-input-field');
@@ -323,7 +323,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
     const sendBtn = shadow.querySelector('.toolbar-send');
@@ -335,7 +335,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
     const inputField = shadow.querySelector('.toolbar-input-field');
@@ -349,7 +349,7 @@ describe('input mode', () => {
   it('keeps typing shortcuts from reaching the host page', async () => {
     await showTrigger(200, 100, { text: 'test text', anchorNode: null });
     const shadow = getShadow();
-    shadow.querySelector('.toolbar').dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    shadow.querySelector('.toolbar').dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
     const pageShortcut = vi.fn();
@@ -369,7 +369,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
     const inputField = shadow.querySelector('.toolbar-input-field');
@@ -383,7 +383,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
     const inputField = shadow.querySelector('.toolbar-input-field');
@@ -399,7 +399,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
     const inputField = shadow.querySelector('.toolbar-input-field');
@@ -417,7 +417,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
     vi.advanceTimersByTime(5000);
@@ -429,10 +429,10 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
-    toolbar.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
     expect(toolbar.classList.contains('expanded')).toBe(true);
   });
 
@@ -442,7 +442,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
     vi.advanceTimersByTime(1);
@@ -458,7 +458,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-pencil').click();
 
     const sendBtn = shadow.querySelector('.toolbar-send');
@@ -473,7 +473,7 @@ describe('input mode', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     const pencilBtn = shadow.querySelector('.toolbar-pencil');
     pencilBtn.click();
     pencilBtn.click();
@@ -489,7 +489,7 @@ describe('preset click opens bubble', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-action').click();
 
     expect(showBubble).toHaveBeenCalledTimes(1);
@@ -513,7 +513,7 @@ describe('preset click opens bubble', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-action').click();
 
     expect(buildChatMessages).toHaveBeenCalledWith('test text', 'Summarize the following', true, null);
@@ -543,7 +543,7 @@ describe('preset click opens bubble', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-action').click();
     await getToolbarHost()._imagesPromise;
     await Promise.resolve();
@@ -559,7 +559,7 @@ describe('preset click opens bubble', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-action').click();
 
     // Flush async microtasks (showBubble is now async)
@@ -591,7 +591,7 @@ describe('fallback presets', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     const actions = shadow.querySelectorAll('.toolbar-action');
     expect(actions.length).toBe(2);
     expect(actions[0].textContent).toBe('Summarize');
@@ -606,7 +606,7 @@ describe('fallback presets', () => {
     const shadow = getShadow();
     const toolbar = shadow.querySelector('.toolbar');
 
-    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     const actions = shadow.querySelectorAll('.toolbar-action');
     expect(actions.length).toBe(1);
     expect(actions[0].textContent).toBe('Explain code');
