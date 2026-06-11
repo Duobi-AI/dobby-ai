@@ -48,9 +48,9 @@ export async function checkRateLimit(
   const globalKey = `rl:global:${dayBucket()}`;
 
   const [minCount, dayCount, globalCount] = await Promise.all([
-    kv.get(minKey).then((v) => parseInt(v) || 0),
-    kv.get(dayKey).then((v) => parseInt(v) || 0),
-    kv.get(globalKey).then((v) => parseInt(v) || 0),
+    kv.get(minKey).then((v) => parseInt(v!) || 0),
+    kv.get(dayKey).then((v) => parseInt(v!) || 0),
+    kv.get(globalKey).then((v) => parseInt(v!) || 0),
   ]);
 
   if (minCount >= limits.perMinute) {
@@ -81,10 +81,10 @@ export async function incrementCounters(
   const burstKey = `rl:10s:${ip}:${tenSecBucket()}`;
 
   const [minCount, dayCount, globalCount, burstCount] = await Promise.all([
-    kv.get(minKey).then((v) => parseInt(v) || 0),
-    kv.get(dayKey).then((v) => parseInt(v) || 0),
-    kv.get(globalKey).then((v) => parseInt(v) || 0),
-    kv.get(burstKey).then((v) => parseInt(v) || 0),
+    kv.get(minKey).then((v) => parseInt(v!) || 0),
+    kv.get(dayKey).then((v) => parseInt(v!) || 0),
+    kv.get(globalKey).then((v) => parseInt(v!) || 0),
+    kv.get(burstKey).then((v) => parseInt(v!) || 0),
   ]);
 
   // Note: KV is eventually consistent so counts are best-effort, which is acceptable for rate limiting
