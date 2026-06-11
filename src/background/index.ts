@@ -29,7 +29,7 @@ const HMAC_SECRET = 'dobby-ai-v2-hmac-key-change-in-production';
 const DEV_BYPASS_TOKEN = '';
 
 function getUtcDay(): string {
-  return new Date().toISOString().split('T')[0];
+  return new Date().toISOString().split('T')[0]!;
 }
 
 function createEmptyUsage(): UsageState {
@@ -398,6 +398,7 @@ chrome.runtime.onMessage.addListener((
   sendResponse: (response: CaptureScreenshotResponse | ValidateApiKeyResponse) => void,
 ) => {
   if (msg.type === 'CAPTURE_SCREENSHOT') {
+    // Preserve the existing null windowId behavior while satisfying the Chrome type definition.
     chrome.tabs.captureVisibleTab(null as unknown as number, { format: 'png' }, (dataUrl) => {
       if (chrome.runtime.lastError || !dataUrl) {
         sendResponse({ error: 'Screenshot failed' });

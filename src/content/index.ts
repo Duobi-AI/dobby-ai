@@ -1,5 +1,3 @@
-// @ts-check
-
 // src/content/index.js — Content script entry point
 // Imports establish module initialization order
 
@@ -13,9 +11,7 @@ import { captureImage } from './image-capture.js';
 import { isClickInsideUI } from './shared/dom-utils.js';
 import { loadUsageData } from './shared/preset-usage.js';
 import { getLocalStorage } from '../shared/storage.js';
-import type { ImageContentPart } from '../shared/types';
-
-/** @typedef {import('../shared/types').ContentRuntimeMessage} ContentRuntimeMessage */
+import type { ContentRuntimeMessage, ImageContentPart } from '../shared/types';
 
 // Load initial enabled state
 getLocalStorage('dobbyEnabled', (data) => {
@@ -37,20 +33,20 @@ getLocalStorage('autosuggestEnabled', (data) => {
   if (enabled) initAutosuggest();
 });
 
-chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) => {
+chrome.runtime.onMessage.addListener((msg: ContentRuntimeMessage) => {
   if (msg.type === 'DOBBY_TOGGLE') {
     setDobbyEnabled(msg.enabled);
     if (!msg.enabled) hideTrigger();
   }
 });
 
-chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) => {
+chrome.runtime.onMessage.addListener((msg: ContentRuntimeMessage) => {
   if (msg.type === 'SCREENSHOT_TOGGLE') {
     setScreenshotEnabled(msg.enabled);
   }
 });
 
-chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) => {
+chrome.runtime.onMessage.addListener((msg: ContentRuntimeMessage) => {
   if (msg.type === 'AUTOSUGGEST_TOGGLE') {
     setAutosuggestEnabled(msg.enabled);
     if (msg.enabled) {
@@ -62,7 +58,7 @@ chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) 
 });
 
 // Context menu and popup action message handler
-chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) => {
+chrome.runtime.onMessage.addListener((msg: ContentRuntimeMessage) => {
   if (msg.type === 'SHOW_HISTORY') {
     const rect = {
       top: window.innerHeight / 3 - 8,
@@ -97,8 +93,8 @@ chrome.runtime.onMessage.addListener((/** @type {ContentRuntimeMessage} */ msg) 
     }
 
     const instruction = 'Explain the following';
-    const messages = buildChatMessages(msg.text, instruction, true);
-    (async () => { await showBubble(rect, messages, msg.text, instruction); })();
+    const messages = buildChatMessages(msg.text as string, instruction, true);
+    (async () => { await showBubble(rect, messages, msg.text as string, instruction); })();
   }
 });
 
