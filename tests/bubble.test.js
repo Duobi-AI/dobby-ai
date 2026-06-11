@@ -856,5 +856,23 @@ describe('bubble.js', () => {
       shadow.querySelector('.img-lightbox').click();
       expect(shadow.querySelector('.img-lightbox')).toBeNull();
     });
+
+    it('closes lightbox on Escape without closing the bubble', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
+      const container = _getBubbleContainer();
+      const shadow = container.shadowRoot;
+      shadow.querySelector('.response-text').innerHTML =
+        '<img class="response-img" src="https://example.com/img.png" alt="test">';
+
+      shadow.querySelector('.response-img').click();
+      shadow.querySelector('.img-lightbox').dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        composed: true,
+      }));
+
+      expect(shadow.querySelector('.img-lightbox')).toBeNull();
+      expect(_getBubbleContainer()).toBe(container);
+    });
   });
 });

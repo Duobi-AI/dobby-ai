@@ -1,8 +1,11 @@
 import {
+  useEffect,
+  useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
+import { createPortal, flushSync } from 'react-dom';
 import { BRAND_MARK_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
 import { getColorPalette } from '../../shared/color-palette.js';
 import { OPEN_OPTIONS_MESSAGE } from '../../shared/runtime-messages.js';
@@ -209,6 +212,20 @@ function BubbleBody({
   onClearHistory,
 }: Pick<BubbleShellProps, 'onHistoryEntry' | 'onClearHistory'>) {
   const view = useBubbleViewState();
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    lightboxRef.current?.focus();
+  }, [lightbox]);
+
+  const openResponseImage = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (!target.classList.contains('response-img')) return;
+    const image = target as HTMLImageElement;
+    flushSync(() => setLightbox({ src: image.src, alt: image.alt }));
+  };
 
   if (view.bodyMode === 'rate-limit') {
     return (
@@ -250,17 +267,40 @@ function BubbleBody({
     );
   }
 
+  const lightboxTarget = bodyRef.current?.getRootNode();
+  const lightboxView = lightbox && lightboxTarget instanceof ShadowRoot
+    ? createPortal(
+      <div
+        className="img-lightbox"
+        tabIndex={0}
+        ref={lightboxRef}
+        onClick={() => flushSync(() => setLightbox(null))}
+        onKeyDown={(event) => {
+          if (event.key !== 'Escape') return;
+          event.stopPropagation();
+          flushSync(() => setLightbox(null));
+        }}
+      >
+        <img src={lightbox.src} alt={lightbox.alt} />
+      </div>,
+      lightboxTarget,
+    )
+    : null;
+
   return (
-    <div className="bubble-body">
-      {view.restoredResponse ? (
-        <div className="response-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(view.restoredResponse) }} />
-      ) : (
-        <div className="response-text">
-          {view.messages.map((message) => <ConversationMessage key={message.id} message={message} />)}
-        </div>
-      )}
-      <span className={`cursor blink${view.cursorVisible ? '' : ' hidden'}`} />
-    </div>
+    <>
+      <div className="bubble-body" ref={bodyRef} onClick={openResponseImage}>
+        {view.restoredResponse ? (
+          <div className="response-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(view.restoredResponse) }} />
+        ) : (
+          <div className="response-text">
+            {view.messages.map((message) => <ConversationMessage key={message.id} message={message} />)}
+          </div>
+        )}
+        <span className={`cursor blink${view.cursorVisible ? '' : ' hidden'}`} />
+      </div>
+      {lightboxView}
+    </>
   );
 }
 
