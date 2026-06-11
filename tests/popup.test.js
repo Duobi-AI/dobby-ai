@@ -199,8 +199,7 @@ describe('popup.js', () => {
 
     it('persists and broadcasts Dobby enabled state', () => {
       const input = document.getElementById('enabled');
-      input.checked = false;
-      input.dispatchEvent(new Event('change'));
+      input.click();
 
       expect(chrome.storage.local.set).toHaveBeenCalledWith({ dobbyEnabled: false });
       expect(document.getElementById('status').textContent).toBe('Off');
@@ -210,8 +209,7 @@ describe('popup.js', () => {
 
     it('persists and broadcasts screenshot state', () => {
       const input = document.getElementById('screenshot-enabled');
-      input.checked = false;
-      input.dispatchEvent(new Event('change'));
+      input.click();
 
       expect(chrome.storage.local.set).toHaveBeenCalledWith({ screenshotEnabled: false });
       expect(document.getElementById('screenshot-status').textContent).toBe('Off');
@@ -220,8 +218,7 @@ describe('popup.js', () => {
 
     it('persists and broadcasts autosuggest state', () => {
       const input = document.getElementById('autosuggest-enabled');
-      input.checked = true;
-      input.dispatchEvent(new Event('change'));
+      input.click();
 
       expect(chrome.storage.local.set).toHaveBeenCalledWith({ autosuggestEnabled: true });
       expect(document.getElementById('autosuggest-status').textContent).toBe('On');
