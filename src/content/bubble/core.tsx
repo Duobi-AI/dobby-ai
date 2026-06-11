@@ -12,10 +12,9 @@ import { removeElement, stopShadowRootKeyboardEventPropagation } from '../shared
 import { detectTheme, watchThemeChanges } from '../../shared/theme.js';
 import { mountReactRoot } from '../../shared/react-root.js';
 import { getStyles } from './styles.js';
-import { renderMarkdown } from './markdown.js';
 import { BubbleShell, type BubblePresetSelection } from './shell.js';
 import { startStreaming, handleFollowUp } from './stream.js';
-import { showHistoryPanel } from './history.js';
+import { clearHistoryPanel, restoreHistoryEntry, showHistoryPanel } from './history.js';
 import { detectContentType } from '../detection.js';
 import { getSuggestedPresetsForType } from '../presets.js';
 import { buildChatMessages } from '../prompt.js';
@@ -28,6 +27,15 @@ import type {
   Preset,
   SelectionRect,
 } from '../../shared/types';
+import {
+  activateBubbleResponse,
+  getBubbleViewState,
+  resetBubbleView,
+  setAssistantResponse,
+  setBubblePreviewLabel,
+  setBubbleViewStatus,
+  startAssistantResponse,
+} from './view-model.js';
 
 export { detectTheme };
 
@@ -120,16 +128,6 @@ function wireCommonEvents(shadow: ShadowRoot): void {
       document.removeEventListener('mouseup', onMouseUp);
     };
   });
-  shadow.querySelector<HTMLElement>('.history-btn')!.addEventListener('click', () => {
-    showHistoryPanel(shadow);
-  });
-  shadow.querySelector<HTMLInputElement>('.follow-up-input')!.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
-      const question = (e.target as HTMLInputElement).value.trim();
-      (e.target as HTMLInputElement).value = '';
-      handleFollowUp(shadow, question);
-    }
-  });
   // Image lightbox via event delegation
   shadow.querySelector<HTMLElement>('.bubble-body')!.addEventListener('click', (e: MouseEvent) => {
     if ((e.target as HTMLElement).classList.contains('response-img')) {
@@ -194,11 +192,7 @@ function wireCommonEvents(shadow: ShadowRoot): void {
 }
 
 function activateResponseSection(shadow: ShadowRoot, messages: ChatMessage[]): void {
-  const presetsSection = shadow.querySelector('.presets-section');
-  if (presetsSection) presetsSection.classList.add('collapsed');
-  const responseSection = shadow.querySelector<HTMLElement>('.response-section')!;
-  responseSection.classList.add('active');
-  shadow.querySelector<HTMLElement>('.bubble-status')!.textContent = 'thinking...';
+  activateBubbleResponse();
   startStreaming(shadow, messages);
 }
 
@@ -211,6 +205,7 @@ async function initBubble(
 ): Promise<ShadowRoot> {
   hideBubble();
   setResponseText('');
+  resetBubbleView();
 
   createBubbleHost(selectionRect);
   bubbleHost!._isPinned = false;
@@ -228,6 +223,10 @@ async function initBubble(
       previewLabel={previewLabel}
       images={images}
       presets={presets}
+      onFollowUp={(question) => handleFollowUp(shadow, question)}
+      onHistory={() => { void showHistoryPanel(shadow); }}
+      onHistoryEntry={restoreHistoryEntry}
+      onClearHistory={() => { void clearHistoryPanel(); }}
     />,
   );
   bubbleHost!._reactCleanup = reactRoot.unmount;
@@ -246,9 +245,7 @@ function launchFromPreset(
   const messages = buildChatMessages(selectedText, instruction, true, images as ImageContentPart[] | undefined);
   setCurrentMessages(messages);
 
-  // Update preview label to show chosen instruction
-  const label = shadow.querySelector('.selected-text-preview .label');
-  if (label) label.textContent = instruction;
+  setBubblePreviewLabel(instruction);
 
   activateResponseSection(shadow, messages);
 }
@@ -308,10 +305,8 @@ export async function showBubble(
 
 export async function showHistoryBubble(selectionRect: SelectionRect): Promise<void> {
   const shadow = await initBubble(selectionRect, '', 'History', null);
-  const responseSection = shadow.querySelector('.response-section');
-  if (responseSection) responseSection.classList.add('active');
-  const status = shadow.querySelector('.bubble-status');
-  if (status) status.textContent = 'history';
+  activateBubbleResponse();
+  setBubbleViewStatus('history');
   await showHistoryPanel(shadow);
 }
 
@@ -341,27 +336,21 @@ export function hideBubble(): void {
   setCurrentMessages([]);
   setResponseText('');
   clearRawResponses();
+  resetBubbleView();
 }
 
 export function appendToken(text: string): void {
   if (!bubbleHost) return;
-  const shadow = bubbleHost.shadowRoot!;
-  const responseEl = shadow.querySelector<HTMLElement>('.response-text')!;
   appendResponseText(text);
-  // Write into the latest .message-ai div to preserve previous messages
-  let aiMsg = responseEl.querySelector<HTMLElement>('.message-ai:last-child');
-  if (!aiMsg) {
-    aiMsg = document.createElement('div');
-    aiMsg.className = 'message-ai';
-    responseEl.appendChild(aiMsg);
-  }
-  aiMsg.innerHTML = renderMarkdown(responseText);
+  const messages = getBubbleViewState().messages;
+  const lastMessage = messages[messages.length - 1];
+  const responseId = lastMessage?.role === 'assistant' ? lastMessage.id : startAssistantResponse();
+  setAssistantResponse(responseId, responseText);
 }
 
 export function setBubbleStatus(status: string): void {
   if (!bubbleHost) return;
-  const el = bubbleHost.shadowRoot!.querySelector<HTMLElement>('.bubble-status');
-  if (el) el.textContent = status;
+  setBubbleViewStatus(status);
 }
 
 export function getBubbleContainer(): BubbleHost | null {

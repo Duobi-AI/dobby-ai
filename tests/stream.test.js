@@ -23,6 +23,7 @@ const apiModule = await import('../src/content/api.js');
 const promptModule = await import('../src/content/prompt.js');
 const { startStreaming, handleFollowUp, showRateLimitUI } = await import('../src/content/bubble/stream.js');
 const stateModule = await import('../src/content/shared/state.js');
+const viewModel = await import('../src/content/bubble/view-model.js');
 
 // Create a minimal shadow DOM with all elements stream.js needs
 function createTestShadow() {
@@ -60,6 +61,7 @@ describe('stream.js', () => {
     stateModule.setCurrentMessages([]);
     stateModule.setRenderTimer(null);
     stateModule.setCurrentRequest(null);
+    viewModel.resetBubbleView();
   });
 
   afterEach(() => {
@@ -69,24 +71,20 @@ describe('stream.js', () => {
   // ─── showRateLimitUI ──────────────────────────────────────────────────────
 
   describe('showRateLimitUI', () => {
-    it('replaces bubble-body content with rate-limit message', () => {
+    it('switches the bubble view to the rate-limit state', () => {
       showRateLimitUI(shadow);
-      const body = shadow.querySelector('.bubble-body');
-      expect(body.innerHTML).toContain("You've used your 30 free questions today.");
-      expect(body.innerHTML).toContain('Add your own API key in Settings');
+      expect(viewModel.getBubbleViewState().bodyMode).toBe('rate-limit');
     });
 
-    it('renders an "Open Settings" CTA span', () => {
+    it('hides the streaming cursor', () => {
       showRateLimitUI(shadow);
-      const cta = shadow.querySelector('.cta');
-      expect(cta).not.toBeNull();
-      expect(cta.textContent).toContain('Open Settings');
+      expect(viewModel.getBubbleViewState().cursorVisible).toBe(false);
     });
 
-    it('clicking the CTA sends OPEN_OPTIONS to chrome.runtime.sendMessage', () => {
+    it('does not mutate the legacy shadow DOM directly', () => {
+      const before = shadow.innerHTML;
       showRateLimitUI(shadow);
-      shadow.querySelector('.cta').click();
-      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'OPEN_OPTIONS' });
+      expect(shadow.innerHTML).toBe(before);
     });
   });
 
@@ -97,26 +95,21 @@ describe('stream.js', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hello' }]);
       lastCallbacks.onError('NETWORK_ERROR', 'Network failed.', {});
 
-      const errorDiv = shadow.querySelector('.error-msg');
-      expect(errorDiv).not.toBeNull();
-      expect(errorDiv.textContent).toContain('Network failed.');
+      expect(viewModel.getBubbleViewState().messages.at(-1).errorMessage).toBe('Network failed.');
     });
 
     it('falls back to default message when none is provided', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hello' }]);
       lastCallbacks.onError('UNKNOWN', '', {});
 
-      const errorDiv = shadow.querySelector('.error-msg');
-      expect(errorDiv.textContent).toContain('Something went wrong.');
+      expect(viewModel.getBubbleViewState().messages.at(-1).errorMessage).toBe('Something went wrong.');
     });
 
     it('appends a retry button inside the error-msg div', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hello' }]);
       lastCallbacks.onError('TIMEOUT', 'Request timed out.', {});
 
-      const retryBtn = shadow.querySelector('.retry-btn');
-      expect(retryBtn).not.toBeNull();
-      expect(retryBtn.textContent).toBe('Retry');
+      expect(viewModel.getBubbleViewState().messages.at(-1).onRetry).toBeTypeOf('function');
     });
 
     it('retry click removes error div, resets responseText, and re-calls startStreaming', () => {
@@ -124,12 +117,12 @@ describe('stream.js', () => {
       startStreaming(shadow, messages);
       lastCallbacks.onError('TIMEOUT', 'Timed out.', {});
 
-      expect(shadow.querySelector('.error-msg')).not.toBeNull();
+      expect(viewModel.getBubbleViewState().messages.at(-1).errorMessage).toBe('Timed out.');
       expect(apiModule.requestChat).toHaveBeenCalledTimes(1);
 
-      shadow.querySelector('.retry-btn').click();
+      viewModel.getBubbleViewState().messages.at(-1).onRetry();
 
-      expect(shadow.querySelector('.error-msg')).toBeNull();
+      expect(viewModel.getBubbleViewState().messages.at(-1).errorMessage).toBeUndefined();
       expect(apiModule.requestChat).toHaveBeenCalledTimes(2);
     });
 
@@ -137,8 +130,7 @@ describe('stream.js', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hello' }]);
       lastCallbacks.onError('RATE_LIMITED', '', {});
 
-      const body = shadow.querySelector('.bubble-body');
-      expect(body.innerHTML).toContain("You've used your 30 free questions today.");
+      expect(viewModel.getBubbleViewState().bodyMode).toBe('rate-limit');
     });
 
     it('hides the cursor on non-RATE_LIMITED error', () => {
@@ -148,7 +140,7 @@ describe('stream.js', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hello' }]);
       lastCallbacks.onError('SERVER_ERROR', 'Oops.', {});
 
-      expect(shadow.querySelector('.cursor').classList.contains('hidden')).toBe(true);
+      expect(viewModel.getBubbleViewState().cursorVisible).toBe(false);
     });
   });
 
@@ -158,9 +150,9 @@ describe('stream.js', () => {
     it('appends a .message-user bubble with the question text', () => {
       handleFollowUp(shadow, 'What does this mean?');
 
-      const userMsg = shadow.querySelector('.message-user');
-      expect(userMsg).not.toBeNull();
-      expect(userMsg.textContent).toBe('What does this mean?');
+      const userMsg = viewModel.getBubbleViewState().messages[0];
+      expect(userMsg.role).toBe('user');
+      expect(userMsg.content).toBe('What does this mean?');
     });
 
     it('calls buildFollowUp with existing messages and the new question', () => {
@@ -245,18 +237,18 @@ describe('stream.js', () => {
   describe('startStreaming — token callback', () => {
     it('sets status to "thinking..." initially', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hi' }]);
-      expect(shadow.querySelector('.bubble-status').textContent).toBe('thinking...');
+      expect(viewModel.getBubbleViewState().status).toBe('thinking...');
     });
 
     it('updates status to "typing..." on first token', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hi' }]);
       lastCallbacks.onToken('Hello');
-      expect(shadow.querySelector('.bubble-status').textContent).toBe('typing...');
+      expect(viewModel.getBubbleViewState().status).toBe('typing...');
     });
 
     it('disables the follow-up input while streaming', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hi' }]);
-      expect(shadow.querySelector('.follow-up-input').disabled).toBe(true);
+      expect(viewModel.getBubbleViewState().followUpDisabled).toBe(true);
     });
   });
 
@@ -264,25 +256,25 @@ describe('stream.js', () => {
     it('re-enables follow-up input when streaming completes', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hi' }]);
       lastCallbacks.onDone(null);
-      expect(shadow.querySelector('.follow-up-input').disabled).toBe(false);
+      expect(viewModel.getBubbleViewState().followUpDisabled).toBe(false);
     });
 
     it('shows remaining count in status when usageInfo.remaining is present', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hi' }]);
       lastCallbacks.onDone({ remaining: 18 });
-      expect(shadow.querySelector('.bubble-status').textContent).toBe('18/30 free');
+      expect(viewModel.getBubbleViewState().status).toBe('18/30 free');
     });
 
     it('shows "your API key" when usageInfo.usingOwnKey is true', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hi' }]);
       lastCallbacks.onDone({ usingOwnKey: true });
-      expect(shadow.querySelector('.bubble-status').textContent).toBe('your API key');
+      expect(viewModel.getBubbleViewState().status).toBe('your API key');
     });
 
     it('clears status text when usageInfo is null', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hi' }]);
       lastCallbacks.onDone(null);
-      expect(shadow.querySelector('.bubble-status').textContent).toBe('');
+      expect(viewModel.getBubbleViewState().status).toBe('');
     });
   });
 });

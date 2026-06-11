@@ -46,6 +46,7 @@ const { renderMarkdown } = await import('../src/content/bubble/markdown.js');
 const historyModule = await import('../src/content/history.js');
 const promptModule = await import('../src/content/prompt.js');
 const apiModule = await import('../src/content/api.js');
+const viewModel = await import('../src/content/bubble/view-model.js');
 
 describe('bubble.js', () => {
   beforeEach(() => {
@@ -181,6 +182,80 @@ describe('bubble.js', () => {
     });
   });
 
+  describe('React response view', () => {
+    it('renders streamed assistant content and completion state', async () => {
+      let callbacks;
+      apiModule.requestChat.mockImplementation((messages, onToken, onDone, onError) => {
+        callbacks = { onToken, onDone, onError };
+        return { cancel: vi.fn() };
+      });
+      await showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+
+      callbacks.onToken('Hello **world**');
+      callbacks.onDone({ remaining: 18, usingOwnKey: false });
+
+      const shadow = _getBubbleContainer().shadowRoot;
+      expect(shadow.querySelector('.message-ai').innerHTML).toContain('<strong>world</strong>');
+      expect(shadow.querySelector('.bubble-status').textContent).toBe('18/30 free');
+      expect(shadow.querySelector('.cursor').classList.contains('hidden')).toBe(true);
+      expect(shadow.querySelector('.follow-up-input').disabled).toBe(false);
+      expect(shadow.querySelector('.copy-btn')).not.toBeNull();
+    });
+
+    it('copies the completed raw response through the React copy control', async () => {
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: vi.fn().mockResolvedValue(undefined),
+        },
+      });
+      let callbacks;
+      apiModule.requestChat.mockImplementation((messages, onToken, onDone, onError) => {
+        callbacks = { onToken, onDone, onError };
+        return { cancel: vi.fn() };
+      });
+      await showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+      callbacks.onToken('Hello **world**');
+      callbacks.onDone(null);
+
+      _getBubbleContainer().shadowRoot.querySelector('.copy-btn').click();
+      await vi.waitFor(() => {
+        expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Hello **world**');
+      });
+    });
+
+    it('renders retry errors through React and retries the request', async () => {
+      let callbacks;
+      apiModule.requestChat.mockImplementation((messages, onToken, onDone, onError) => {
+        callbacks = { onToken, onDone, onError };
+        return { cancel: vi.fn() };
+      });
+      await showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+
+      callbacks.onError('NETWORK_ERROR', 'Network failed.');
+      const retry = _getBubbleContainer().shadowRoot.querySelector('.retry-btn');
+      expect(retry.parentElement.textContent).toContain('Network failed.');
+      retry.click();
+
+      expect(apiModule.requestChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('renders the rate-limit CTA and opens settings', async () => {
+      let callbacks;
+      apiModule.requestChat.mockImplementation((messages, onToken, onDone, onError) => {
+        callbacks = { onToken, onDone, onError };
+        return { cancel: vi.fn() };
+      });
+      await showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+
+      callbacks.onError('RATE_LIMITED', 'Daily limit reached');
+      const cta = _getBubbleContainer().shadowRoot.querySelector('.cta');
+      expect(cta.textContent).toContain('Open Settings');
+      cta.click();
+
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'OPEN_OPTIONS' });
+    });
+  });
+
   describe('appendToken', () => {
     it('appends text to response area', async () => {
       await showBubble({ bottom: 100, left: 50, right: 250 }, []);
@@ -276,11 +351,11 @@ describe('bubble.js', () => {
   describe('follow-up input', () => {
     it('calls buildFollowUp and requestChat on Enter', async () => {
       await showBubble({ bottom: 100, left: 50, right: 250 }, [{ role: 'user', content: 'hi' }]);
+      viewModel.showRestoredHistoryResponse('');
       const container = _getBubbleContainer();
       const input = container.shadowRoot.querySelector('.follow-up-input');
-      input.disabled = false;
       input.value = 'tell me more';
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       expect(promptModule.buildFollowUp).toHaveBeenCalled();
     });
 
@@ -386,10 +461,12 @@ describe('bubble.js', () => {
       const followUpInput = shadow.querySelector('.follow-up-input');
       followUpInput.disabled = false;
       followUpInput.value = 'tell me more';
-      followUpInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      followUpInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 
       // requestChat should have been called (streaming started)
       expect(apiModule.requestChat).toHaveBeenCalled();
+      expect(shadow.querySelector('.response-text').textContent).toContain('AI response');
+      expect(shadow.querySelector('.message-user').textContent).toBe('tell me more');
     });
 
     it('falls back to instruction when text is empty', async () => {
