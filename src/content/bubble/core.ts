@@ -19,11 +19,17 @@ import { getSuggestedPresetsForType } from '../presets.js';
 import { buildChatMessages } from '../prompt.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
 import { BRAND_MARK_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
-import type { BubbleHost, ChatMessage, ImageContentPart, SelectionRect } from '../../shared/types';
+import type {
+  BubbleHost,
+  ChatMessage,
+  DetectionResult,
+  ImageContentPart,
+  SelectionRect,
+} from '../../shared/types';
 
 export { detectTheme };
 
-function truncatePreview(text, maxLen = 120) {
+function truncatePreview(text: string, maxLen = 120): string {
   if (!text) return '';
   return text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
 }
@@ -57,14 +63,19 @@ function createBubbleHost(selectionRect: SelectionRect): BubbleHost {
   return host;
 }
 
-function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
+function buildBubbleHTML(
+  previewText: string,
+  previewLabel: string,
+  showPresets: boolean,
+  images?: ImageContentPart[] | null,
+): string {
   const hasPreview = previewText || (images && images.length > 0);
   let previewHtml = '';
   if (hasPreview) {
     let imgHtml = '';
     if (images && images.length > 0) {
       imgHtml = '<div class="image-preview">' +
-        images.map(img => {
+        images.map((img) => {
           const url = img.image_url ? img.image_url.url : '';
           return `<img src="${escapeHtml(url)}" alt="Preview" onerror="this.style.display='none'">`;
         }).join('') + '</div>';
@@ -110,44 +121,44 @@ function buildBubbleHTML(previewText, previewLabel, showPresets, images) {
   `;
 }
 
-function wireCommonEvents(shadow) {
-  shadow.querySelector('.close-btn').addEventListener('click', hideBubble);
-  const pinBtn = shadow.querySelector('.pin-btn');
-  const header = shadow.querySelector('.bubble-header');
+function wireCommonEvents(shadow: ShadowRoot): void {
+  shadow.querySelector<HTMLElement>('.close-btn')!.addEventListener('click', hideBubble);
+  const pinBtn = shadow.querySelector<HTMLButtonElement>('.pin-btn');
+  const header = shadow.querySelector<HTMLElement>('.bubble-header')!;
 
   const updateDraggable = () => {
-    header.classList.toggle('draggable', bubbleHost._isPinned);
+    header.classList.toggle('draggable', bubbleHost!._isPinned);
   };
 
   if (pinBtn) {
     pinBtn.addEventListener('click', () => {
-      bubbleHost._isPinned = !bubbleHost._isPinned;
-      pinBtn.classList.toggle('pinned', bubbleHost._isPinned);
-      pinBtn.title = bubbleHost._isPinned ? 'Unpin' : 'Pin';
+      bubbleHost!._isPinned = !bubbleHost!._isPinned;
+      pinBtn.classList.toggle('pinned', bubbleHost!._isPinned);
+      pinBtn.title = bubbleHost!._isPinned ? 'Unpin' : 'Pin';
       updateDraggable();
     });
   }
 
   // Drag-by-header when pinned
-  header.addEventListener('mousedown', (e) => {
-    if (!bubbleHost._isPinned) return;
+  header.addEventListener('mousedown', (e: MouseEvent) => {
+    if (!bubbleHost!._isPinned) return;
     // Don't drag when clicking buttons inside header
-    if (e.target.closest && e.target.closest('.pin-btn, .close-btn')) return;
+    if ((e.target as Element).closest && (e.target as Element).closest('.pin-btn, .close-btn')) return;
 
     e.preventDefault();
     header.classList.add('dragging');
 
     const startX = e.clientX;
     const startY = e.clientY;
-    const startLeft = parseInt(bubbleHost.style.left) || 0;
-    const startTop = parseInt(bubbleHost.style.top) || 0;
+    const startLeft = parseInt(bubbleHost!.style.left) || 0;
+    const startTop = parseInt(bubbleHost!.style.top) || 0;
 
-    const onMouseMove = (moveEvent) => {
+    const onMouseMove = (moveEvent: MouseEvent) => {
       moveEvent.preventDefault();
       const newLeft = startLeft + moveEvent.clientX - startX;
       const newTop = startTop + moveEvent.clientY - startY;
-      bubbleHost.style.left = newLeft + 'px';
-      bubbleHost.style.top = newTop + 'px';
+      bubbleHost!.style.left = newLeft + 'px';
+      bubbleHost!.style.top = newTop + 'px';
     };
 
     const onMouseUp = () => {
@@ -160,30 +171,30 @@ function wireCommonEvents(shadow) {
     document.addEventListener('mouseup', onMouseUp);
 
     // Store cleanup for hideBubble
-    bubbleHost._dragCleanup = () => {
+    bubbleHost!._dragCleanup = () => {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
   });
-  shadow.querySelector('.history-btn').addEventListener('click', () => {
+  shadow.querySelector<HTMLElement>('.history-btn')!.addEventListener('click', () => {
     showHistoryPanel(shadow);
   });
-  shadow.querySelector('.follow-up-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && e.target.value.trim()) {
-      const question = e.target.value.trim();
-      e.target.value = '';
+  shadow.querySelector<HTMLInputElement>('.follow-up-input')!.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
+      const question = (e.target as HTMLInputElement).value.trim();
+      (e.target as HTMLInputElement).value = '';
       handleFollowUp(shadow, question);
     }
   });
   // Image lightbox via event delegation
-  shadow.querySelector('.bubble-body').addEventListener('click', (e) => {
-    if (e.target.classList.contains('response-img')) {
+  shadow.querySelector<HTMLElement>('.bubble-body')!.addEventListener('click', (e: MouseEvent) => {
+    if ((e.target as HTMLElement).classList.contains('response-img')) {
       const overlay = document.createElement('div');
       overlay.className = 'img-lightbox';
       overlay.tabIndex = 0;
       const img = document.createElement('img');
-      img.src = e.target.src;
-      img.alt = e.target.alt;
+      img.src = (e.target as HTMLImageElement).src;
+      img.alt = (e.target as HTMLImageElement).alt;
       overlay.appendChild(img);
       const dismiss = () => overlay.remove();
       overlay.addEventListener('click', dismiss);
@@ -195,18 +206,18 @@ function wireCommonEvents(shadow) {
     }
   });
   // Resize handle
-  const resizeHandle = shadow.querySelector('.resize-handle');
+  const resizeHandle = shadow.querySelector<HTMLElement>('.resize-handle');
   if (resizeHandle) {
-    resizeHandle.addEventListener('mousedown', (e) => {
+    resizeHandle.addEventListener('mousedown', (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      const bubble = shadow.querySelector('.bubble');
+      const bubble = shadow.querySelector<HTMLElement>('.bubble')!;
       const startX = e.clientX;
       const startY = e.clientY;
       const startWidth = bubble.getBoundingClientRect().width;
       const startHeight = bubble.getBoundingClientRect().height;
 
-      const onMouseMove = (moveEvent) => {
+      const onMouseMove = (moveEvent: MouseEvent) => {
         moveEvent.preventDefault();
         const newWidth = Math.min(
           Math.max(300, startWidth + moveEvent.clientX - startX),
@@ -230,7 +241,7 @@ function wireCommonEvents(shadow) {
       document.addEventListener('mouseup', onMouseUp);
 
       // Store cleanup reference for hideBubble
-      bubbleHost._resizeCleanup = () => {
+      bubbleHost!._resizeCleanup = () => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
       };
@@ -238,25 +249,31 @@ function wireCommonEvents(shadow) {
   }
 }
 
-function activateResponseSection(shadow, messages) {
+function activateResponseSection(shadow: ShadowRoot, messages: ChatMessage[]): void {
   const presetsSection = shadow.querySelector('.presets-section');
   if (presetsSection) presetsSection.classList.add('collapsed');
-  const responseSection = shadow.querySelector('.response-section');
+  const responseSection = shadow.querySelector<HTMLElement>('.response-section')!;
   responseSection.classList.add('active');
-  shadow.querySelector('.bubble-status').textContent = 'thinking...';
+  shadow.querySelector<HTMLElement>('.bubble-status')!.textContent = 'thinking...';
   startStreaming(shadow, messages);
 }
 
-async function initBubble(selectionRect, selectedText, previewLabel, showPresets, images) {
+async function initBubble(
+  selectionRect: SelectionRect,
+  selectedText: string,
+  previewLabel: string,
+  showPresets: boolean,
+  images?: ImageContentPart[] | null,
+): Promise<ShadowRoot> {
   hideBubble();
   setResponseText('');
 
   createBubbleHost(selectionRect);
-  bubbleHost._isPinned = false;
-  const shadow = bubbleHost.attachShadow({ mode: 'open' });
+  bubbleHost!._isPinned = false;
+  const shadow = bubbleHost!.attachShadow({ mode: 'open' });
   stopShadowRootKeyboardEventPropagation(shadow);
   shadow.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') hideBubble();
+    if ((e as KeyboardEvent).key === 'Escape') hideBubble();
   });
 
   const style = document.createElement('style');
@@ -269,12 +286,17 @@ async function initBubble(selectionRect, selectedText, previewLabel, showPresets
   shadow.appendChild(bubble);
 
   wireCommonEvents(shadow);
-  document.body.appendChild(bubbleHost);
+  document.body.appendChild(bubbleHost!);
   return shadow;
 }
 
-function launchFromPreset(shadow, selectedText, instruction, images) {
-  const messages = buildChatMessages(selectedText, instruction, true, images);
+function launchFromPreset(
+  shadow: ShadowRoot,
+  selectedText: string,
+  instruction: string,
+  images?: ImageContentPart[] | null,
+): void {
+  const messages = buildChatMessages(selectedText, instruction, true, images as ImageContentPart[] | undefined);
   setCurrentMessages(messages);
 
   // Update preview label to show chosen instruction
@@ -285,14 +307,19 @@ function launchFromPreset(shadow, selectedText, instruction, images) {
 }
 
 // Show bubble with preset selection first, then expand to show response
-export async function showBubbleWithPresets(selectionRect, selectedText, anchorNode, images) {
+export async function showBubbleWithPresets(
+  selectionRect: SelectionRect,
+  selectedText: string,
+  anchorNode: Node | null,
+  images?: ImageContentPart[] | null,
+): Promise<void> {
   const hasImages = images && images.length > 0;
   const isImageOnly = hasImages && !selectedText.trim();
   const previewLabel = isImageOnly ? 'Image' : 'Selected text';
   const shadow = await initBubble(selectionRect, selectedText, previewLabel, true, images);
 
   // Detect content type and populate presets
-  let detected;
+  let detected: DetectionResult;
   if (isImageOnly) {
     detected = { type: 'image', subType: null, confidence: 'high' };
   } else {
@@ -301,7 +328,7 @@ export async function showBubbleWithPresets(selectionRect, selectedText, anchorN
 
   const presets = getSuggestedPresetsForType(detected.type, detected.subType);
 
-  const presetsSection = shadow.querySelector('.presets-section');
+  const presetsSection = shadow.querySelector<HTMLElement>('.presets-section')!;
 
   // Detection badge
   if (detected.type !== 'default') {
@@ -348,13 +375,13 @@ export async function showBubble(
   selectedText: string,
   instruction: string,
   images?: ImageContentPart[] | null,
-) {
+): Promise<void> {
   setCurrentMessages(messages);
   const shadow = await initBubble(selectionRect, selectedText, instruction || 'Selected text', false, images);
   activateResponseSection(shadow, messages);
 }
 
-export async function showHistoryBubble(selectionRect) {
+export async function showHistoryBubble(selectionRect: SelectionRect): Promise<void> {
   const shadow = await initBubble(selectionRect, '', 'History', false, null);
   const responseSection = shadow.querySelector('.response-section');
   if (responseSection) responseSection.classList.add('active');
@@ -363,7 +390,7 @@ export async function showHistoryBubble(selectionRect) {
   await showHistoryPanel(shadow);
 }
 
-export function hideBubble() {
+export function hideBubble(): void {
   if (renderTimer) { clearTimeout(renderTimer); setRenderTimer(null); }
   if (currentRequest) {
     currentRequest.cancel();
@@ -388,13 +415,13 @@ export function hideBubble() {
   clearRawResponses();
 }
 
-export function appendToken(text) {
+export function appendToken(text: string): void {
   if (!bubbleHost) return;
-  const shadow = bubbleHost.shadowRoot;
-  const responseEl = shadow.querySelector('.response-text');
+  const shadow = bubbleHost.shadowRoot!;
+  const responseEl = shadow.querySelector<HTMLElement>('.response-text')!;
   appendResponseText(text);
   // Write into the latest .message-ai div to preserve previous messages
-  let aiMsg = responseEl.querySelector('.message-ai:last-child');
+  let aiMsg = responseEl.querySelector<HTMLElement>('.message-ai:last-child');
   if (!aiMsg) {
     aiMsg = document.createElement('div');
     aiMsg.className = 'message-ai';
@@ -403,12 +430,12 @@ export function appendToken(text) {
   aiMsg.innerHTML = renderMarkdown(responseText);
 }
 
-export function setBubbleStatus(status) {
+export function setBubbleStatus(status: string): void {
   if (!bubbleHost) return;
-  const el = bubbleHost.shadowRoot.querySelector('.bubble-status');
+  const el = bubbleHost.shadowRoot!.querySelector<HTMLElement>('.bubble-status');
   if (el) el.textContent = status;
 }
 
-export function getBubbleContainer() {
+export function getBubbleContainer(): BubbleHost | null {
   return bubbleHost;
 }
