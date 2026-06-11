@@ -33,6 +33,7 @@ vi.mock('../src/content/presets.js', () => ({
 
 const {
   showBubble,
+  showBubbleWithPresets,
   hideBubble,
   appendToken,
   setBubbleStatus,
@@ -89,6 +90,94 @@ describe('bubble.js', () => {
       const container = _getBubbleContainer();
       const header = container.shadowRoot.querySelector('.bubble-header');
       expect(header.textContent).toContain('Dobby AI');
+    });
+  });
+
+  describe('React bubble shell', () => {
+    it('renders the stable shell and preview DOM through the React root', async () => {
+      await showBubble(
+        { bottom: 100, left: 50, right: 250 },
+        [],
+        'selected text',
+        'Explain',
+        [{ type: 'image_url', image_url: { url: 'https://example.com/preview.png' } }],
+      );
+      const shadow = _getBubbleContainer().shadowRoot;
+
+      expect(shadow.querySelector('.bubble-header')).not.toBeNull();
+      expect(shadow.querySelector('.selected-text-preview .label').textContent).toBe('Explain');
+      expect(shadow.querySelector('.selected-text-preview .text').textContent).toBe('selected text');
+      expect(shadow.querySelector('.image-preview img').src).toBe('https://example.com/preview.png');
+      expect(shadow.querySelector('.response-text')).not.toBeNull();
+      expect(shadow.querySelector('.follow-up-input')).not.toBeNull();
+    });
+
+    it('renders preset selection and launches a preset through React events', async () => {
+      await showBubbleWithPresets(
+        { bottom: 100, left: 50, right: 250 },
+        'selected text',
+        null,
+      );
+      const shadow = _getBubbleContainer().shadowRoot;
+      const chip = shadow.querySelector('.preset-chip');
+
+      expect(chip.textContent).toBe('Explain this');
+      chip.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true }));
+
+      expect(promptModule.buildChatMessages).toHaveBeenCalledWith(
+        'selected text',
+        'Explain the following',
+        true,
+        undefined,
+      );
+      expect(shadow.querySelector('.presets-section').classList.contains('collapsed')).toBe(true);
+    });
+
+    it('launches a custom preset prompt through React keyboard events', async () => {
+      await showBubbleWithPresets(
+        { bottom: 100, left: 50, right: 250 },
+        'selected text',
+        null,
+      );
+      const input = _getBubbleContainer().shadowRoot.querySelector('.preset-input');
+      input.value = 'Custom instruction';
+      input.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        composed: true,
+      }));
+
+      expect(promptModule.buildChatMessages).toHaveBeenCalledWith(
+        'selected text',
+        'Custom instruction',
+        true,
+        undefined,
+      );
+    });
+
+    it('closes the bubble from the React preset input on Escape', async () => {
+      await showBubbleWithPresets(
+        { bottom: 100, left: 50, right: 250 },
+        'selected text',
+        null,
+      );
+      const input = _getBubbleContainer().shadowRoot.querySelector('.preset-input');
+      input.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        composed: true,
+      }));
+
+      expect(_getBubbleContainer()).toBeNull();
+    });
+
+    it('unmounts the React root during hideBubble cleanup', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
+      const shadow = _getBubbleContainer().shadowRoot;
+
+      hideBubble();
+
+      expect(shadow.childNodes).toHaveLength(0);
     });
   });
 

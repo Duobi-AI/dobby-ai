@@ -33,6 +33,7 @@ export interface BubbleHost extends HTMLDivElement {
   _isPinned?: boolean;
   _escHandler?: (event: KeyboardEvent) => void;
   _themeCleanup?: Cleanup;
+  _reactCleanup?: Cleanup;
   _dragCleanup?: Cleanup;
   _resizeCleanup?: Cleanup;
 }
