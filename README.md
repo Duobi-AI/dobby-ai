@@ -148,13 +148,27 @@ dobby-ai/
 
 ```bash
 npm install           # Install dependencies
+npm run typecheck     # Run strict TypeScript checks
 npm run build         # Build the extension → dist/
 npm run dev           # Watch mode — auto-rebuilds on file changes
 npm test              # Run tests
+npm run test:e2e      # Build and run Playwright extension tests
 npm run test:watch    # Run tests in watch mode
 ```
 
 After building, load `dist/` as an unpacked extension in Chrome. With `npm run dev`, the extension auto-rebuilds on file changes — just reload the extension in Chrome to pick up changes.
+
+Production extension and proxy modules are TypeScript and must pass `strict` mode with
+`noUncheckedIndexedAccess`. The esbuild-only `tsconfig.build.json` disables the emit-only
+`alwaysStrict` option because esbuild bundles the extension as IIFEs and enabling it would
+change the shipped runtime output. Before submitting a change, run:
+
+```bash
+npm run typecheck
+npm run build
+npm test
+npm run test:e2e
+```
 
 ### Smart Detection
 

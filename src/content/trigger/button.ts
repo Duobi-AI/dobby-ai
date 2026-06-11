@@ -18,7 +18,7 @@ import { captureImage } from '../image-capture.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
 import { BRAND_MARK_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
 import { stopShadowRootKeyboardEventPropagation } from '../shared/dom-utils.js';
-import type { PreservedSelection, SelectionData, ToolbarHost } from '../../shared/types';
+import type { ImageContentPart, PreservedSelection, SelectionData, ToolbarHost } from '../../shared/types';
 
 const pencilSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
 const closeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
@@ -27,16 +27,16 @@ const SELECTION_IMAGE_WAIT_MS = 1000;
 const colors = getColorPalette('light');
 
 // --- Auto-hide timer ---
-let autoHideTimer = null;
+let autoHideTimer: ReturnType<typeof setTimeout> | null = null;
 
-function startAutoHide(host) {
+function startAutoHide(host: ToolbarHost): void {
   clearAutoHide();
   autoHideTimer = setTimeout(() => {
     hideTrigger();
   }, TIMING.TOOLBAR_AUTO_HIDE);
 }
 
-function clearAutoHide() {
+function clearAutoHide(): void {
   if (autoHideTimer) {
     clearTimeout(autoHideTimer);
     autoHideTimer = null;
@@ -47,7 +47,7 @@ function clearAutoHide() {
 
 // --- Toolbar creation ---
 
-async function createToolbar() {
+async function createToolbar(): Promise<ToolbarHost> {
   const host = document.createElement('div') as ToolbarHost;
   host.id = 'dobby-ai-toolbar-host';
   Object.assign(host.style, {
@@ -202,9 +202,9 @@ async function createToolbar() {
 
 // --- Expand / Collapse ---
 
-function expandToolbar(host, shadow) {
-  const toolbar = shadow.querySelector('.toolbar');
-  const actionsDiv = shadow.querySelector('.toolbar-actions');
+function expandToolbar(host: ToolbarHost, shadow: ShadowRoot): void {
+  const toolbar = shadow.querySelector<HTMLElement>('.toolbar')!;
+  const actionsDiv = shadow.querySelector<HTMLElement>('.toolbar-actions')!;
 
   // Lazily detect content type
   const text = host._selectedText || '';
@@ -251,19 +251,21 @@ function expandToolbar(host, shadow) {
   setToolbarState('expanded');
 }
 
-function collapseToolbar(shadow) {
-  const toolbar = shadow.querySelector('.toolbar');
+function collapseToolbar(shadow: ShadowRoot): void {
+  const toolbar = shadow.querySelector<HTMLElement>('.toolbar')!;
   toolbar.classList.remove('expanded');
   setToolbarState('collapsed');
 }
 
 // --- Morph into chat ---
 
-function normalizeImages(images) {
+function normalizeImages(images: ImageContentPart[] | null | undefined): ImageContentPart[] | null {
   return Array.isArray(images) && images.length > 0 ? images : null;
 }
 
-function cloneSelectionForImageExtraction(selection): PreservedSelection | null {
+function cloneSelectionForImageExtraction(
+  selection: Selection | PreservedSelection | null | undefined,
+): PreservedSelection | null {
   try {
     if (!selection?.rangeCount) return null;
     const range = selection.getRangeAt(0);
@@ -274,12 +276,15 @@ function cloneSelectionForImageExtraction(selection): PreservedSelection | null 
       getRangeAt: () => clonedRange,
     };
   } catch (err) {
-    console.warn('[Dobby AI] Could not preserve selection for image extraction:', err.message);
+    console.warn('[Dobby AI] Could not preserve selection for image extraction:', (err as Error).message);
     return null;
   }
 }
 
-function startSelectionImageExtraction(host, selectionRequestId) {
+function startSelectionImageExtraction(
+  host: ToolbarHost,
+  selectionRequestId: number,
+): Promise<ImageContentPart[] | null> | null | undefined {
   if (host._images || host._imagesPromise || !host._selectionForImages) {
     return host._imagesPromise;
   }
@@ -293,15 +298,19 @@ function startSelectionImageExtraction(host, selectionRequestId) {
       return normalized;
     })
     .catch((err) => {
-      console.warn('[Dobby AI] Selection image extraction failed:', err.message);
+      console.warn('[Dobby AI] Selection image extraction failed:', (err as Error).message);
       return null;
     });
 
   return host._imagesPromise;
 }
 
-function resolveSelectionImages(host, selectionRequestId, onResolved) {
-  const finish = (images) => {
+function resolveSelectionImages(
+  host: ToolbarHost,
+  selectionRequestId: number,
+  onResolved: (images: ImageContentPart[] | null) => void,
+): void {
+  const finish = (images: ImageContentPart[] | null | undefined) => {
     if (!host.isConnected || host._selectionRequestId !== selectionRequestId) return;
     onResolved(normalizeImages(images));
   };
@@ -310,8 +319,8 @@ function resolveSelectionImages(host, selectionRequestId, onResolved) {
 
   if (imagesPromise) {
     let settled = false;
-    let timeoutId = null;
-    const finishOnce = (images) => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const finishOnce = (images: ImageContentPart[] | null | undefined) => {
       if (settled) return;
       settled = true;
       if (timeoutId) clearTimeout(timeoutId);
@@ -325,17 +334,22 @@ function resolveSelectionImages(host, selectionRequestId, onResolved) {
   }
 }
 
-function morphIntoBubble(host, shadow, label, instruction) {
+function morphIntoBubble(
+  host: ToolbarHost,
+  shadow: ShadowRoot,
+  label: string,
+  instruction: string,
+): void {
   if (host._isMorphing) return;
   host._isMorphing = true;
 
-  const toolbar = shadow.querySelector('.toolbar');
+  const toolbar = shadow.querySelector<HTMLElement>('.toolbar')!;
   const selectionRequestId = host._selectionRequestId;
 
   clearAutoHide();
   removeSelectionHighlight();
 
-  resolveSelectionImages(host, selectionRequestId, (images) => {
+  resolveSelectionImages(host, selectionRequestId as number, (images) => {
     // Get toolbar position — bubble will appear growing from here
     const hostRect = host.getBoundingClientRect();
 
@@ -353,7 +367,7 @@ function morphIntoBubble(host, shadow, label, instruction) {
 
     // Build messages
     const text = host._selectedText || '';
-    const messages = buildChatMessages(text, instruction, true, images);
+    const messages = buildChatMessages(text, instruction, true, images as ImageContentPart[] | undefined);
 
     // Crossfade: start bubble creation and toolbar fade simultaneously.
     // showBubble is async (theme read) but the fade timer is independent of that.
@@ -374,11 +388,11 @@ function morphIntoBubble(host, shadow, label, instruction) {
 // When input mode is active, the browser clears the page's text selection highlight
 // because focus moves to the shadow DOM input. These overlays preserve the visual highlight.
 
-let selectionHighlights = [];
+let selectionHighlights: HTMLDivElement[] = [];
 
-function showSelectionHighlight() {
+function showSelectionHighlight(): void {
   removeSelectionHighlight();
-  const sel = window.getSelection();
+  const sel = window.getSelection()!;
   if (!sel.rangeCount) return;
   const range = sel.getRangeAt(0);
   const rects = range.getClientRects();
@@ -402,25 +416,31 @@ function showSelectionHighlight() {
   }
 }
 
-function removeSelectionHighlight() {
+function removeSelectionHighlight(): void {
   selectionHighlights.forEach(el => el.remove());
   selectionHighlights = [];
 }
 
 // --- Input mode ---
 
-let outsideClickHandler = null;
+let outsideClickHandler: ((event: MouseEvent) => void) | null = null;
 
-function enterInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
+function enterInputMode(
+  shadow: ShadowRoot,
+  pencilBtn: HTMLButtonElement,
+  inputField: HTMLInputElement,
+  sendBtn: HTMLButtonElement,
+  host: ToolbarHost,
+): void {
   clearAutoHide();
 
   // Show highlight overlay before focus steals the visual selection
   showSelectionHighlight();
 
-  const expandSection = shadow.querySelector('.toolbar-expand');
-  const actionsDiv = shadow.querySelector('.toolbar-actions');
-  const inputSection = shadow.querySelector('.toolbar-input-section');
-  const seps = expandSection.querySelectorAll('.toolbar-sep');
+  const expandSection = shadow.querySelector<HTMLElement>('.toolbar-expand')!;
+  const actionsDiv = shadow.querySelector<HTMLElement>('.toolbar-actions')!;
+  const inputSection = shadow.querySelector<HTMLElement>('.toolbar-input-section')!;
+  const seps = expandSection.querySelectorAll<HTMLElement>('.toolbar-sep');
 
   actionsDiv.style.opacity = '0';
   actionsDiv.style.pointerEvents = 'none';
@@ -438,23 +458,29 @@ function enterInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
 
   setToolbarState('input');
 
-  outsideClickHandler = (e) => {
-    if (!host.contains(e.target) && !host.shadowRoot.contains(e.target)) {
+  outsideClickHandler = (e: MouseEvent) => {
+    if (!host.contains(e.target as Node | null) && !host.shadowRoot!.contains(e.target as Node | null)) {
       exitInputMode(shadow, pencilBtn, inputField, sendBtn, host);
     }
   };
   setTimeout(() => {
-    document.addEventListener('mousedown', outsideClickHandler, true);
+    document.addEventListener('mousedown', outsideClickHandler!, true);
   }, 0);
 }
 
-function exitInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
+function exitInputMode(
+  shadow: ShadowRoot,
+  pencilBtn: HTMLButtonElement,
+  inputField: HTMLInputElement,
+  sendBtn: HTMLButtonElement,
+  host: ToolbarHost,
+): void {
   removeSelectionHighlight();
 
-  const expandSection = shadow.querySelector('.toolbar-expand');
-  const actionsDiv = shadow.querySelector('.toolbar-actions');
-  const inputSection = shadow.querySelector('.toolbar-input-section');
-  const seps = expandSection.querySelectorAll('.toolbar-sep');
+  const expandSection = shadow.querySelector<HTMLElement>('.toolbar-expand')!;
+  const actionsDiv = shadow.querySelector<HTMLElement>('.toolbar-actions')!;
+  const inputSection = shadow.querySelector<HTMLElement>('.toolbar-input-section')!;
+  const seps = expandSection.querySelectorAll<HTMLElement>('.toolbar-sep');
 
   inputSection.classList.remove('visible');
 
@@ -481,9 +507,9 @@ function exitInputMode(shadow, pencilBtn, inputField, sendBtn, host) {
 
 // --- Public API ---
 
-let toolbarCreating = null;
+let toolbarCreating: Promise<ToolbarHost> | null = null;
 
-export async function showTrigger(x, y, selectionData: SelectionData = {}) {
+export async function showTrigger(x: number, y: number, selectionData: SelectionData = {}): Promise<void> {
   let host = document.getElementById('dobby-ai-toolbar-host') as ToolbarHost | null;
   if (!host) {
     if (!toolbarCreating) {
@@ -494,29 +520,29 @@ export async function showTrigger(x, y, selectionData: SelectionData = {}) {
   }
 
   // Store selection data on host
-  const selectionRequestId = (host._selectionRequestId || 0) + 1;
-  host._selectionRequestId = selectionRequestId;
-  host._isMorphing = false;
-  host._selectedText = selectionData.text || '';
-  host._anchorNode = selectionData.anchorNode || null;
-  host._images = normalizeImages(selectionData.images);
-  host._imagesPromise = null;
-  host._selectionForImages = host._images ? null : cloneSelectionForImageExtraction(selectionData.selection);
+  const selectionRequestId = (host!._selectionRequestId || 0) + 1;
+  host!._selectionRequestId = selectionRequestId;
+  host!._isMorphing = false;
+  host!._selectedText = selectionData.text || '';
+  host!._anchorNode = selectionData.anchorNode || null;
+  host!._images = normalizeImages(selectionData.images);
+  host!._imagesPromise = null;
+  host!._selectionForImages = host!._images ? null : cloneSelectionForImageExtraction(selectionData.selection);
 
   // Position
-  host.style.display = 'block';
+  host!.style.display = 'block';
   const hostWidth = 36;
   const hostHeight = 36;
   const maxLeft = window.innerWidth - hostWidth - 8;
   const maxTop = window.innerHeight - hostHeight - 8;
-  host.style.left = `${Math.min(Math.max(8, x + 12), maxLeft)}px`;
-  host.style.top = `${Math.min(Math.max(4, y + 10), maxTop)}px`;
+  host!.style.left = `${Math.min(Math.max(8, x + 12), maxLeft)}px`;
+  host!.style.top = `${Math.min(Math.max(4, y + 10), maxTop)}px`;
 
   // Start auto-hide
-  startAutoHide(host);
+  startAutoHide(host!);
 }
 
-export function hideTrigger() {
+export function hideTrigger(): void {
   clearAutoHide();
   removeSelectionHighlight();
   if (typeof document === 'undefined') return;
@@ -537,7 +563,7 @@ export function hideTrigger() {
 }
 
 // --- Legacy compatibility: createTriggerButton maps to showTrigger ---
-export async function createTriggerButton() {
+export async function createTriggerButton(): Promise<void> {
   // For backwards compat: create toolbar in hidden state
   let host = document.getElementById('dobby-ai-toolbar-host') as ToolbarHost | null;
   if (!host) {
@@ -547,8 +573,11 @@ export async function createTriggerButton() {
 
 // --- Image extraction from text selection (preserved from original) ---
 
-export async function extractImagesFromSelection(selection, maxImages = 2) {
-  const images = [];
+export async function extractImagesFromSelection(
+  selection: Selection | PreservedSelection | null | undefined,
+  maxImages = 2,
+): Promise<ImageContentPart[]> {
+  const images: ImageContentPart[] = [];
   if (!selection || !selection.rangeCount) return images;
 
   const range = selection.getRangeAt(0);
@@ -558,7 +587,7 @@ export async function extractImagesFromSelection(selection, maxImages = 2) {
 
   const container = range.commonAncestorContainer;
   const imgElements = container.nodeType === Node.ELEMENT_NODE
-    ? container.querySelectorAll('img')
+    ? (container as Element).querySelectorAll('img')
     : (container.parentElement ? container.parentElement.querySelectorAll('img') : []);
 
   for (const imgEl of imgElements) {

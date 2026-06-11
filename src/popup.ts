@@ -38,7 +38,7 @@ let themeMode: ThemeMode = 'auto';
 let colorSchemeQuery: MediaQueryList | null = null;
 
 function getUtcDay(): string {
-  return new Date().toISOString().split('T')[0];
+  return new Date().toISOString().split('T')[0]!;
 }
 
 function applyTheme(value: unknown): void {

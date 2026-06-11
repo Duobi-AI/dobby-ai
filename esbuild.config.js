@@ -23,6 +23,7 @@ const sharedConfig = {
   format: 'iife',
   target: 'chrome115',
   minify: false,
+  tsconfig: 'tsconfig.build.json',
 };
 
 async function build() {
