@@ -69,7 +69,7 @@ async function recordUsage(kind: UsageRequestKind, details: UsageUpdateDetails =
 
     await setLocalStorage({ [USAGE_STORAGE_KEY]: usage });
   } catch (e) {
-    console.warn('[Dobby AI] Failed to record usage:', e.message);
+    console.warn('[Dobby AI] Failed to record usage:', (e as Error).message);
   }
 }
 
@@ -88,7 +88,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
   // Image context menu click
   if (info.mediaType === 'image' && info.srcUrl) {
-    sendContentMessage(tab.id, { type: 'SHOW_BUBBLE', image: info.srcUrl }).catch(() => {
+    sendContentMessage(tab!.id, { type: 'SHOW_BUBBLE', image: info.srcUrl }).catch(() => {
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon48.png',
@@ -103,7 +103,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   const text = (info.selectionText || '').trim();
   if (!text) return;
 
-  sendContentMessage(tab.id, { type: 'SHOW_BUBBLE', text }).catch(() => {
+  sendContentMessage(tab!.id, { type: 'SHOW_BUBBLE', text }).catch(() => {
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon48.png',
@@ -192,7 +192,7 @@ export async function* parseSSEStream(
 
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split(/\r?\n/);
-    buffer = lines.pop();
+    buffer = lines.pop()!;
 
     for (const line of lines) {
       if (line.startsWith('data: ')) {
@@ -225,7 +225,7 @@ chrome.runtime.onConnect.addListener((port) => {
     const { messages } = msg;
 
     // 30-second timeout per spec
-    const timeout = setTimeout(() => abortController.abort(), 30000);
+    const timeout = setTimeout(() => abortController!.abort(), 30000);
 
     try {
       const stored = await getLocalStorage('userApiKey');
@@ -265,7 +265,7 @@ chrome.runtime.onConnect.addListener((port) => {
         let data: { remaining?: number; resetAt?: string | number };
         try { data = await response.json(); } catch (e) { console.warn('[Dobby AI] Failed to parse rate limit response'); data = { remaining: 0 }; }
         await recordUsage('chat', { remaining: data.remaining ?? 0, usingOwnKey: false, rateLimited: true });
-        try { chatPort.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0, resetAt: data.resetAt }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
+        try { chatPort.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0, resetAt: data.resetAt }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
         return;
       }
 
@@ -274,24 +274,24 @@ chrome.runtime.onConnect.addListener((port) => {
         try { errBody = await response.text(); } catch (e) { /* ignore */ }
         console.error('[Dobby AI] API error:', response.status, errBody);
         const errMsg = errBody ? `Request failed (${response.status}): ${errBody.substring(0, 200)}` : 'Request failed';
-        try { chatPort.postMessage({ type: 'error', code: response.status, message: errMsg }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
+        try { chatPort.postMessage({ type: 'error', code: response.status, message: errMsg }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
         return;
       }
 
       const usingOwnKey = !!stored.userApiKey;
-      const remaining = usingOwnKey ? null : parseInt(response.headers.get('X-RateLimit-Remaining')) || 0;
+      const remaining = usingOwnKey ? null : parseInt(response.headers.get('X-RateLimit-Remaining')!) || 0;
 
-      const reader = response.body.getReader();
+      const reader = response.body!.getReader();
       for await (const token of parseSSEStream(reader)) {
-        try { chatPort.postMessage({ type: 'token', text: token }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); break; }
+        try { chatPort.postMessage({ type: 'token', text: token }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); break; }
       }
       await recordUsage('chat', { remaining, usingOwnKey });
-      try { chatPort.postMessage({ type: 'done', remaining, usingOwnKey }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
+      try { chatPort.postMessage({ type: 'done', remaining, usingOwnKey }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
     } catch (err) {
-      if (err.name === 'AbortError') {
-        try { chatPort.postMessage({ type: 'error', code: 0, message: 'Request timed out' }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
+      if ((err as Error).name === 'AbortError') {
+        try { chatPort.postMessage({ type: 'error', code: 0, message: 'Request timed out' }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
       } else {
-        try { chatPort.postMessage({ type: 'error', code: 0, message: err.message }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', e.message); }
+        try { chatPort.postMessage({ type: 'error', code: 0, message: (err as Error).message }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
       }
     } finally {
       clearTimeout(timeout);
@@ -318,7 +318,7 @@ chrome.runtime.onConnect.addListener((port) => {
     const { messages } = msg;
 
     // Shorter timeout for autosuggest (10s vs 30s for chat)
-    const timeout = setTimeout(() => abortController.abort(), 10000);
+    const timeout = setTimeout(() => abortController!.abort(), 10000);
 
     try {
       const stored = await getLocalStorage('userApiKey');
@@ -370,15 +370,15 @@ chrome.runtime.onConnect.addListener((port) => {
         return;
       }
 
-      const reader = response.body.getReader();
+      const reader = response.body!.getReader();
       for await (const token of parseSSEStream(reader)) {
         try { autosuggestPort.postMessage({ type: 'token', text: token }); } catch (e) { break; }
       }
       await recordUsage('autosuggest', { usingOwnKey: !!stored.userApiKey });
       try { autosuggestPort.postMessage({ type: 'done' }); } catch (e) { /* port closed */ }
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        try { autosuggestPort.postMessage({ type: 'error', code: 0, message: err.message }); } catch (e) { /* port closed */ }
+      if ((err as Error).name !== 'AbortError') {
+        try { autosuggestPort.postMessage({ type: 'error', code: 0, message: (err as Error).message }); } catch (e) { /* port closed */ }
       }
     } finally {
       clearTimeout(timeout);
@@ -398,7 +398,7 @@ chrome.runtime.onMessage.addListener((
   sendResponse: (response: CaptureScreenshotResponse | ValidateApiKeyResponse) => void,
 ) => {
   if (msg.type === 'CAPTURE_SCREENSHOT') {
-    chrome.tabs.captureVisibleTab(null, { format: 'png' }, (dataUrl) => {
+    chrome.tabs.captureVisibleTab(null as unknown as number, { format: 'png' }, (dataUrl) => {
       if (chrome.runtime.lastError || !dataUrl) {
         sendResponse({ error: 'Screenshot failed' });
       } else {
