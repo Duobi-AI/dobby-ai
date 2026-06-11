@@ -165,7 +165,7 @@ describe('options.js', () => {
   describe('Enter key', () => {
     it('triggers save button click on Enter', () => {
       apiKeyInput.value = '';
-      const event = new KeyboardEvent('keydown', { key: 'Enter' });
+      const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
       apiKeyInput.dispatchEvent(event);
       // The save handler should have fired (empty key => error message)
       expect(keyStatus.textContent).toBe('Please enter an API key');
@@ -175,7 +175,7 @@ describe('options.js', () => {
       vi.clearAllMocks();
       keyStatus.textContent = '';
       apiKeyInput.value = '';
-      const event = new KeyboardEvent('keydown', { key: 'Tab' });
+      const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
       apiKeyInput.dispatchEvent(event);
       expect(keyStatus.textContent).toBe('');
     });

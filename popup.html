@@ -180,61 +180,7 @@
 </style>
 </head>
 <body>
-  <div class="header">
-    <img class="app-logo" src="icons/dobby-logo-mark.svg" alt="Dobby AI">
-    <div class="header-text">
-      <div>Dobby AI</div>
-      <div class="version" id="version"></div>
-    </div>
-  </div>
-  <div class="usage-card" id="usage-card">
-    <div class="usage-primary" id="usage-primary">Loading usage...</div>
-    <div class="usage-secondary" id="usage-secondary"></div>
-  </div>
-  <div class="toggle-row">
-    <div class="toggle-copy">
-      <span class="toggle-label">Dobby on this browser</span>
-      <span class="state-badge" id="status">On</span>
-    </div>
-    <label class="toggle">
-      <input type="checkbox" id="enabled" checked aria-label="Enable or disable Dobby AI">
-      <span class="slider"></span>
-    </label>
-  </div>
-  <div class="toggle-row">
-    <div class="toggle-copy">
-      <span class="toggle-label" title="Long-press anywhere to screenshot a region and ask AI about it.">Long-press screenshots</span>
-      <span class="state-badge" id="screenshot-status">On</span>
-    </div>
-    <label class="toggle">
-      <input type="checkbox" id="screenshot-enabled" checked aria-label="Enable or disable screenshot mode">
-      <span class="slider"></span>
-    </label>
-  </div>
-  <div class="toggle-row">
-    <div class="toggle-copy">
-      <span class="toggle-label" title="Works in standard text fields (textarea). Gmail, Docs, and Notion support coming soon.">Text auto-suggest</span>
-      <span class="state-badge" id="autosuggest-status">Off</span>
-    </div>
-    <label class="toggle">
-      <input type="checkbox" id="autosuggest-enabled" aria-label="Enable or disable auto-suggest">
-      <span class="slider"></span>
-    </label>
-  </div>
-  <div class="quick-actions">
-    <button class="quick-action" id="history">History</button>
-    <button class="quick-action" id="clear-history">Clear</button>
-    <button class="quick-action" id="settings">Settings</button>
-  </div>
-  <div class="action-feedback" id="action-feedback"></div>
-  <div class="theme-row">
-    <span class="status">Theme</span>
-    <div class="theme-segment" id="theme-segment" role="group" aria-label="Theme">
-      <button class="theme-option active" data-theme="auto" aria-pressed="true">Auto</button>
-      <button class="theme-option" data-theme="light" aria-pressed="false">Light</button>
-      <button class="theme-option" data-theme="dark" aria-pressed="false">Dark</button>
-    </div>
-  </div>
+  <div id="root"></div>
   <script src="popup.js"></script>
 </body>
 </html>
