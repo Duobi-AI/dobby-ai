@@ -4,68 +4,28 @@ import {
   currentMessages, setCurrentMessages,
   renderTimer, setRenderTimer,
   setCurrentRequest,
-  rawResponses, pushRawResponse,
+  pushRawResponse,
 } from '../shared/state.js';
 import { requestChat } from '../api.js';
 import { buildFollowUp } from '../prompt.js';
 import { saveConversation } from '../history.js';
-import { renderMarkdown } from './markdown.js';
 import { TIMING } from '../shared/constants.js';
-import { getColorPalette } from '../../shared/color-palette.js';
-import { OPEN_OPTIONS_MESSAGE } from '../../shared/runtime-messages.js';
 import type { ChatMessage } from '../../shared/types';
+import {
+  addUserResponse,
+  completeAssistantResponse,
+  failAssistantResponse,
+  removeBubbleMessage,
+  setAssistantResponse,
+  setBubbleViewStatus,
+  showRateLimitView,
+  startAssistantResponse,
+} from './view-model.js';
 
-const colors = getColorPalette('light');
-
-const COPY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-const CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
-
-export function createCopyButton(aiMsg: HTMLElement, responseIdx: number): void {
-  const btn = document.createElement('button');
-  btn.className = 'copy-btn';
-  btn.title = 'Copy';
-  btn.setAttribute('aria-label', 'Copy response');
-  btn.dataset.responseIdx = String(responseIdx);
-  btn.innerHTML = COPY_ICON;
-  btn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const text = rawResponses[responseIdx];
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      btn.classList.add('copied');
-      btn.innerHTML = CHECK_ICON;
-      setTimeout(() => {
-        btn.classList.remove('copied');
-        btn.innerHTML = COPY_ICON;
-      }, TIMING.COPY_FEEDBACK_DURATION);
-    } catch (err) {
-      btn.title = 'Copy failed';
-      btn.style.color = colors.danger;
-      setTimeout(() => {
-        btn.title = 'Copy';
-        btn.style.color = '';
-      }, TIMING.COPY_FEEDBACK_DURATION);
-    }
-  });
-  aiMsg.appendChild(btn);
-}
+export { createCopyButton } from './legacy-copy-button.js';
 
 export function startStreaming(shadow: ShadowRoot, messages: ChatMessage[]): void {
-  const responseEl = shadow.querySelector<HTMLElement>('.response-text')!;
-  const cursorEl = shadow.querySelector<HTMLElement>('.cursor')!;
-  const statusEl = shadow.querySelector<HTMLElement>('.bubble-status')!;
-  const followUpInput = shadow.querySelector<HTMLInputElement>('.follow-up-input')!;
-
-  // Create a new AI message container for this response
-  const aiMsg = document.createElement('div');
-  aiMsg.className = 'message-ai';
-  responseEl.appendChild(aiMsg);
-
-  statusEl.textContent = 'thinking...';
-  cursorEl.classList.remove('hidden');
-  cursorEl.classList.add('blink');
-  followUpInput.disabled = true;
+  const responseId = startAssistantResponse();
 
   let firstToken = true;
 
@@ -73,7 +33,7 @@ export function startStreaming(shadow: ShadowRoot, messages: ChatMessage[]): voi
     messages,
     (token) => {
       if (firstToken) {
-        statusEl.textContent = 'typing...';
+        setBubbleViewStatus('typing...');
         firstToken = false;
       }
       appendResponseText(token);
@@ -81,7 +41,7 @@ export function startStreaming(shadow: ShadowRoot, messages: ChatMessage[]): voi
       if (!renderTimer) {
         setRenderTimer(setTimeout(() => {
           setRenderTimer(null);
-          aiMsg.innerHTML = renderMarkdown(responseText);
+          setAssistantResponse(responseId, responseText);
           const body = shadow.querySelector<HTMLElement>('.bubble-body')!;
           body.scrollTop = body.scrollHeight;
         }, TIMING.RENDER_DEBOUNCE));
@@ -90,22 +50,19 @@ export function startStreaming(shadow: ShadowRoot, messages: ChatMessage[]): voi
     (usageInfo) => {
       // Flush any pending render
       if (renderTimer) { clearTimeout(renderTimer); setRenderTimer(null); }
-      aiMsg.innerHTML = renderMarkdown(responseText);
-      if (usageInfo && usageInfo.usingOwnKey) {
-        statusEl.textContent = 'your API key';
-      } else if (usageInfo && usageInfo.remaining != null) {
-        statusEl.textContent = `${usageInfo.remaining}/30 free`;
-      } else {
-        statusEl.textContent = '';
-      }
-      cursorEl.classList.add('hidden');
-      // Store raw markdown and add copy button
+      let responseIdx: number | undefined;
       if (responseText) {
-        const idx = pushRawResponse(responseText);
-        createCopyButton(aiMsg, idx);
+        responseIdx = pushRawResponse(responseText);
       }
-      followUpInput.disabled = false;
-      followUpInput.focus();
+      completeAssistantResponse(responseId, responseText, responseIdx);
+      if (usageInfo && usageInfo.usingOwnKey) {
+        setBubbleViewStatus('your API key');
+      } else if (usageInfo && usageInfo.remaining != null) {
+        setBubbleViewStatus(`${usageInfo.remaining}/30 free`);
+      } else {
+        setBubbleViewStatus('');
+      }
+      shadow.querySelector<HTMLInputElement>('.follow-up-input')?.focus();
       setCurrentMessages([...currentMessages, { role: 'assistant', content: responseText }]);
 
       // Save to history — extract text from multimodal content arrays
@@ -131,39 +88,21 @@ export function startStreaming(shadow: ShadowRoot, messages: ChatMessage[]): voi
       });
     },
     (code, message, data) => {
-      cursorEl.classList.add('hidden');
-
       if (code === 'RATE_LIMITED') {
         showRateLimitUI(shadow);
       } else {
-        statusEl.textContent = '';
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'error-msg';
-        errorDiv.textContent = message || 'Something went wrong.';
-        const retryBtn = document.createElement('button');
-        retryBtn.className = 'retry-btn';
-        retryBtn.textContent = 'Retry';
-        retryBtn.addEventListener('click', () => {
-          errorDiv.remove();
-          aiMsg.remove();
+        failAssistantResponse(responseId, message || 'Something went wrong.', () => {
+          removeBubbleMessage(responseId);
           setResponseText('');
           startStreaming(shadow, messages);
         });
-        errorDiv.appendChild(retryBtn);
-        aiMsg.appendChild(errorDiv);
       }
     }
   ));
 }
 
 export function handleFollowUp(shadow: ShadowRoot, question: string): void {
-  const responseEl = shadow.querySelector<HTMLElement>('.response-text')!;
-
-  // Add user message bubble
-  const userMsg = document.createElement('div');
-  userMsg.className = 'message-user';
-  userMsg.textContent = question;
-  responseEl.appendChild(userMsg);
+  addUserResponse(question);
 
   // Scroll to show the user message
   const body = shadow.querySelector<HTMLElement>('.bubble-body')!;
@@ -177,16 +116,5 @@ export function handleFollowUp(shadow: ShadowRoot, question: string): void {
 }
 
 export function showRateLimitUI(shadow: ShadowRoot): void {
-  const body = shadow.querySelector<HTMLElement>('.bubble-body')!;
-  body.innerHTML = `
-    <div class="rate-limit-msg">
-      <p>You've used your 30 free questions today.</p>
-      <p style="margin-top:8px">Add your own API key in Settings for unlimited access.</p>
-      <span class="cta">Open Settings \u2192</span>
-    </div>
-  `;
-
-  shadow.querySelector<HTMLElement>('.cta')!.addEventListener('click', () => {
-    chrome.runtime.sendMessage(OPEN_OPTIONS_MESSAGE);
-  });
+  showRateLimitView();
 }
