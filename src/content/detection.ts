@@ -1,5 +1,8 @@
 // Content type detection — determines smart presets based on selected text
 // Enhanced in v1.1: rich detection objects with sub-type, confidence, and metadata
+import type { CodeSubtype, DetectionResult, ForeignSubtype } from '../shared/types';
+
+type ConfidenceResult = { confidence: number };
 
 /**
  * Detect the content type of selected text.
@@ -7,13 +10,13 @@
  * @param {Node|null} anchorNode - The DOM node where selection starts
  * @returns {{ type: string, subType: string|null, confidence: number, wordCount: number, charCount: number }}
  */
-export function detectContentType(text, anchorNode) {
+export function detectContentType(text: string, anchorNode: Node | null): DetectionResult {
   const charCount = text.length;
   const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
 
   // --- Priority 1: Code in <pre> or <code> DOM node ---
   if (anchorNode) {
-    let node = anchorNode;
+    let node: Node | null = anchorNode;
     while (node) {
       const tag = node.nodeName?.toLowerCase();
       if (tag === 'pre' || tag === 'code') {
@@ -72,7 +75,7 @@ export function detectContentType(text, anchorNode) {
 
 // ─── Code heuristics ────────────────────────────────────────────────────────
 
-function detectCodeHeuristics(text) {
+function detectCodeHeuristics(text: string): ConfidenceResult | null {
   const hasBraces = /[{}]/.test(text);
   const hasSemicolons = /;/.test(text);
   const hasIndentation = /^\s{2,}/m.test(text);
@@ -99,8 +102,8 @@ function detectCodeHeuristics(text) {
 
 // ─── Programming language sub-type detection ────────────────────────────────
 
-export function detectCodeLanguage(text) {
-  const scores = {
+export function detectCodeLanguage(text: string): CodeSubtype | null {
+  const scores: Record<CodeSubtype, number> = {
     javascript: 0,
     python: 0,
     rust: 0,
@@ -181,12 +184,12 @@ export function detectCodeLanguage(text) {
   if (/\b(function\s+\w+|class\s+\w+)\b/.test(text) && /\$\w+/.test(text)) scores.php += 2;
 
   // Find the highest scoring language
-  let best = null;
+  let best: CodeSubtype | null = null;
   let bestScore = 0;
   for (const [lang, score] of Object.entries(scores)) {
     if (score > bestScore) {
       bestScore = score;
-      best = lang;
+      best = lang as CodeSubtype;
     }
   }
 
@@ -196,7 +199,7 @@ export function detectCodeLanguage(text) {
 
 // ─── Error / stack trace detection ──────────────────────────────────────────
 
-export function detectError(text) {
+export function detectError(text: string): ConfidenceResult | null {
   let signals = 0;
 
   if (/\b(Error|Exception|TypeError|ReferenceError|SyntaxError|RangeError|ValueError|KeyError|RuntimeError|NullPointerException|IndexOutOfBoundsException)\b/.test(text)) signals += 2;
@@ -216,7 +219,7 @@ export function detectError(text) {
 
 // ─── Math / formula detection ───────────────────────────────────────────────
 
-export function detectMath(text) {
+export function detectMath(text: string): ConfidenceResult | null {
   let signals = 0;
 
   // LaTeX patterns
@@ -245,7 +248,7 @@ export function detectMath(text) {
 
 // ─── List / structured data detection ───────────────────────────────────────
 
-export function detectData(text) {
+export function detectData(text: string): ConfidenceResult | null {
   let signals = 0;
 
   // JSON-like structure
@@ -281,7 +284,7 @@ export function detectData(text) {
 
 // ─── Email / message detection ──────────────────────────────────────────────
 
-export function detectEmail(text) {
+export function detectEmail(text: string): ConfidenceResult | null {
   let signals = 0;
 
   if (/^(Subject|From|To|Cc|Bcc|Date):\s/m.test(text)) signals += 3;
@@ -297,13 +300,13 @@ export function detectEmail(text) {
   return null;
 }
 
-function wordCount(text) {
+function wordCount(text: string): number {
   return text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
 }
 
 // ─── Foreign language detection + sub-type ──────────────────────────────────
 
-export function detectForeign(text) {
+export function detectForeign(text: string): { subType: ForeignSubtype | null; confidence: number } | null {
   if (text.length === 0) return null;
 
   const nonLatinChars = (text.match(/[\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u0E00-\u0E7F\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]/g) || []).length;
@@ -314,7 +317,7 @@ export function detectForeign(text) {
   return { subType, confidence };
 }
 
-export function detectNaturalLanguage(text) {
+export function detectNaturalLanguage(text: string): ForeignSubtype | null {
   // Count characters in each script range
   const counts = {
     japanese: (text.match(/[\u3040-\u309F\u30A0-\u30FF]/g) || []).length,
@@ -330,13 +333,13 @@ export function detectNaturalLanguage(text) {
   if (counts.japanese > 0) return 'japanese';
 
   // Find highest count among remaining
-  let best = null;
+  let best: ForeignSubtype | null = null;
   let bestCount = 0;
   for (const [lang, count] of Object.entries(counts)) {
     if (lang === 'japanese') continue;
     if (count > bestCount) {
       bestCount = count;
-      best = lang;
+      best = lang as ForeignSubtype;
     }
   }
 

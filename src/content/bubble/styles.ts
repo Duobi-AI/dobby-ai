@@ -1,8 +1,9 @@
 // src/content/bubble/styles.js — CSS-in-JS styles for Dobby AI chat bubble (Shadow DOM)
 import { FONT_STACK } from '../shared/constants.js';
 import { getColorPalette } from '../../shared/color-palette.js';
+import type { ResolvedTheme } from '../../shared/types';
 
-export function getStyles(theme) {
+export function getStyles(theme: ResolvedTheme): string {
   const colors = getColorPalette(theme);
   const accent = colors.accent;
   const accentInteractive = colors.accentInteractive;

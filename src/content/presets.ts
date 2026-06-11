@@ -2,6 +2,14 @@
 // Enhanced in v1.1: sub-type-specific instructions + new content types
 
 import { getReorderedPresets, buildTypeKey } from './shared/preset-usage.js';
+import type {
+  CodeSubtype,
+  ContentSubtype,
+  ContentType,
+  ForeignSubtype,
+  Preset,
+  PresetGroup,
+} from '../shared/types';
 
 /**
  * PRESETS - Maps content type to suggested and additional presets
@@ -11,7 +19,7 @@ import { getReorderedPresets, buildTypeKey } from './shared/preset-usage.js';
  */
 
 // Sub-type specific preset overrides for code
-export const CODE_SUBTYPE_PRESETS = {
+export const CODE_SUBTYPE_PRESETS: Record<CodeSubtype, PresetGroup> = {
   javascript: {
     suggested: [
       { label: 'Explain this JavaScript', instruction: 'Explain the following JavaScript code' },
@@ -119,7 +127,7 @@ export const CODE_SUBTYPE_PRESETS = {
 // Presets prioritize native-language actions (summarize, explain) over translation,
 // since users selecting text in their own language usually want responses in that language.
 // The system prompt instructs the AI to respond in the same language as the selected text.
-function buildForeignPresets(language: string, label?: string) {
+function buildForeignPresets(language: string, label?: string): PresetGroup {
   return {
     suggested: [
       { label: 'Summarize', instruction: 'Summarize the following' },
@@ -129,7 +137,7 @@ function buildForeignPresets(language: string, label?: string) {
   };
 }
 
-export const FOREIGN_SUBTYPE_PRESETS = {
+export const FOREIGN_SUBTYPE_PRESETS: Record<ForeignSubtype, PresetGroup> = {
   japanese: buildForeignPresets('Japanese'),
   chinese: buildForeignPresets('Chinese'),
   korean: buildForeignPresets('Korean'),
@@ -139,7 +147,7 @@ export const FOREIGN_SUBTYPE_PRESETS = {
   thai: buildForeignPresets('Thai'),
 };
 
-export const PRESETS = {
+export const PRESETS: Record<ContentType, PresetGroup> = {
   code: {
     suggested: [
       { label: 'Explain code', instruction: 'Explain the following code' },
@@ -223,7 +231,7 @@ export const PRESETS = {
   }
 };
 
-export const COMMON_PRESETS = [
+export const COMMON_PRESETS: Preset[] = [
   { label: 'Summarize', instruction: 'Summarize the following' },
   { label: 'Explain', instruction: 'Explain the following' },
   { label: 'Translate', instruction: 'Translate the following to English' },
@@ -238,12 +246,12 @@ export const COMMON_PRESETS = [
  * @param {string|null} subType
  * @returns {Array<{label: string, instruction: string}>}
  */
-export function getSuggestedPresetsForType(contentType, subType) {
-  let presets;
-  if (subType && contentType === 'code' && CODE_SUBTYPE_PRESETS[subType]) {
-    presets = CODE_SUBTYPE_PRESETS[subType].suggested;
-  } else if (subType && contentType === 'foreign' && FOREIGN_SUBTYPE_PRESETS[subType]) {
-    presets = FOREIGN_SUBTYPE_PRESETS[subType].suggested;
+export function getSuggestedPresetsForType(contentType: ContentType, subType: ContentSubtype): Preset[] {
+  let presets: Preset[];
+  if (subType && contentType === 'code' && CODE_SUBTYPE_PRESETS[subType as CodeSubtype]) {
+    presets = CODE_SUBTYPE_PRESETS[subType as CodeSubtype].suggested;
+  } else if (subType && contentType === 'foreign' && FOREIGN_SUBTYPE_PRESETS[subType as ForeignSubtype]) {
+    presets = FOREIGN_SUBTYPE_PRESETS[subType as ForeignSubtype].suggested;
   } else {
     presets = (PRESETS[contentType] || PRESETS['default']).suggested;
   }
@@ -257,12 +265,12 @@ export function getSuggestedPresetsForType(contentType, subType) {
  * @param {string|null} [subType]
  * @returns {Array<{label: string, instruction: string}>}
  */
-export function getAllPresetsForType(contentType, subType) {
+export function getAllPresetsForType(contentType: ContentType, subType: ContentSubtype = null): Preset[] {
   const suggested = getSuggestedPresetsForType(contentType, subType || null);
 
-  let typeAll;
-  if (subType && contentType === 'code' && CODE_SUBTYPE_PRESETS[subType]) {
-    typeAll = CODE_SUBTYPE_PRESETS[subType].all || [];
+  let typeAll: Preset[];
+  if (subType && contentType === 'code' && CODE_SUBTYPE_PRESETS[subType as CodeSubtype]) {
+    typeAll = CODE_SUBTYPE_PRESETS[subType as CodeSubtype].all || [];
   } else {
     typeAll = PRESETS[contentType].all || [];
   }

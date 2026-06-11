@@ -1,8 +1,9 @@
 // src/content/trigger/styles.js — CSS-in-JS styles for toolbar (Shadow DOM)
 import { FONT_STACK } from '../shared/constants.js';
 import { getColorPalette } from '../../shared/color-palette.js';
+import type { ResolvedTheme } from '../../shared/types';
 
-export function getToolbarStyles(theme) {
+export function getToolbarStyles(theme: ResolvedTheme): string {
   const colors = getColorPalette(theme);
   const accent = colors.accent;
   const fontStack = FONT_STACK;

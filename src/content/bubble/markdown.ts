@@ -1,11 +1,13 @@
 // src/content/bubble/markdown.js — Pure markdown rendering functions
 
-export function escapeHtml(text) {
+type MarkdownImage = { alt: string; url: string };
+
+export function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function isValidImageUrl(url) {
+function isValidImageUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     return parsed.protocol === 'https:';
@@ -14,16 +16,16 @@ function isValidImageUrl(url) {
   }
 }
 
-export function renderMarkdown(text) {
+export function renderMarkdown(text: string): string {
   // Extract code blocks first so their contents are not processed
-  const codeBlocks = [];
+  const codeBlocks: string[] = [];
   let processed = text.replace(/```([\s\S]*?)```/g, (_, code) => {
     codeBlocks.push(code);
     return `%%CODEBLOCK_${codeBlocks.length - 1}%%`;
   });
 
   // Extract images before escaping (they need real <img> tags)
-  const images = [];
+  const images: MarkdownImage[] = [];
   processed = processed.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
     if (isValidImageUrl(url)) {
       images.push({ alt: escapeHtml(alt), url: escapeHtml(url) });
