@@ -24,7 +24,7 @@ const INTERACTIVE_TAGS = new Set([
   'INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'VIDEO', 'AUDIO', 'LABEL', 'OPTION',
 ]);
 
-function isInteractiveElement(el) {
+function isInteractiveElement(el: HTMLElement | null): boolean {
   if (!el || !el.tagName) return false;
   if (INTERACTIVE_TAGS.has(el.tagName)) return true;
   if (el.isContentEditable) return true;
@@ -32,12 +32,12 @@ function isInteractiveElement(el) {
   return false;
 }
 
-function isScrollbarClick(e) {
+function isScrollbarClick(e: MouseEvent): boolean {
   // Page-level scrollbars
   if (e.clientX >= document.documentElement.clientWidth ||
     e.clientY >= document.documentElement.clientHeight) return true;
   // Element-level scrollbars (e.g. scrollable divs)
-  const el = e.target;
+  const el = e.target as HTMLElement | null;
   if (el && el.getBoundingClientRect) {
     const rect = el.getBoundingClientRect();
     const clickOffsetX = e.clientX - rect.left;
@@ -48,7 +48,7 @@ function isScrollbarClick(e) {
   return false;
 }
 
-export function registerListeners() {
+export function registerListeners(): void {
   // Listen for text selection
   document.addEventListener('mouseup', (e) => {
     if (isClickInsideUI(e.target, getBubbleContainer)) return;
@@ -59,7 +59,7 @@ export function registerListeners() {
       const text = getSelectedText();
 
       if (text.length >= 3 && dobbyEnabled) {
-        const sel = window.getSelection();
+        const sel = window.getSelection()!;
         const anchorNode = sel.anchorNode || null;
         showTrigger(cursorX, cursorY, { text, anchorNode, selection: sel }).catch(() => {});
       } else {
@@ -70,10 +70,10 @@ export function registerListeners() {
 
   // Fallback: selectionchange fires even when sites (Gmail, etc.) capture mouseup
   document.addEventListener('selectionchange', () => {
-    clearTimeout(selectionChangeTimer);
+    clearTimeout(selectionChangeTimer!);
     setSelectionChangeTimer(setTimeout(() => {
       const text = getSelectedText();
-      const selection = window.getSelection();
+      const selection = window.getSelection()!;
       if (text.length >= 3 && dobbyEnabled && selection.rangeCount > 0) {
         // Only show if trigger isn't already visible
         if (!triggerButton || triggerButton.style.display === 'none') {
@@ -88,10 +88,10 @@ export function registerListeners() {
   // Hide trigger on scroll, re-show after scroll stops
   window.addEventListener('scroll', () => {
     hideTrigger();
-    clearTimeout(scrollTimer);
+    clearTimeout(scrollTimer!);
     setScrollTimer(setTimeout(() => {
       const text = getSelectedText();
-      const selection = window.getSelection();
+      const selection = window.getSelection()!;
       if (text.length >= 3 && dobbyEnabled && selection.rangeCount > 0) {
         const anchorNode = selection.anchorNode || null;
         const rect = getSelectionRect();
@@ -109,7 +109,7 @@ export function registerListeners() {
   // Long-press mousedown handler
   document.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return; // left click only
-    if (isInteractiveElement(e.target)) return;
+    if (isInteractiveElement(e.target as HTMLElement | null)) return;
     if (isScrollbarClick(e)) return;
     if (isClickInsideUI(e.target, getBubbleContainer)) return;
     if (screenshotState.overlay) return;
@@ -169,7 +169,7 @@ export function registerListeners() {
 
 }
 
-export function _resetTriggerForTesting() {
+export function _resetTriggerForTesting(): void {
   removeElement(triggerButton);
   setTriggerButton(null);
   setDobbyEnabled(true);
@@ -181,4 +181,4 @@ export function _resetTriggerForTesting() {
   cancelScreenshotMode();
 }
 
-export function _setDobbyEnabled(val) { setDobbyEnabled(val); }
+export function _setDobbyEnabled(val: boolean): void { setDobbyEnabled(val); }

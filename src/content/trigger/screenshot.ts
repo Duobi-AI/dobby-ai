@@ -7,16 +7,17 @@ import { _removeProgressRing } from './progress-ring.js';
 import { showBubbleWithPresets } from '../bubble/core.js';
 import { captureScreenshot } from '../image-capture.js';
 import { getColorPalette } from '../../shared/color-palette.js';
+import type { CaptureRect, ScreenshotOverlay } from '../../shared/types';
 
 const colors = getColorPalette('light');
 
-export function startScreenshotMode() {
+export function startScreenshotMode(): void {
   if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
   _removeProgressRing();
   longPressState.timer = null;
 
   screenshotState.overlay = document.createElement('div');
-  Object.assign(screenshotState.overlay.style, {
+  Object.assign(screenshotState.overlay!.style, {
     position: 'fixed',
     inset: '0',
     zIndex: String(Z_INDEX.SCREENSHOT_OVERLAY),
@@ -44,7 +45,7 @@ export function startScreenshotMode() {
     letterSpacing: '0.3px',
   });
   banner.textContent = 'Drag to select a region \u2022 ESC to cancel';
-  screenshotState.overlay.appendChild(banner);
+  screenshotState.overlay!.appendChild(banner);
 
   // Visual border around the viewport
   const border = document.createElement('div');
@@ -55,31 +56,31 @@ export function startScreenshotMode() {
     pointerEvents: 'none',
     zIndex: String(Z_INDEX.TRIGGER),
   });
-  screenshotState.overlay.appendChild(border);
+  screenshotState.overlay!.appendChild(border);
 
   screenshotState.rect = document.createElement('div');
-  Object.assign(screenshotState.rect.style, {
+  Object.assign(screenshotState.rect!.style, {
     position: 'fixed',
     border: '2px dashed ' + colors.accent,
     background: colors.accentBackground,
     display: 'none',
     zIndex: String(Z_INDEX.TRIGGER),
   });
-  screenshotState.overlay.appendChild(screenshotState.rect);
+  screenshotState.overlay!.appendChild(screenshotState.rect!);
 
   screenshotState.dragStarted = false;
 
-  screenshotState.overlay.addEventListener('mousedown', (e) => {
+  screenshotState.overlay!.addEventListener('mousedown', (e) => {
     e.preventDefault();
     e.stopPropagation();
     // Clear existing toolbar if user re-drags on overlay
-    const existingToolbar = screenshotState.overlay.querySelector('[data-screenshot-toolbar]');
+    const existingToolbar = screenshotState.overlay!.querySelector('[data-screenshot-toolbar]');
     if (existingToolbar) existingToolbar.remove();
     screenshotState.dragStarted = true;
     screenshotState.startX = e.clientX;
     screenshotState.startY = e.clientY;
-    screenshotState.rect.style.display = 'block';
-    Object.assign(screenshotState.rect.style, {
+    screenshotState.rect!.style.display = 'block';
+    Object.assign(screenshotState.rect!.style, {
       left: e.clientX + 'px',
       top: e.clientY + 'px',
       width: '0px',
@@ -87,7 +88,7 @@ export function startScreenshotMode() {
     });
   });
 
-  screenshotState.overlay.addEventListener('mouseup', (e) => {
+  screenshotState.overlay!.addEventListener('mouseup', (e) => {
     // Ignore the mouseup from the long-press release (no drag started yet)
     if (!screenshotState.dragStarted) return;
 
@@ -98,7 +99,7 @@ export function startScreenshotMode() {
 
     // Too small — reset selection and let user try again
     if (w < 10 || h < 10) {
-      screenshotState.rect.style.display = 'none';
+      screenshotState.rect!.style.display = 'none';
       screenshotState.dragStarted = false;
       return;
     }
@@ -107,28 +108,28 @@ export function startScreenshotMode() {
     screenshotState.dragStarted = false;
 
     // Lock the selection rectangle with solid border
-    Object.assign(screenshotState.rect.style, {
+    Object.assign(screenshotState.rect!.style, {
       border: '2px solid ' + colors.accent,
     });
 
 
     // Show confirmation toolbar below the selection
-    _showConfirmToolbar(screenshotState.overlay, banner, { x, y, width: w, height: h });
+    _showConfirmToolbar(screenshotState.overlay!, banner, { x, y, width: w, height: h });
   });
 
-  const escHandler = (e) => {
+  const escHandler = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       cancelScreenshotMode();
       document.removeEventListener('keydown', escHandler);
     }
   };
   document.addEventListener('keydown', escHandler);
-  screenshotState.overlay._escHandler = escHandler;
+  screenshotState.overlay!._escHandler = escHandler;
 
-  document.body.appendChild(screenshotState.overlay);
+  document.body.appendChild(screenshotState.overlay!);
 }
 
-function _showConfirmToolbar(overlay, banner, rect) {
+function _showConfirmToolbar(overlay: ScreenshotOverlay, banner: HTMLDivElement, rect: CaptureRect): void {
   // Remove existing toolbar if any
   const existing = overlay.querySelector('[data-screenshot-toolbar]');
   if (existing) existing.remove();
@@ -204,7 +205,7 @@ function _showConfirmToolbar(overlay, banner, rect) {
   reselectBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     toolbar.remove();
-    Object.assign(screenshotState.rect.style, {
+    Object.assign(screenshotState.rect!.style, {
       display: 'none',
       border: '2px dashed ' + colors.accent,
       width: '0px',
@@ -238,7 +239,7 @@ function _showConfirmToolbar(overlay, banner, rect) {
   });
 }
 
-export function cancelScreenshotMode() {
+export function cancelScreenshotMode(): void {
   if (screenshotState.overlay) {
     if (screenshotState.overlay._escHandler) {
       document.removeEventListener('keydown', screenshotState.overlay._escHandler);
