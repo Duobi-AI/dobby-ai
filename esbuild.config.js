@@ -24,6 +24,9 @@ const sharedConfig = {
   target: 'chrome115',
   minify: false,
   tsconfig: 'tsconfig.build.json',
+  define: {
+    'process.env.NODE_ENV': '"production"',
+  },
 };
 
 async function build() {

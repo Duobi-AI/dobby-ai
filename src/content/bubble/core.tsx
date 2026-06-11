@@ -10,20 +10,22 @@ import {
 import { Z_INDEX, TIMING } from '../shared/constants.js';
 import { removeElement, stopShadowRootKeyboardEventPropagation } from '../shared/dom-utils.js';
 import { detectTheme, watchThemeChanges } from '../../shared/theme.js';
+import { mountReactRoot } from '../../shared/react-root.js';
 import { getStyles } from './styles.js';
-import { renderMarkdown, escapeHtml } from './markdown.js';
+import { renderMarkdown } from './markdown.js';
+import { BubbleShell, type BubblePresetSelection } from './shell.js';
 import { startStreaming, handleFollowUp } from './stream.js';
 import { showHistoryPanel } from './history.js';
 import { detectContentType } from '../detection.js';
 import { getSuggestedPresetsForType } from '../presets.js';
 import { buildChatMessages } from '../prompt.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
-import { BRAND_MARK_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
 import type {
   BubbleHost,
   ChatMessage,
   DetectionResult,
   ImageContentPart,
+  Preset,
   SelectionRect,
 } from '../../shared/types';
 
@@ -61,64 +63,6 @@ function createBubbleHost(selectionRect: SelectionRect): BubbleHost {
 
   setBubbleHost(host);
   return host;
-}
-
-function buildBubbleHTML(
-  previewText: string,
-  previewLabel: string,
-  showPresets: boolean,
-  images?: ImageContentPart[] | null,
-): string {
-  const hasPreview = previewText || (images && images.length > 0);
-  let previewHtml = '';
-  if (hasPreview) {
-    let imgHtml = '';
-    if (images && images.length > 0) {
-      imgHtml = '<div class="image-preview">' +
-        images.map((img) => {
-          const url = img.image_url ? img.image_url.url : '';
-          return `<img src="${escapeHtml(url)}" alt="Preview" onerror="this.style.display='none'">`;
-        }).join('') + '</div>';
-    }
-    previewHtml = `<div class="selected-text-preview">
-      <div class="label">${escapeHtml(previewLabel || (images && images.length > 0 ? 'Image' : 'Selected text'))}</div>
-      ${imgHtml}
-      ${previewText ? `<div class="text">${escapeHtml(previewText)}</div>` : ''}
-    </div>`;
-  }
-  return `
-    <div class="bubble-header">
-      <span class="bubble-logo">
-        <img class="bubble-logo-mark" src="${BRAND_MARK_DATA_URI}" alt="" aria-hidden="true">
-        <span>${BRAND_NAME}</span>
-      </span>
-      <span class="bubble-status"></span>
-      <button class="pin-btn" title="Pin">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 17v5"/><path d="M9 11V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v7"/><path d="M5 15h14l-1.5-4H6.5L5 15z"/>
-        </svg>
-      </button>
-      <button class="close-btn" title="Close">\u2715</button>
-    </div>
-    ${previewHtml}
-    ${showPresets ? '<div class="presets-section"></div>' : ''}
-    <div class="response-section">
-      <div class="bubble-body">
-        <div class="response-text"></div>
-        <span class="cursor blink"></span>
-      </div>
-      <div class="bubble-footer">
-        <input class="follow-up-input" placeholder="Ask a follow-up..." disabled />
-        <button class="action-btn history-btn" title="History">\ud83d\udd50</button>
-      </div>
-    </div>
-    <div class="resize-handle" title="Drag to resize">
-      <svg width="12" height="12" viewBox="0 0 12 12">
-        <line x1="8" y1="4" x2="4" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <line x1="10" y1="8" x2="8" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-    </div>
-  `;
 }
 
 function wireCommonEvents(shadow: ShadowRoot): void {
@@ -262,8 +206,8 @@ async function initBubble(
   selectionRect: SelectionRect,
   selectedText: string,
   previewLabel: string,
-  showPresets: boolean,
   images?: ImageContentPart[] | null,
+  presets?: BubblePresetSelection,
 ): Promise<ShadowRoot> {
   hideBubble();
   setResponseText('');
@@ -276,14 +220,17 @@ async function initBubble(
     if ((e as KeyboardEvent).key === 'Escape') hideBubble();
   });
 
-  const style = document.createElement('style');
-  style.textContent = getStyles(await detectTheme());
-  shadow.appendChild(style);
-
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-  bubble.innerHTML = buildBubbleHTML(truncatePreview(selectedText), previewLabel, showPresets, images);
-  shadow.appendChild(bubble);
+  const reactRoot = mountReactRoot(
+    shadow,
+    <BubbleShell
+      styles={getStyles(await detectTheme())}
+      previewText={truncatePreview(selectedText)}
+      previewLabel={previewLabel}
+      images={images}
+      presets={presets}
+    />,
+  );
+  bubbleHost!._reactCleanup = reactRoot.unmount;
 
   wireCommonEvents(shadow);
   document.body.appendChild(bubbleHost!);
@@ -315,9 +262,6 @@ export async function showBubbleWithPresets(
 ): Promise<void> {
   const hasImages = images && images.length > 0;
   const isImageOnly = hasImages && !selectedText.trim();
-  const previewLabel = isImageOnly ? 'Image' : 'Selected text';
-  const shadow = await initBubble(selectionRect, selectedText, previewLabel, true, images);
-
   // Detect content type and populate presets
   let detected: DetectionResult;
   if (isImageOnly) {
@@ -327,45 +271,26 @@ export async function showBubbleWithPresets(
   }
 
   const presets = getSuggestedPresetsForType(detected.type, detected.subType);
-
-  const presetsSection = shadow.querySelector<HTMLElement>('.presets-section')!;
-
-  // Detection badge
-  if (detected.type !== 'default') {
-    const badge = document.createElement('div');
-    badge.className = 'detection-badge';
-    badge.textContent = isImageOnly ? 'image' : `${detected.subType || detected.type} detected`;
-    presetsSection.appendChild(badge);
-  }
-
-  // Preset chips
-  const chipsRow = document.createElement('div');
-  chipsRow.className = 'preset-chips';
-  presets.slice(0, 4).forEach((preset) => {
-    const chip = document.createElement('div');
-    chip.className = 'preset-chip';
-    chip.textContent = preset.label;
-    chip.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+  const previewLabel = isImageOnly ? 'Image' : 'Selected text';
+  let shadow: ShadowRoot;
+  const presetSelection: BubblePresetSelection = {
+    detectionLabel: detected.type === 'default'
+      ? undefined
+      : (isImageOnly ? 'image' : `${detected.subType || detected.type} detected`),
+    presets,
+    customPlaceholder: isImageOnly
+      ? 'Or ask something about this image...'
+      : 'Or type a custom prompt...',
+    onPreset: (preset: Preset) => {
       recordPresetUsage(buildTypeKey(detected.type, detected.subType), preset.label);
       launchFromPreset(shadow, selectedText, preset.instruction, images);
-    });
-    chipsRow.appendChild(chip);
-  });
-  presetsSection.appendChild(chipsRow);
-
-  // Custom input
-  const customInput = document.createElement('input');
-  customInput.className = 'preset-input';
-  customInput.placeholder = isImageOnly ? 'Or ask something about this image...' : 'Or type a custom prompt...';
-  customInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && customInput.value.trim()) {
-      launchFromPreset(shadow, selectedText, customInput.value.trim(), images);
-    }
-    if (e.key === 'Escape') hideBubble();
-  });
-  presetsSection.appendChild(customInput);
+    },
+    onCustom: (instruction: string) => {
+      launchFromPreset(shadow, selectedText, instruction, images);
+    },
+    onEscape: hideBubble,
+  };
+  shadow = await initBubble(selectionRect, selectedText, previewLabel, images, presetSelection);
 }
 
 // Direct bubble (used by context menu — no preset selection needed)
@@ -377,12 +302,12 @@ export async function showBubble(
   images?: ImageContentPart[] | null,
 ): Promise<void> {
   setCurrentMessages(messages);
-  const shadow = await initBubble(selectionRect, selectedText, instruction || 'Selected text', false, images);
+  const shadow = await initBubble(selectionRect, selectedText, instruction || 'Selected text', images);
   activateResponseSection(shadow, messages);
 }
 
 export async function showHistoryBubble(selectionRect: SelectionRect): Promise<void> {
-  const shadow = await initBubble(selectionRect, '', 'History', false, null);
+  const shadow = await initBubble(selectionRect, '', 'History', null);
   const responseSection = shadow.querySelector('.response-section');
   if (responseSection) responseSection.classList.add('active');
   const status = shadow.querySelector('.bubble-status');
@@ -406,6 +331,9 @@ export function hideBubble(): void {
     if (bubbleHost._escHandler) document.removeEventListener('keydown', bubbleHost._escHandler);
     if (bubbleHost._themeCleanup) {
       bubbleHost._themeCleanup();
+    }
+    if (bubbleHost._reactCleanup) {
+      bubbleHost._reactCleanup();
     }
     removeElement(bubbleHost);
   }
