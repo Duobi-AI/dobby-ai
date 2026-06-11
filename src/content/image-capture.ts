@@ -4,6 +4,7 @@
 // - chrome.runtime.sendMessage (for screenshot capture via background.js)
 
 import { requestVisibleTabScreenshot } from './api.js';
+import type { CaptureRect, ImageContentPart } from '../shared/types';
 
 const MAX_BASE64_SIZE = 1048576; // 1MB
 const MAX_DOWNSCALE_ATTEMPTS = 2;
@@ -14,7 +15,7 @@ const MAX_DOWNSCALE_ATTEMPTS = 2;
  * @param {string|HTMLImageElement} source - Image URL string or <img> element
  * @returns {Promise<{type: string, image_url: {url: string}}|null>}
  */
-export async function captureImage(source) {
+export async function captureImage(source: string | HTMLImageElement): Promise<ImageContentPart | null> {
   if (source == null) return null;
 
   try {
@@ -50,7 +51,7 @@ export async function captureImage(source) {
 
     return null;
   } catch (e) {
-    console.warn('[Dobby AI] Image capture failed:', e.message);
+    console.warn('[Dobby AI] Image capture failed:', (e as Error).message);
     return null;
   }
 }
@@ -61,7 +62,7 @@ export async function captureImage(source) {
  * @param {{x: number, y: number, width: number, height: number}} rect
  * @returns {Promise<{type: string, image_url: {url: string}}|null>}
  */
-export async function captureScreenshot(rect) {
+export async function captureScreenshot(rect: CaptureRect): Promise<ImageContentPart | null> {
   try {
     const response = await requestVisibleTabScreenshot();
 
@@ -74,7 +75,7 @@ export async function captureScreenshot(rect) {
     if (sized) return { type: 'image_url', image_url: { url: sized } };
     return null;
   } catch (e) {
-    console.warn('[Dobby AI] Screenshot capture failed:', e.message);
+    console.warn('[Dobby AI] Screenshot capture failed:', (e as Error).message);
     return null;
   }
 }
@@ -84,7 +85,7 @@ export async function captureScreenshot(rect) {
  * @param {string} url
  * @returns {Promise<string|null>} base64 data URL or null
  */
-export function _corsRefetch(url) {
+export function _corsRefetch(url: string): Promise<string | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -94,10 +95,10 @@ export function _corsRefetch(url) {
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
+        ctx!.drawImage(img, 0, 0);
         resolve(canvas.toDataURL('image/jpeg', 0.8));
       } catch (e) {
-        console.warn('[Dobby AI] Canvas operation failed:', e.message);
+        console.warn('[Dobby AI] Canvas operation failed:', (e as Error).message);
         resolve(null);
       }
     };
@@ -113,7 +114,7 @@ export function _corsRefetch(url) {
  * @param {{x: number, y: number, width: number, height: number}} rect
  * @returns {Promise<string|null>}
  */
-export function _cropImage(dataUrl, rect) {
+export function _cropImage(dataUrl: string, rect: CaptureRect): Promise<string | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
@@ -123,7 +124,7 @@ export function _cropImage(dataUrl, rect) {
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(
+        ctx!.drawImage(
           img,
           rect.x * dpr, rect.y * dpr,
           rect.width * dpr, rect.height * dpr,
@@ -132,7 +133,7 @@ export function _cropImage(dataUrl, rect) {
         );
         resolve(canvas.toDataURL('image/jpeg', 0.8));
       } catch (e) {
-        console.warn('[Dobby AI] Canvas operation failed:', e.message);
+        console.warn('[Dobby AI] Canvas operation failed:', (e as Error).message);
         resolve(null);
       }
     };
@@ -147,12 +148,12 @@ export function _cropImage(dataUrl, rect) {
  * @param {string} dataUrl
  * @returns {Promise<string|null>}
  */
-export async function _downsizeBase64(dataUrl) {
+export async function _downsizeBase64(dataUrl: string): Promise<string | null> {
   // Check size (base64 portion is after the comma)
   const base64Part = dataUrl.split(',')[1] || '';
   if (base64Part.length <= MAX_BASE64_SIZE) return dataUrl;
 
-  let current = dataUrl;
+  let current: string | null = dataUrl;
   for (let i = 0; i < MAX_DOWNSCALE_ATTEMPTS; i++) {
     current = await _scaleDown(current);
     if (!current) return null;
@@ -162,7 +163,7 @@ export async function _downsizeBase64(dataUrl) {
   return null; // Still too large
 }
 
-function _scaleDown(dataUrl) {
+function _scaleDown(dataUrl: string): Promise<string | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
@@ -171,10 +172,10 @@ function _scaleDown(dataUrl) {
         canvas.width = Math.floor(img.naturalWidth / 2);
         canvas.height = Math.floor(img.naturalHeight / 2);
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL('image/jpeg', 0.8));
       } catch (e) {
-        console.warn('[Dobby AI] Canvas operation failed:', e.message);
+        console.warn('[Dobby AI] Canvas operation failed:', (e as Error).message);
         resolve(null);
       }
     };

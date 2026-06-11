@@ -2,8 +2,9 @@
 import { setCurrentMessages, setResponseText } from '../shared/state.js';
 import { getHistory, clearHistory } from '../history.js';
 import { renderMarkdown } from './markdown.js';
+import type { ChatMessage } from '../../shared/types';
 
-function getTimeAgo(timestamp) {
+function getTimeAgo(timestamp: number): string {
   const diff = Date.now() - timestamp;
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'just now';
@@ -14,8 +15,8 @@ function getTimeAgo(timestamp) {
   return `${days}d ago`;
 }
 
-export async function showHistoryPanel(shadow) {
-  const body = shadow.querySelector('.bubble-body');
+export async function showHistoryPanel(shadow: ShadowRoot): Promise<void> {
+  const body = shadow.querySelector<HTMLElement>('.bubble-body')!;
   const entries = await getHistory();
 
   if (entries.length === 0) {
@@ -55,14 +56,14 @@ export async function showHistoryPanel(shadow) {
       if (responseSection) responseSection.classList.add('active');
 
       // Restore conversation state so follow-up works
-      const msgs = [];
+      const msgs: ChatMessage[] = [];
       if (entry.instruction) msgs.push({ role: 'system', content: entry.instruction });
       if (entry.text) msgs.push({ role: 'user', content: entry.text });
       if (entry.response) msgs.push({ role: 'assistant', content: entry.response });
       setCurrentMessages(msgs);
       setResponseText(entry.response || '');
 
-      const followUpInput = shadow.querySelector('.follow-up-input');
+      const followUpInput = shadow.querySelector<HTMLInputElement>('.follow-up-input');
       if (followUpInput) {
         followUpInput.disabled = false;
         followUpInput.focus();
