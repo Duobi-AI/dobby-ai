@@ -7,7 +7,7 @@ export default defineConfig({
     include: ['tests/**/*.test.js', 'proxy/tests/**/*.test.js'],
     coverage: {
       include: [
-        'src/**/*.{js,ts}',
+        'src/**/*.{js,ts,tsx}',
         'proxy/src/**/*.{js,ts}',
       ],
       exclude: [
