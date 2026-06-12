@@ -90,6 +90,14 @@ describe('popup.js', () => {
       expect(document.getElementById('version').textContent).toBe('v1.2.0');
     });
 
+    it('links to the guided bug report form', () => {
+      const reportBug = document.getElementById('report-bug');
+
+      expect(reportBug.href).toBe('https://github.com/Duobi-AI/dobby-ai/issues/new?template=bug_report.yml');
+      expect(reportBug.target).toBe('_blank');
+      expect(reportBug.rel).toBe('noopener noreferrer');
+    });
+
     it('loads default toggle states', () => {
       expect(document.getElementById('enabled').checked).toBe(true);
       expect(document.getElementById('status').textContent).toBe('On');
