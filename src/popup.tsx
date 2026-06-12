@@ -273,6 +273,23 @@ function PopupApp() {
           ))}
         </div>
       </div>
+      <a
+        className="support-link"
+        id="report-bug"
+        href="https://github.com/Duobi-AI/dobby-ai/issues/new?template=bug_report.yml"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Report a bug on GitHub"
+      >
+        <svg className="support-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d="M8 9h8m-8 4h8m-5 4h3a4 4 0 0 0 4-4V8a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v5a4 4 0 0 0 4 4h1l3 3v-3Z" />
+        </svg>
+        <span className="support-copy">
+          <span className="support-title">Report a bug</span>
+          <span className="support-detail">Tell us what went wrong</span>
+        </span>
+        <span className="support-arrow" aria-hidden="true">&gt;</span>
+      </a>
     </>
   );
 }

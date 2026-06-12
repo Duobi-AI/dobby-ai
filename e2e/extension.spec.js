@@ -80,3 +80,19 @@ test('popup page loads and toggle works', async () => {
 
   await popupPage.close();
 });
+
+test('popup links to the guided bug report form', async () => {
+  const popupPage = await context.newPage();
+  await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
+
+  const reportBug = popupPage.locator('#report-bug');
+  await expect(reportBug).toBeVisible();
+  await expect(reportBug).toHaveAttribute(
+    'href',
+    'https://github.com/Duobi-AI/dobby-ai/issues/new?template=bug_report.yml',
+  );
+  await expect(reportBug).toHaveAttribute('target', '_blank');
+  await expect(reportBug).toHaveAttribute('rel', 'noopener noreferrer');
+
+  await popupPage.close();
+});

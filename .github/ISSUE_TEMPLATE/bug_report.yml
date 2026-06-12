@@ -1,0 +1,84 @@
+name: Bug report
+description: Tell us about something that is not working as expected
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Dobby AI. Please do not include API keys, private page content, or other sensitive information.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where did the bug happen?
+      options:
+        - Text selection toolbar
+        - AI response bubble
+        - Screenshot capture
+        - Text auto-suggest
+        - Extension popup
+        - Settings
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What did you do before the problem appeared?
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Click ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      placeholder: Include any visible error message, but remove sensitive information.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Dobby AI version
+      description: Find this next to the Dobby AI name in the extension popup.
+      placeholder: v1.3.0
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+      placeholder: Chrome 137 on macOS 15
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or additional context
+      description: Optional. Remove private page content before attaching screenshots.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed API keys, private page content, and other sensitive information.
+          required: true
