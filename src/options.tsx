@@ -184,7 +184,7 @@ function OptionsApp() {
               <li>Click <strong>"Create new secret key"</strong>, give it a name, and copy the key</li>
               <li>Paste the key above and click Save — Dobby AI will validate it automatically</li>
             </ol>
-            <p className="hint">OpenAI keys typically start with <code>sk-</code>. You'll need a payment method on your OpenAI account. Usage is billed per request (~$0.001/question with GPT-4.1-mini).</p>
+            <p className="hint">OpenAI keys typically start with <code>sk-</code>. You'll need a payment method on your OpenAI account. Usage is billed by OpenAI based on model and token usage.</p>
           </div>
           <div className={`provider-panel${provider === 'anthropic' ? ' active' : ''}`} id="panel-anthropic">
             <ol className="steps">
@@ -201,7 +201,7 @@ function OptionsApp() {
       <div className="card">
         <h2>How it works</h2>
         <div className="usage-info">
-          <strong>Free tier:</strong> 30 questions/day powered by GPT-4.1-mini via our proxy server. No setup needed.<br /><br />
+          <strong>Free tier:</strong> 30 questions/day powered by GPT-5.4 mini via our proxy server. No setup needed.<br /><br />
           <strong>Your own key:</strong> Requests go directly to the API provider — your key stays on your device and is never sent to our servers.<br /><br />
           <strong>Helpful links:</strong><br />
           • <a href="https://platform.openai.com/usage" target="_blank" style={{ color: 'inherit' }}>OpenAI usage dashboard</a><br />

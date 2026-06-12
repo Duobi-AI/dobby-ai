@@ -457,6 +457,10 @@ describe('chat-stream integration', () => {
     const calledUrl = fetch.mock.calls[0][0];
     expect(calledUrl).toContain('openai.com');
     expect(fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer sk-user');
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.model).toBe('gpt-5.4-mini');
+    expect(body.reasoning_effort).toBe('none');
+    expect(body.max_completion_tokens).toBe(1000);
   });
 
   it('forwards 429 rate limit as rate_limited message', async () => {
@@ -542,7 +546,9 @@ describe('autosuggest-stream port', () => {
     const calledUrl = fetch.mock.calls[0][0];
     expect(calledUrl).toContain('openai.com');
     const body = JSON.parse(fetch.mock.calls[0][1].body);
-    expect(body.max_tokens).toBe(AUTOSUGGEST_MAX_SUGGESTION_TOKENS);
+    expect(body.model).toBe('gpt-5.4-mini');
+    expect(body.reasoning_effort).toBe('none');
+    expect(body.max_completion_tokens).toBe(AUTOSUGGEST_MAX_SUGGESTION_TOKENS);
   });
 
   it('passes purpose=autosuggest to proxy when no user key', async () => {
