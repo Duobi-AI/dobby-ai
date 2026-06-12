@@ -28,10 +28,11 @@ describe('createChatStream', () => {
     );
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.model).toBe('gpt-4.1-mini');
+    expect(body.model).toBe('gpt-5.4-mini');
     expect(body.messages).toEqual(messages);
     expect(body.stream).toBe(true);
-    expect(body.max_tokens).toBe(1000);
+    expect(body.reasoning_effort).toBe('none');
+    expect(body.max_completion_tokens).toBe(1000);
   });
 
   it('passes abort signal when provided', async () => {
@@ -66,15 +67,15 @@ describe('createChatStream', () => {
     await createChatStream([{ role: 'user', content: 'hi' }], 'sk-key', undefined, 200);
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.max_tokens).toBe(200);
+    expect(body.max_completion_tokens).toBe(200);
   });
 
-  it('falls back to default max_tokens when maxTokens is not provided', async () => {
+  it('falls back to default max_completion_tokens when maxTokens is not provided', async () => {
     mockFetch.mockResolvedValue({ ok: true, body: 'stream' });
 
     await createChatStream([{ role: 'user', content: 'hi' }], 'sk-key');
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.max_tokens).toBe(1000);
+    expect(body.max_completion_tokens).toBe(1000);
   });
 });

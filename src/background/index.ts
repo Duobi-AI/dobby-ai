@@ -2,6 +2,7 @@
 // All API calls from content scripts route through here (MV3 cross-origin constraint)
 
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../shared/autosuggest-limits.js';
+import { DEFAULT_OPENAI_MODEL, DEFAULT_REASONING_EFFORT } from '../shared/model-config.js';
 import { getLocalStorage, setLocalStorage } from '../shared/storage.js';
 
 import type {
@@ -240,10 +241,11 @@ chrome.runtime.onConnect.addListener((port) => {
             Authorization: `Bearer ${stored.userApiKey}`,
           },
           body: JSON.stringify({
-            model: 'gpt-4.1-mini',
+            model: DEFAULT_OPENAI_MODEL,
             messages,
             stream: true,
-            max_tokens: 1000,
+            reasoning_effort: DEFAULT_REASONING_EFFORT,
+            max_completion_tokens: 1000,
           }),
           signal: abortController.signal,
         });
@@ -333,10 +335,11 @@ chrome.runtime.onConnect.addListener((port) => {
             Authorization: `Bearer ${stored.userApiKey}`,
           },
           body: JSON.stringify({
-            model: 'gpt-4.1-mini',
+            model: DEFAULT_OPENAI_MODEL,
             messages,
             stream: true,
-            max_tokens: AUTOSUGGEST_MAX_SUGGESTION_TOKENS,
+            reasoning_effort: DEFAULT_REASONING_EFFORT,
+            max_completion_tokens: AUTOSUGGEST_MAX_SUGGESTION_TOKENS,
           }),
           signal: abortController.signal,
         });
