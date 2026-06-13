@@ -246,7 +246,7 @@ function PopupApp() {
       <SwitchRow
         id="autosuggest-enabled"
         label="Text auto-suggest"
-        title="Works in standard text fields (textarea). Gmail, Docs, and Notion support coming soon."
+        title="Works in standard textareas and rich-text editors such as LinkedIn chat, Gmail, and Notion."
         enabled={state.autosuggestEnabled}
         ariaLabel="Enable or disable auto-suggest"
         onChange={(enabled) => updateToggle('autosuggestEnabled', 'AUTOSUGGEST_TOGGLE', enabled)}
