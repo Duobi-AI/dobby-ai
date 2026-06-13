@@ -81,14 +81,14 @@ export function setScrollTimer(v: ReturnType<typeof setTimeout> | null) { scroll
 
 // Autosuggest state
 export let autosuggestEnabled = false;
-export let autosuggestActiveTextarea: HTMLTextAreaElement | null = null;
+export let autosuggestActiveEditor: HTMLElement | null = null;
 export let autosuggestCurrentSuggestion = '';
 export let autosuggestOverlayHost: HTMLDivElement | null = null;
 export let autosuggestPendingRequest: StreamRequestHandle | null = null;
 export let autosuggestDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function setAutosuggestEnabled(v: boolean) { autosuggestEnabled = v; }
-export function setAutosuggestActiveTextarea(v: HTMLTextAreaElement | null) { autosuggestActiveTextarea = v; }
+export function setAutosuggestActiveEditor(v: HTMLElement | null) { autosuggestActiveEditor = v; }
 export function setAutosuggestCurrentSuggestion(v: string) { autosuggestCurrentSuggestion = v; }
 export function setAutosuggestOverlayHost(v: HTMLDivElement | null) { autosuggestOverlayHost = v; }
 export function setAutosuggestPendingRequest(v: StreamRequestHandle | null) { autosuggestPendingRequest = v; }
@@ -96,7 +96,7 @@ export function setAutosuggestDebounceTimer(v: ReturnType<typeof setTimeout> | n
 
 export function resetAutosuggestState() {
   autosuggestEnabled = false;
-  autosuggestActiveTextarea = null;
+  autosuggestActiveEditor = null;
   autosuggestCurrentSuggestion = '';
   autosuggestOverlayHost = null;
   autosuggestPendingRequest = null;

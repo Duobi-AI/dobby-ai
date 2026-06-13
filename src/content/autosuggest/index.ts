@@ -1,29 +1,41 @@
-// src/content/autosuggest/index.js — Main lifecycle: textarea detection, input -> debounce -> API -> ghost text
+// src/content/autosuggest/index.js — Main lifecycle: editor detection, input -> debounce -> API -> ghost text
 import {
   autosuggestEnabled,
-  autosuggestActiveTextarea,
+  autosuggestActiveEditor,
   autosuggestCurrentSuggestion,
-  setAutosuggestActiveTextarea,
+  setAutosuggestActiveEditor,
   setAutosuggestPendingRequest,
 } from '../shared/state.js';
 import { debouncedSuggest, cancelPending } from './debounce.js';
 import { buildCompletionMessages, gatherPageContext } from './context.js';
 import { showGhostText, hideGhostText, acceptSuggestion } from './ghost-text.js';
 import { requestAutosuggest } from '../api.js';
+import {
+  getEditableRoot,
+  getEditorText,
+  hasCollapsedCaret,
+  type AutosuggestEditor,
+} from './editor.js';
 
 let focusinHandler: ((event: FocusEvent) => void) | null = null;
 let focusoutHandler: ((event: FocusEvent) => void) | null = null;
+let isComposing = false;
+let requestGeneration = 0;
 
 export function initAutosuggest() {
   if (!autosuggestEnabled) return;
   if (focusinHandler || focusoutHandler) return;
 
   focusinHandler = (e: FocusEvent) => {
-    if ((e.target as HTMLElement).tagName === 'TEXTAREA') attachToTextarea(e.target as HTMLTextAreaElement);
+    const editor = getEditableRoot(e.target);
+    if (editor) attachToEditor(editor);
   };
 
   focusoutHandler = (e: FocusEvent) => {
-    if (e.target === autosuggestActiveTextarea) detachFromTextarea();
+    const activeEditor = autosuggestActiveEditor;
+    if (!activeEditor || !(e.target instanceof Node) || !activeEditor.contains(e.target)) return;
+    if (e.relatedTarget instanceof Node && activeEditor.contains(e.relatedTarget)) return;
+    detachFromEditor();
   };
 
   document.addEventListener('focusin', focusinHandler);
@@ -31,7 +43,7 @@ export function initAutosuggest() {
 }
 
 export function destroyAutosuggest() {
-  detachFromTextarea();
+  detachFromEditor();
   if (focusinHandler) {
     document.removeEventListener('focusin', focusinHandler);
     focusinHandler = null;
@@ -42,53 +54,101 @@ export function destroyAutosuggest() {
   }
 }
 
-function attachToTextarea(textarea: HTMLTextAreaElement) {
-  if (autosuggestActiveTextarea) detachFromTextarea();
-  setAutosuggestActiveTextarea(textarea);
-  textarea.addEventListener('input', handleInput);
-  textarea.addEventListener('keydown', handleKeydown);
+function attachToEditor(editor: AutosuggestEditor) {
+  if (autosuggestActiveEditor === editor) return;
+  if (autosuggestActiveEditor) detachFromEditor();
+  setAutosuggestActiveEditor(editor);
+  editor.addEventListener('input', handleInput);
+  editor.addEventListener('keydown', handleKeydown);
+  editor.addEventListener('compositionstart', handleCompositionStart);
+  editor.addEventListener('compositionend', handleCompositionEnd);
+  editor.addEventListener('click', handleCaretChange);
+  editor.addEventListener('scroll', handleCaretChange);
 }
 
-function detachFromTextarea() {
-  const ta = autosuggestActiveTextarea;
-  if (ta) {
-    ta.removeEventListener('input', handleInput);
-    ta.removeEventListener('keydown', handleKeydown);
+function detachFromEditor() {
+  const editor = autosuggestActiveEditor;
+  if (editor) {
+    editor.removeEventListener('input', handleInput);
+    editor.removeEventListener('keydown', handleKeydown);
+    editor.removeEventListener('compositionstart', handleCompositionStart);
+    editor.removeEventListener('compositionend', handleCompositionEnd);
+    editor.removeEventListener('click', handleCaretChange);
+    editor.removeEventListener('scroll', handleCaretChange);
   }
-  cancelPending();
-  hideGhostText();
-  setAutosuggestActiveTextarea(null);
+  isComposing = false;
+  invalidateSuggestion();
+  setAutosuggestActiveEditor(null);
 }
 
 function handleInput(e: Event) {
-  hideGhostText();
-  const text = (e.target as HTMLTextAreaElement).value;
-  debouncedSuggest(text, (t) => requestSuggestionFromAPI(t, e.target as HTMLTextAreaElement));
+  invalidateSuggestion();
+  const editor = autosuggestActiveEditor;
+  if (!editor || !editor.isConnected || isComposing || (e as InputEvent).isComposing || !hasCollapsedCaret(editor)) {
+    return;
+  }
+  const text = getEditorText(editor);
+  debouncedSuggest(text, (t) => requestSuggestionFromAPI(t, editor));
 }
 
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'Tab' && autosuggestCurrentSuggestion) {
-    e.preventDefault();
-    acceptSuggestion(autosuggestActiveTextarea!);
+function handleKeydown(event: Event) {
+  const e = event as KeyboardEvent;
+  const editor = autosuggestActiveEditor;
+  if (e.key === 'Tab' && autosuggestCurrentSuggestion && editor) {
+    if (acceptSuggestion(editor)) e.preventDefault();
   } else if (e.key === 'Escape' && autosuggestCurrentSuggestion) {
-    hideGhostText();
+    invalidateSuggestion();
+  } else if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+    handleCaretChange();
   }
 }
 
-function requestSuggestionFromAPI(text: string, textarea: HTMLTextAreaElement) {
-  const messages = buildCompletionMessages(text, gatherPageContext(textarea));
+function handleCompositionStart() {
+  isComposing = true;
+  invalidateSuggestion();
+}
+
+function handleCompositionEnd() {
+  isComposing = false;
+}
+
+function handleCaretChange() {
+  invalidateSuggestion();
+}
+
+function invalidateSuggestion() {
+  requestGeneration += 1;
+  cancelPending();
+  hideGhostText();
+}
+
+function requestSuggestionFromAPI(text: string, editor: AutosuggestEditor) {
+  const messages = buildCompletionMessages(text, gatherPageContext(editor));
+  const requestId = ++requestGeneration;
 
   let accumulated = '';
   const handle = requestAutosuggest(
     messages,
     (token) => {
+      if (requestGeneration !== requestId) return;
+      if (
+        autosuggestActiveEditor !== editor
+        || !editor.isConnected
+        || getEditorText(editor) !== text
+        || !hasCollapsedCaret(editor)
+      ) {
+        invalidateSuggestion();
+        return;
+      }
       accumulated += token;
-      showGhostText(textarea, accumulated);
+      showGhostText(editor, accumulated);
     },
     () => {
-      // Done — suggestion is now in state via showGhostText
+      if (requestGeneration === requestId) setAutosuggestPendingRequest(null);
     },
     (code, message) => {
+      if (requestGeneration !== requestId) return;
+      setAutosuggestPendingRequest(null);
       console.error('[Dobby Autosuggest] API error:', code, message);
       hideGhostText();
     }

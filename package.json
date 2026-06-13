@@ -1,6 +1,6 @@
 {
   "name": "dobby-ai",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "private": true,
   "description": "Select text or screenshot any region on the web — get instant AI answers right where you are",
   "scripts": {
@@ -8,6 +8,10 @@
     "dev": "node esbuild.config.js --watch",
     "test": "vitest run",
     "test:e2e": "npm run build && npx playwright test",
+    "test:popular-sites:login": "npm run build && node scripts/verify-popular-sites.js login",
+    "test:popular-sites": "npm run build && node scripts/verify-popular-sites.js verify",
+    "test:popular-sites:linkedin": "npm run build && node scripts/verify-popular-sites.js verify linkedin",
+    "test:popular-sites:github": "npm run build && node scripts/verify-popular-sites.js verify github",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },

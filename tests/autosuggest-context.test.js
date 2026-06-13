@@ -82,6 +82,18 @@ describe('autosuggest context', () => {
     expect(ctx.fieldLabel).toBe('Description');
   });
 
+  it('gatherPageContext picks up contenteditable hints and labels', () => {
+    const editor = document.createElement('div');
+    editor.setAttribute('contenteditable', 'true');
+    editor.setAttribute('aria-label', 'Message');
+    editor.setAttribute('data-placeholder', 'Write a reply...');
+    document.body.appendChild(editor);
+
+    const ctx = gatherPageContext(editor);
+    expect(ctx.fieldLabel).toBe('Message');
+    expect(ctx.fieldHint).toBe('Write a reply...');
+  });
+
   it('gatherPageContext picks up sibling form fields', () => {
     const form = document.createElement('form');
     const input = document.createElement('input');

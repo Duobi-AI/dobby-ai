@@ -16,6 +16,10 @@ export function getGhostTextStyles() {
       white-space: pre-wrap;
       word-wrap: break-word;
     }
+    .ghost-container.contenteditable {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
     .ghost-mirror {
       visibility: hidden;
     }

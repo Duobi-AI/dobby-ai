@@ -8,6 +8,7 @@ import {
   setAutosuggestCurrentSuggestion,
 } from '../src/content/shared/state.js';
 import { showGhostText } from '../src/content/autosuggest/ghost-text.js';
+import { requestAutosuggest } from '../src/content/api.js';
 
 // Mock the API module
 vi.mock('../src/content/api.js', () => ({
@@ -22,15 +23,21 @@ vi.mock('../src/content/api.js', () => ({
 describe('autosuggest lifecycle', () => {
   let initAutosuggest, destroyAutosuggest;
   let textarea;
+  let editor;
 
   beforeEach(async () => {
     vi.useFakeTimers();
     resetAutosuggestState();
     setAutosuggestEnabled(true);
+    vi.clearAllMocks();
 
     textarea = document.createElement('textarea');
     textarea.style.cssText = 'font-size:16px;font-family:monospace;padding:8px;line-height:20px;';
     document.body.appendChild(textarea);
+    editor = document.createElement('div');
+    editor.setAttribute('contenteditable', 'true');
+    editor.textContent = 'Hello rich editor';
+    document.body.appendChild(editor);
 
     textarea.getBoundingClientRect = vi.fn(() => ({
       top: 100, left: 50, width: 400, height: 200, bottom: 300, right: 450,
@@ -88,12 +95,61 @@ describe('autosuggest lifecycle', () => {
     expect(removeSpy.mock.calls.filter((c) => c[0] === 'keydown')).toHaveLength(0);
   });
 
+  it('monitors a nested target through its contenteditable root', () => {
+    const child = document.createElement('span');
+    editor.appendChild(child);
+    const addSpy = vi.spyOn(editor, 'addEventListener');
+
+    initAutosuggest();
+    child.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+
+    expect(addSpy.mock.calls.filter((c) => c[0] === 'input')).toHaveLength(1);
+    expect(addSpy.mock.calls.filter((c) => c[0] === 'keydown')).toHaveLength(1);
+  });
+
   it('starts monitoring textarea on focus', () => {
     initAutosuggest();
     textarea.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
     textarea.value = 'Hello world this is a test';
     textarea.selectionStart = textarea.value.length;
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(document.querySelector('[data-dobby-autosuggest]')).toBeNull();
+  });
+
+  it('does not request suggestions while an IME composition is active', () => {
+    initAutosuggest();
+    textarea.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    textarea.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    textarea.value = 'Hello world this is composing';
+    textarea.selectionStart = textarea.value.length;
+    textarea.selectionEnd = textarea.value.length;
+    textarea.dispatchEvent(new InputEvent('input', { bubbles: true, isComposing: true }));
+    vi.advanceTimersByTime(1000);
+
+    expect(requestAutosuggest).not.toHaveBeenCalled();
+  });
+
+  it('ignores late tokens from a superseded request', () => {
+    let lateToken;
+    requestAutosuggest.mockImplementationOnce((messages, onToken) => {
+      lateToken = onToken;
+      return { cancel: vi.fn() };
+    });
+
+    initAutosuggest();
+    textarea.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    textarea.value = 'First request text';
+    textarea.selectionStart = textarea.value.length;
+    textarea.selectionEnd = textarea.value.length;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    vi.advanceTimersByTime(500);
+
+    textarea.value = 'Newer request text';
+    textarea.selectionStart = textarea.value.length;
+    textarea.selectionEnd = textarea.value.length;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    lateToken('stale suggestion');
+
     expect(document.querySelector('[data-dobby-autosuggest]')).toBeNull();
   });
 
@@ -122,6 +178,18 @@ describe('autosuggest lifecycle', () => {
     showGhostText(textarea, 'world');
 
     textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(document.querySelector('[data-dobby-autosuggest]')).toBeNull();
+  });
+
+  it('scrolling the active editor dismisses the suggestion', () => {
+    initAutosuggest();
+    textarea.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    textarea.value = 'Hello ';
+    textarea.selectionStart = 6;
+    showGhostText(textarea, 'world');
+
+    textarea.dispatchEvent(new Event('scroll'));
+
     expect(document.querySelector('[data-dobby-autosuggest]')).toBeNull();
   });
 

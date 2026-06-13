@@ -24,6 +24,8 @@ describe('ghost text overlay', () => {
     window.getComputedStyle = vi.fn(() => ({
       fontSize: '16px',
       fontFamily: 'monospace',
+      fontWeight: '400',
+      fontStyle: 'normal',
       lineHeight: '20px',
       paddingTop: '8px',
       paddingLeft: '8px',
@@ -96,5 +98,58 @@ describe('ghost text overlay', () => {
     textarea.addEventListener('input', inputSpy);
     acceptSuggestion(textarea);
     expect(inputSpy).toHaveBeenCalled();
+  });
+
+  it('positions contenteditable ghost text at the caret', () => {
+    const editor = document.createElement('div');
+    editor.setAttribute('contenteditable', 'true');
+    editor.textContent = 'Hello ';
+    document.body.appendChild(editor);
+    editor.getBoundingClientRect = vi.fn(() => ({
+      top: 100, left: 50, width: 400, height: 40, bottom: 140, right: 450,
+    }));
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    range.getBoundingClientRect = vi.fn(() => ({
+      top: 110, left: 120, width: 0, height: 20, bottom: 130, right: 120,
+    }));
+    range.cloneRange = vi.fn(() => range);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    showGhostText(editor, 'world');
+
+    const host = document.querySelector('[data-dobby-autosuggest]');
+    expect(host.style.left).toBe('120px');
+    expect(host.shadowRoot.querySelector('.ghost-container').classList.contains('contenteditable')).toBe(true);
+  });
+
+  it('wraps contenteditable ghost text inside the editor near the right edge', () => {
+    const editor = document.createElement('div');
+    editor.setAttribute('contenteditable', 'true');
+    editor.textContent = 'Hello ';
+    document.body.appendChild(editor);
+    editor.getBoundingClientRect = vi.fn(() => ({
+      top: 100, left: 50, width: 400, height: 80, bottom: 180, right: 450,
+    }));
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    range.getBoundingClientRect = vi.fn(() => ({
+      top: 110, left: 430, width: 0, height: 20, bottom: 130, right: 430,
+    }));
+    range.cloneRange = vi.fn(() => range);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    showGhostText(editor, 'world');
+
+    const host = document.querySelector('[data-dobby-autosuggest]');
+    expect(host.style.top).toBe('130px');
+    expect(host.style.left).toBe('50px');
+    expect(host.style.maxWidth).toBe('400px');
   });
 });

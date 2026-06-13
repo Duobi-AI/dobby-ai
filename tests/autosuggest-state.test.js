@@ -17,7 +17,7 @@ describe('autosuggest state', () => {
   it('exports autosuggest state variables with correct defaults', async () => {
     const state = await import('../src/content/shared/state.js');
     expect(state.autosuggestEnabled).toBe(false);
-    expect(state.autosuggestActiveTextarea).toBeNull();
+    expect(state.autosuggestActiveEditor).toBeNull();
     expect(state.autosuggestCurrentSuggestion).toBe('');
     expect(state.autosuggestOverlayHost).toBeNull();
     expect(state.autosuggestPendingRequest).toBeNull();
@@ -41,7 +41,7 @@ describe('autosuggest state', () => {
     state.setAutosuggestCurrentSuggestion('test');
     state.resetAutosuggestState();
     expect(state.autosuggestEnabled).toBe(false);
-    expect(state.autosuggestActiveTextarea).toBeNull();
+    expect(state.autosuggestActiveEditor).toBeNull();
     expect(state.autosuggestCurrentSuggestion).toBe('');
     expect(state.autosuggestOverlayHost).toBeNull();
     expect(state.autosuggestPendingRequest).toBeNull();
