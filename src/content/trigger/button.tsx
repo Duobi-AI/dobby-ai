@@ -8,6 +8,7 @@ import { watchThemeChanges } from '../../shared/theme.js';
 import { mountReactRoot } from '../../shared/react-root.js';
 import { getColorPalette } from '../../shared/color-palette.js';
 import { buildChatMessages } from '../prompt.js';
+import { gatherCurrentTabContext } from '../page-context.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
 import {
   setToolbarHost, setToolbarState,
@@ -216,7 +217,8 @@ function morphIntoBubble(
 
     // Build messages
     const text = host._selectedText || '';
-    const messages = buildChatMessages(text, instruction, true, images as ImageContentPart[] | undefined);
+    const pageContext = gatherCurrentTabContext({ selectedText: text, anchorNode: host._anchorNode || null });
+    const messages = buildChatMessages(text, instruction, true, images as ImageContentPart[] | undefined, pageContext);
 
     // Crossfade: start bubble creation and toolbar fade simultaneously.
     // showBubble is async (theme read) but the fade timer is independent of that.

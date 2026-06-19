@@ -7,6 +7,7 @@ import { registerListeners } from './trigger/selection.js';
 import { hideTrigger } from './trigger/button.js';
 import { showBubbleWithPresets, showBubble, showHistoryBubble, hideBubble, getBubbleContainer } from './bubble/core.js';
 import { buildChatMessages } from './prompt.js';
+import { gatherCurrentTabContext } from './page-context.js';
 import { captureImage } from './image-capture.js';
 import { isClickInsideUI } from './shared/dom-utils.js';
 import { loadUsageData } from './shared/preset-usage.js';
@@ -93,8 +94,10 @@ chrome.runtime.onMessage.addListener((msg: ContentRuntimeMessage) => {
     }
 
     const instruction = 'Explain the following';
-    const messages = buildChatMessages(msg.text as string, instruction, true);
-    (async () => { await showBubble(rect, messages, msg.text as string, instruction); })();
+    const text = msg.text as string;
+    const pageContext = gatherCurrentTabContext({ selectedText: text });
+    const messages = buildChatMessages(text, instruction, true, undefined, pageContext);
+    (async () => { await showBubble(rect, messages, text, instruction); })();
   }
 });
 

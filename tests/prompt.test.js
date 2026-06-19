@@ -1,14 +1,14 @@
 // tests/prompt.test.js
-import { buildChatMessages, buildFollowUp, MAX_TEXT_LENGTH } from '../src/content/prompt.js';
+import { buildChatMessages, buildFollowUp, MAX_TOTAL_PROMPT_CHARS } from '../src/content/prompt.js';
 
 const SYSTEM_MSG = {
   role: 'system',
-  content: 'You are Dobby AI, a helpful assistant. The user has selected text on a webpage and the full selected text is provided below. Do NOT attempt to access, fetch, or visit any URLs — the text content is already included in the message. A source URL may be provided as metadata only. Be concise and clear. Always respond in the same language as the selected text.',
+  content: expect.stringContaining('current tab context'),
 };
 
-describe('MAX_TEXT_LENGTH', () => {
-  it('matches the proxy total text budget', () => {
-    expect(MAX_TEXT_LENGTH).toBe(6000);
+describe('MAX_TOTAL_PROMPT_CHARS', () => {
+  it('matches the expanded current-tab context budget', () => {
+    expect(MAX_TOTAL_PROMPT_CHARS).toBe(64000);
   });
 });
 
@@ -52,10 +52,10 @@ describe('buildChatMessages', () => {
   });
 
   it('truncates selected text so total text payload fits the proxy limit', () => {
-    const longText = 'a'.repeat(MAX_TEXT_LENGTH + 500);
+    const longText = 'a'.repeat(MAX_TOTAL_PROMPT_CHARS + 500);
     const result = buildChatMessages(longText, 'Summarize the following', true);
     const userContent = result[1].content;
-    expect(totalTextChars(result)).toBeLessThanOrEqual(MAX_TEXT_LENGTH);
+    expect(totalTextChars(result)).toBeLessThanOrEqual(MAX_TOTAL_PROMPT_CHARS);
     expect(userContent).toContain('...[truncated]');
   });
 
@@ -65,9 +65,9 @@ describe('buildChatMessages', () => {
     expect(result[1].content).toBe(text);
   });
 
-  it('appends page context when includePageContext is true', () => {
+  it('appends source metadata when includePageContext is true without extracted context', () => {
     const result = buildChatMessages('hello', '', true);
-    expect(result[1].content).toContain('(Source:');
+    expect(result[1].content).toContain('Source:');
   });
 
   it('does not append page context when false', () => {
@@ -84,7 +84,46 @@ describe('buildChatMessages', () => {
   it('instruction + text + page context are combined correctly', () => {
     const result = buildChatMessages('some text', 'Summarize the following', true);
     const content = result[1].content;
-    expect(content).toMatch(/^Summarize the following:\n\nsome text\n\n\(Source:/);
+    expect(content).toContain('Task:\nSummarize the following');
+    expect(content).toContain('Selected text:\nsome text');
+    expect(content).toContain('Source:');
+  });
+
+  it('includes extracted current-tab context as a structured prompt section', () => {
+    const result = buildChatMessages('selected renewal sentence', 'Explain', true, undefined, {
+      title: 'Renewal dashboard',
+      url: 'https://example.com/accounts',
+      text: 'Enterprise renewal risk increased after a pricing change.',
+      extractionMode: 'main',
+      originalChars: 1000,
+      cleanedChars: 120,
+      truncated: false,
+    });
+
+    expect(result[0]).toEqual(SYSTEM_MSG);
+    expect(result[1].content).toContain('Task:\nExplain');
+    expect(result[1].content).toContain('Selected text:\nselected renewal sentence');
+    expect(result[1].content).toContain('Current tab context:\nEnterprise renewal risk increased');
+    expect(result[1].content).toContain('Source:\n"Renewal dashboard" — https://example.com/accounts');
+  });
+
+  it('preserves selected text when extracted page context is long', () => {
+    const selectedText = 'critical selected sentence that must remain intact';
+    const result = buildChatMessages(selectedText, 'Explain', true, undefined, {
+      title: 'Long document',
+      url: 'https://example.com/long',
+      text: 'context '.repeat(MAX_TOTAL_PROMPT_CHARS),
+      extractionMode: 'body',
+      originalChars: 200000,
+      cleanedChars: 180000,
+      truncated: true,
+    });
+
+    const content = result[1].content;
+    expect(totalTextChars(result)).toBeLessThanOrEqual(MAX_TOTAL_PROMPT_CHARS);
+    expect(content).toContain(`Selected text:\n${selectedText}`);
+    expect(content).toContain('Current tab context:');
+    expect(content).toContain('...[truncated]');
   });
 
   it('returns string content when no images', () => {

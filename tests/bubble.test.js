@@ -130,6 +130,7 @@ describe('bubble.js', () => {
         'Explain the following',
         true,
         undefined,
+        expect.objectContaining({ extractionMode: 'body', url: expect.any(String) }),
       );
       expect(shadow.querySelector('.presets-section').classList.contains('collapsed')).toBe(true);
     });
@@ -153,6 +154,7 @@ describe('bubble.js', () => {
         'Custom instruction',
         true,
         undefined,
+        expect.objectContaining({ extractionMode: 'body', url: expect.any(String) }),
       );
     });
 

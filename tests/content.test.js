@@ -110,6 +110,8 @@ describe('content/index.js', () => {
         'hello world',
         'Explain the following',
         true,
+        undefined,
+        expect.objectContaining({ extractionMode: 'body', url: expect.any(String) }),
       );
       expect(showBubble).toHaveBeenCalledWith(
         expect.objectContaining({ bottom: expect.any(Number), left: expect.any(Number), right: expect.any(Number) }),

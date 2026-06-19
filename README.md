@@ -12,7 +12,7 @@
   <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml/badge.svg" alt="Security"></a>
   <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml/badge.svg" alt="Coverage"></a>
-  <img src="https://img.shields.io/badge/version-1.2.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.4.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/manifest-v3-green" alt="Manifest V3">
   <a href="https://github.com/Duobi-AI/dobby-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
   <a href="https://chromewebstore.google.com/detail/fobblgpebpnelefaneijkpbcljdlofoo?utm_source=item-share-cb"><img src="https://img.shields.io/badge/chrome-web%20store-orange?logo=googlechrome&logoColor=white" alt="Chrome Web Store"></a>
@@ -50,6 +50,7 @@ Dobby AI is a Chrome extension that brings AI directly into your browsing workfl
 
 ### Text Intelligence
 - **Inline AI responses** — frosted glass bubble right next to your selection, no tab-switching
+- **Current-tab context** — Dobby extracts useful page headings, nearby text, and main content by default so short selections make sense in context
 - **Streaming responses** — see the AI's answer as it's generated, with live markdown rendering
 - **Smart content detection** — automatically detects code, errors, math, emails, data, foreign languages and suggests relevant presets
 - **Language-aware** — responds in the same language as your selected text
@@ -211,7 +212,7 @@ E2E tests run inside `ci.yml`; there is no separate `e2e.yml` workflow.
 
 ## Privacy
 
-Dobby AI collects **zero data**. No accounts, no analytics, no cookies, no telemetry. Your selected text and screenshots are sent to the OpenAI API (directly with your key, or through a secure proxy) and never stored. See [PRIVACY.md](PRIVACY.md) for details.
+Dobby AI collects **zero data**. No accounts, no analytics, no cookies, no telemetry. Your selected text, extracted current-tab context, screenshots, and images may be sent to the OpenAI API (directly with your key, or through a secure proxy) and are never stored by Dobby's proxy. See [PRIVACY.md](PRIVACY.md) for details.
 
 ## License
 

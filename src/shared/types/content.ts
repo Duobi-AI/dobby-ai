@@ -63,6 +63,18 @@ export type AutosuggestPageContext = {
   surroundingText?: string;
 };
 
+export type CurrentTabContextExtractionMode = 'article' | 'main' | 'body' | 'none';
+
+export type CurrentTabContext = {
+  title: string;
+  url: string;
+  text: string;
+  extractionMode: CurrentTabContextExtractionMode;
+  originalChars: number;
+  cleanedChars: number;
+  truncated: boolean;
+};
+
 export type CaptureRect = {
   x: number;
   y: number;

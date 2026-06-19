@@ -10,8 +10,8 @@ Dobby AI is a Chrome extension that lets users select webpage text, capture sele
 
 Dobby AI handles data only when needed to provide user-facing extension features:
 
-- **Website content:** selected webpage text, selected images, screenshots, nearby page context for auto-suggest, and user-entered prompts.
-- **Webpage metadata:** page title and URL may be included when page context or auto-suggest is enabled, and may be saved with local conversation history.
+- **Website content:** selected webpage text, extracted current-tab context, selected images, screenshots, nearby page context for auto-suggest, and user-entered prompts.
+- **Webpage metadata:** page title and URL may be included with selected-text answers, page context, or auto-suggest, and may be saved with local conversation history.
 - **Authentication information:** if you choose to use your own OpenAI API key, the key is stored locally in Chrome extension storage and used only to send your requests to OpenAI.
 - **Extension settings and usage state:** preferences, feature toggles, local usage counters, and local conversation history are stored with Chrome's local extension storage.
 
@@ -21,7 +21,8 @@ Dobby AI does not collect names, email addresses, payment information, health in
 
 Dobby AI uses handled data only to provide or improve its single purpose: answering user-selected webpage content and assisting with user-initiated writing.
 
-- Selected text, screenshots, images, prompts, and optional page context are sent to an AI model so the model can generate the requested answer or suggestion.
+- Selected text, extracted current-tab context, screenshots, images, prompts, and auto-suggest context are sent to an AI model so the model can generate the requested answer or suggestion.
+- Current-tab context extraction is local and attempts to prioritize useful page information such as headings, nearby selected-text context, and main content while excluding common page chrome and editable/form fields such as navigation, footers, inputs, textareas, and contenteditable regions.
 - If you provide your own OpenAI API key, requests are sent directly from the extension to the OpenAI API over HTTPS.
 - If you do not provide your own API key, requests are relayed through the Dobby AI proxy over HTTPS and then sent to OpenAI. The proxy relays requests and responses for the feature and does not store prompt content or model responses.
 - Local conversation history is stored only in your browser and can be cleared from the extension popup.
@@ -33,7 +34,7 @@ Dobby AI does not sell user data and does not transfer user data for advertising
 
 Data may be processed by the following services only as needed to provide the extension's AI features:
 
-- **OpenAI API:** processes selected content, prompts, images, screenshots, and optional page context to generate AI responses.
+- **OpenAI API:** processes selected content, prompts, images, screenshots, extracted current-tab context, and auto-suggest context to generate AI responses.
 - **Cloudflare Workers:** hosts the Dobby AI proxy used when a user does not provide their own OpenAI API key.
 
 These services process data according to their own terms and privacy policies.
@@ -42,6 +43,7 @@ These services process data according to their own terms and privacy policies.
 
 - Your OpenAI API key, settings, usage counters, and conversation history are stored locally in your browser.
 - Conversation history is limited to recent conversations and can be cleared from the extension popup.
+- Extracted current-tab context is cached only in memory for a short time while the page is open and is not written to Chrome storage by Dobby.
 - Your OpenAI API key can be removed from the extension settings page.
 - Removing the extension removes its local extension storage from Chrome.
 
