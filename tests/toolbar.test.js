@@ -391,7 +391,13 @@ describe('input mode', () => {
     inputField.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 
     expect(showBubble).toHaveBeenCalledTimes(1);
-    expect(buildChatMessages).toHaveBeenCalledWith('test text', 'What does this mean?', true, null);
+    expect(buildChatMessages).toHaveBeenCalledWith(
+      'test text',
+      'What does this mean?',
+      true,
+      null,
+      expect.objectContaining({ extractionMode: 'body', url: expect.any(String) }),
+    );
   });
 
   it('send button click with text calls showBubble', async () => {
@@ -516,7 +522,13 @@ describe('preset click opens bubble', () => {
     toolbar.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     shadow.querySelector('.toolbar-action').click();
 
-    expect(buildChatMessages).toHaveBeenCalledWith('test text', 'Summarize the following', true, null);
+    expect(buildChatMessages).toHaveBeenCalledWith(
+      'test text',
+      'Summarize the following',
+      true,
+      null,
+      expect.objectContaining({ extractionMode: 'body', url: expect.any(String) }),
+    );
   });
 
   it('includes images intersecting the text selection when opening the bubble', async () => {
@@ -549,7 +561,13 @@ describe('preset click opens bubble', () => {
     await Promise.resolve();
 
     expect(captureImage).toHaveBeenCalledWith(img);
-    expect(buildChatMessages).toHaveBeenCalledWith('test text', 'Summarize the following', true, [image]);
+    expect(buildChatMessages).toHaveBeenCalledWith(
+      'test text',
+      'Summarize the following',
+      true,
+      [image],
+      expect.objectContaining({ extractionMode: 'body', url: expect.any(String) }),
+    );
     expect(showBubble.mock.calls.at(-1)[4]).toEqual([image]);
   });
 

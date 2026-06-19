@@ -18,6 +18,7 @@ import { clearHistoryPanel, restoreHistoryEntry, showHistoryPanel } from './hist
 import { detectContentType } from '../detection.js';
 import { getSuggestedPresetsForType } from '../presets.js';
 import { buildChatMessages } from '../prompt.js';
+import { gatherCurrentTabContext } from '../page-context.js';
 import { recordPresetUsage, buildTypeKey } from '../shared/preset-usage.js';
 import type {
   BubbleHost,
@@ -226,9 +227,11 @@ function launchFromPreset(
   shadow: ShadowRoot,
   selectedText: string,
   instruction: string,
+  anchorNode: Node | null,
   images?: ImageContentPart[] | null,
 ): void {
-  const messages = buildChatMessages(selectedText, instruction, true, images as ImageContentPart[] | undefined);
+  const pageContext = gatherCurrentTabContext({ selectedText, anchorNode });
+  const messages = buildChatMessages(selectedText, instruction, true, images as ImageContentPart[] | undefined, pageContext);
   setCurrentMessages(messages);
 
   setBubblePreviewLabel(instruction);
@@ -266,10 +269,10 @@ export async function showBubbleWithPresets(
       : 'Or type a custom prompt...',
     onPreset: (preset: Preset) => {
       recordPresetUsage(buildTypeKey(detected.type, detected.subType), preset.label);
-      launchFromPreset(shadow, selectedText, preset.instruction, images);
+      launchFromPreset(shadow, selectedText, preset.instruction, anchorNode, images);
     },
     onCustom: (instruction: string) => {
-      launchFromPreset(shadow, selectedText, instruction, images);
+      launchFromPreset(shadow, selectedText, instruction, anchorNode, images);
     },
     onEscape: hideBubble,
   };

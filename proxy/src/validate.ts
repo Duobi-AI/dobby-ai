@@ -3,7 +3,7 @@ import type { ChatMessage, ProxyChatPayload } from '../../src/shared/types';
 import type { ValidationResult } from './types';
 
 const MAX_MESSAGES = 20;
-const MAX_TOTAL_CHARS = 6000;
+const MAX_TOTAL_CHARS = 64_000;
 const TIMESTAMP_WINDOW_SECONDS = 300; // 5 minutes
 
 const validRoles = ['system', 'user', 'assistant'] as const;

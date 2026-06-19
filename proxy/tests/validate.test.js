@@ -34,20 +34,20 @@ describe('validatePayload', () => {
     expect(validatePayload({ messages, signature: 'x', timestamp: 1 }).valid).toBe(false);
   });
 
-  it('rejects total content exceeding 6000 chars', () => {
-    const messages = [{ role: 'user', content: 'a'.repeat(6001) }];
+  it('rejects total content exceeding 64000 chars', () => {
+    const messages = [{ role: 'user', content: 'a'.repeat(64001) }];
     expect(validatePayload({ messages, signature: 'x', timestamp: 1 }).valid).toBe(false);
   });
 
-  it('accepts content at exactly 6000 chars', () => {
-    const messages = [{ role: 'user', content: 'a'.repeat(6000) }];
+  it('accepts content at exactly 64000 chars', () => {
+    const messages = [{ role: 'user', content: 'a'.repeat(64000) }];
     expect(validatePayload({ messages, signature: 'x', timestamp: 1 }).valid).toBe(true);
   });
 
   it('sums content across multiple messages', () => {
     const messages = [
-      { role: 'user', content: 'a'.repeat(3000) },
-      { role: 'assistant', content: 'b'.repeat(3001) },
+      { role: 'user', content: 'a'.repeat(32000) },
+      { role: 'assistant', content: 'b'.repeat(32001) },
     ];
     expect(validatePayload({ messages, signature: 'x', timestamp: 1 }).valid).toBe(false);
   });
@@ -200,7 +200,7 @@ describe('validatePayload', () => {
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: 'a'.repeat(6001) },
+          { type: 'text', text: 'a'.repeat(64001) },
         ],
       }],
       signature: 'x',
