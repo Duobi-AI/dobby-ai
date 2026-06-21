@@ -23,10 +23,23 @@ vi.mock('../src/openai.js', () => ({
   ),
 }));
 
+vi.mock('../src/access-token.js', () => ({
+  ACCESS_TOKEN_HEADER: 'X-Dobby-Access-Token',
+  issueAccessToken: vi.fn(() => Promise.resolve({
+    token: 'proxy-access-token',
+    expiresAt: '2026-06-28T00:00:00.000Z',
+  })),
+  verifyAccessToken: vi.fn(() => Promise.resolve({
+    valid: true,
+    tokenHash: 'token-hash',
+  })),
+}));
+
 import handler from '../src/index.js';
 import { validatePayload, verifyHmac } from '../src/validate.js';
 import { checkRateLimit, incrementCounters } from '../src/rate-limit.js';
 import { createChatStream } from '../src/openai.js';
+import { issueAccessToken, verifyAccessToken } from '../src/access-token.js';
 
 function makeRequest(path, options = {}) {
   const url = `https://proxy.workers.dev${path}`;
@@ -54,6 +67,7 @@ describe('CORS preflight', () => {
     const res = await handler.fetch(req, makeEnv());
     expect(res.status).toBe(204);
     expect(res.headers.get('Access-Control-Allow-Methods')).toContain('POST');
+    expect(res.headers.get('Access-Control-Allow-Headers')).toContain('X-Dobby-Access-Token');
   });
 
   it('returns CORS headers matching request origin', async () => {
@@ -100,11 +114,51 @@ describe('routing', () => {
   });
 });
 
+describe('POST /access-token', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    issueAccessToken.mockResolvedValue({
+      token: 'proxy-access-token',
+      expiresAt: '2026-06-28T00:00:00.000Z',
+    });
+  });
+
+  it('issues a server-side proxy access token for the caller IP', async () => {
+    const req = makeRequest('/access-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await handler.fetch(req, makeEnv());
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      token: 'proxy-access-token',
+      expiresAt: '2026-06-28T00:00:00.000Z',
+    });
+    expect(issueAccessToken).toHaveBeenCalledWith('1.2.3.4', expect.anything());
+  });
+
+  it('returns 429 when access token issuance is rate limited', async () => {
+    issueAccessToken.mockResolvedValue({
+      error: 'Access token issuance limit reached',
+      retryAfter: 3600,
+    });
+    const req = makeRequest('/access-token', { method: 'POST' });
+
+    const res = await handler.fetch(req, makeEnv());
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('3600');
+  });
+});
+
 describe('POST /chat', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     validatePayload.mockReturnValue({ valid: true });
     verifyHmac.mockResolvedValue(true);
+    verifyAccessToken.mockResolvedValue({ valid: true, tokenHash: 'token-hash' });
     checkRateLimit.mockResolvedValue({ allowed: true, remaining: 29 });
     incrementCounters.mockResolvedValue();
     createChatStream.mockResolvedValue({ ok: true, status: 200, body: new ReadableStream() });
@@ -130,6 +184,22 @@ describe('POST /chat', () => {
     });
     const res = await handler.fetch(req, makeEnv());
     expect(res.status).toBe(403);
+  });
+
+  it('returns 401 when the proxy access token is missing or invalid', async () => {
+    verifyAccessToken.mockResolvedValue({ valid: false, reason: 'missing proxy access token' });
+    const req = makeRequest('/chat', {
+      method: 'POST',
+      body: { messages: [{ role: 'user', content: 'hi' }], signature: 'x', timestamp: 1 },
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await handler.fetch(req, makeEnv());
+
+    expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toEqual({ error: 'missing proxy access token' });
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(createChatStream).not.toHaveBeenCalled();
   });
 
   it('returns 429 when rate limited', async () => {
@@ -191,8 +261,8 @@ describe('POST /chat', () => {
       headers: { 'Content-Type': 'application/json' },
     });
     await handler.fetch(req, makeEnv());
-    expect(checkRateLimit).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'autosuggest');
-    expect(incrementCounters).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'autosuggest');
+    expect(checkRateLimit).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'autosuggest', 'token-hash');
+    expect(incrementCounters).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'autosuggest', 'token-hash');
   });
 
   it('defaults purpose to chat when not specified', async () => {
@@ -202,8 +272,8 @@ describe('POST /chat', () => {
       headers: { 'Content-Type': 'application/json' },
     });
     await handler.fetch(req, makeEnv());
-    expect(checkRateLimit).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'chat');
-    expect(incrementCounters).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'chat');
+    expect(checkRateLimit).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'chat', 'token-hash');
+    expect(incrementCounters).toHaveBeenCalledWith('1.2.3.4', expect.anything(), 'chat', 'token-hash');
   });
 
   it('passes the shared autosuggest token limit to createChatStream for autosuggest', async () => {

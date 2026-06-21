@@ -42,6 +42,7 @@ export type StorageState = {
   autosuggestEnabled?: boolean;
   theme?: ThemeMode;
   userApiKey?: string;
+  proxyAccessToken?: string;
   dobbyUsage?: UsageState;
   chatHistory?: HistoryEntry[];
   presetUsage?: PresetUsage;

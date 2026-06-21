@@ -6,6 +6,7 @@ const mockCreate = vi.fn();
 const mockSendMessage = vi.fn();
 const mockStorageGet = vi.fn();
 const mockStorageSet = vi.fn();
+const mockStorageRemove = vi.fn();
 const mockTabsQuery = vi.fn();
 const connectListeners = [];
 const messageListeners = [];
@@ -33,6 +34,7 @@ global.chrome = {
     local: {
       get: mockStorageGet,
       set: mockStorageSet,
+      remove: mockStorageRemove,
     },
   },
   notifications: {
@@ -384,8 +386,20 @@ describe('chat-stream integration', () => {
     return { ok: true, status: 200, body, headers: { get: (k) => headers.get(k) } };
   }
 
+  function makeAccessTokenResponse(token = 'proxy-access-token') {
+    return {
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
+        token,
+        expiresAt: '2026-06-28T00:00:00.000Z',
+      }),
+    };
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
+    fetch.mockReset();
     mockStorageGet.mockImplementation((key) => Promise.resolve({}));
   });
 
@@ -394,7 +408,9 @@ describe('chat-stream integration', () => {
     const connectHandler = connectListeners[0];
     connectHandler(port);
 
-    fetch.mockResolvedValue(makeSSEResponse([
+    fetch
+      .mockResolvedValueOnce(makeAccessTokenResponse())
+      .mockResolvedValueOnce(makeSSEResponse([
       'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\n',
       'data: [DONE]\n\n',
     ]));
@@ -407,9 +423,11 @@ describe('chat-stream integration', () => {
       expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'done', remaining: 25, usingOwnKey: false }));
     });
 
-    // Verify it called proxy URL (not OpenAI directly)
-    const calledUrl = fetch.mock.calls[0][0];
+    expect(fetch.mock.calls[0][0]).toContain('/access-token');
+    const calledUrl = fetch.mock.calls[1][0];
     expect(calledUrl).toContain('workers.dev');
+    expect(fetch.mock.calls[1][1].headers['X-Dobby-Access-Token']).toBe('proxy-access-token');
+    expect(mockStorageSet).toHaveBeenCalledWith({ proxyAccessToken: 'proxy-access-token' });
   });
 
   it('records chat usage with remaining free quota', async () => {
@@ -417,7 +435,9 @@ describe('chat-stream integration', () => {
     const connectHandler = connectListeners[0];
     connectHandler(port);
 
-    fetch.mockResolvedValue(makeSSEResponse([
+    fetch
+      .mockResolvedValueOnce(makeAccessTokenResponse())
+      .mockResolvedValueOnce(makeSSEResponse([
       'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\n',
       'data: [DONE]\n\n',
     ]));
@@ -463,12 +483,61 @@ describe('chat-stream integration', () => {
     expect(body.max_completion_tokens).toBe(1000);
   });
 
+  it('reuses a stored proxy access token for no-key chat requests', async () => {
+    const { port, getHandler } = createStreamPort();
+    const connectHandler = connectListeners[0];
+    connectHandler(port);
+
+    mockStorageGet.mockImplementation((key) => Promise.resolve({ proxyAccessToken: 'stored-token' }));
+    fetch.mockResolvedValue(makeSSEResponse([
+      'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]));
+
+    const handler = getHandler();
+    await handler({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    expect(fetch.mock.calls[0][1].headers['X-Dobby-Access-Token']).toBe('stored-token');
+  });
+
+  it('refreshes the proxy access token once when the proxy rejects it', async () => {
+    const { port, getHandler } = createStreamPort();
+    const connectHandler = connectListeners[0];
+    connectHandler(port);
+
+    mockStorageGet.mockImplementation((key) => Promise.resolve({ proxyAccessToken: 'expired-token' }));
+    fetch
+      .mockResolvedValueOnce({ ok: false, status: 401, text: () => Promise.resolve('Unauthorized') })
+      .mockResolvedValueOnce(makeAccessTokenResponse('fresh-token'))
+      .mockResolvedValueOnce(makeSSEResponse([
+        'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\n',
+        'data: [DONE]\n\n',
+      ]));
+
+    const handler = getHandler();
+    await handler({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    await vi.waitFor(() => {
+      expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'done', remaining: 25, usingOwnKey: false }));
+    });
+
+    expect(fetch.mock.calls[0][1].headers['X-Dobby-Access-Token']).toBe('expired-token');
+    expect(fetch.mock.calls[1][0]).toContain('/access-token');
+    expect(fetch.mock.calls[2][1].headers['X-Dobby-Access-Token']).toBe('fresh-token');
+  });
+
   it('forwards 429 rate limit as rate_limited message', async () => {
     const { port, getHandler } = createStreamPort();
     const connectHandler = connectListeners[0];
     connectHandler(port);
 
-    fetch.mockResolvedValue({ ok: false, status: 429, json: () => Promise.resolve({ remaining: 0 }) });
+    fetch
+      .mockResolvedValueOnce(makeAccessTokenResponse())
+      .mockResolvedValueOnce({ ok: false, status: 429, json: () => Promise.resolve({ remaining: 0 }) });
 
     const handler = getHandler();
     await handler({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
@@ -503,8 +572,20 @@ describe('autosuggest-stream port', () => {
     return { ok: true, status: 200, body };
   }
 
+  function makeAccessTokenResponse(token = 'proxy-access-token') {
+    return {
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
+        token,
+        expiresAt: '2026-06-28T00:00:00.000Z',
+      }),
+    };
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
+    fetch.mockReset();
     mockStorageGet.mockImplementation(() => Promise.resolve({}));
   });
 
@@ -556,7 +637,9 @@ describe('autosuggest-stream port', () => {
     const autosuggestHandler = connectListeners[1];
     autosuggestHandler(port);
 
-    fetch.mockResolvedValue(makeSSEResponse([
+    fetch
+      .mockResolvedValueOnce(makeAccessTokenResponse())
+      .mockResolvedValueOnce(makeSSEResponse([
       'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\n',
       'data: [DONE]\n\n',
     ]));
@@ -568,9 +651,10 @@ describe('autosuggest-stream port', () => {
       expect(fetch).toHaveBeenCalled();
     });
 
-    const calledUrl = fetch.mock.calls[0][0];
+    const calledUrl = fetch.mock.calls[1][0];
     expect(calledUrl).toContain('workers.dev');
-    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(fetch.mock.calls[1][1].headers['X-Dobby-Access-Token']).toBe('proxy-access-token');
+    const body = JSON.parse(fetch.mock.calls[1][1].body);
     expect(body.purpose).toBe('autosuggest');
   });
 
@@ -610,11 +694,13 @@ describe('autosuggest-stream port', () => {
     const autosuggestHandler = connectListeners[1];
     autosuggestHandler(port);
 
-    fetch.mockResolvedValue(makeSSEResponse([
-      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
-      'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
-      'data: [DONE]\n\n',
-    ]));
+    fetch
+      .mockResolvedValueOnce(makeAccessTokenResponse())
+      .mockResolvedValueOnce(makeSSEResponse([
+        'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
+        'data: [DONE]\n\n',
+      ]));
 
     const handler = getHandler();
     await handler({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
@@ -631,10 +717,12 @@ describe('autosuggest-stream port', () => {
     const autosuggestHandler = connectListeners[1];
     autosuggestHandler(port);
 
-    fetch.mockResolvedValue(makeSSEResponse([
-      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
-      'data: [DONE]\n\n',
-    ]));
+    fetch
+      .mockResolvedValueOnce(makeAccessTokenResponse())
+      .mockResolvedValueOnce(makeSSEResponse([
+        'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+        'data: [DONE]\n\n',
+      ]));
 
     const handler = getHandler();
     await handler({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
@@ -654,7 +742,9 @@ describe('autosuggest-stream port', () => {
     const autosuggestHandler = connectListeners[1];
     autosuggestHandler(port);
 
-    fetch.mockResolvedValue({ ok: false, status: 429, json: () => Promise.resolve({ remaining: 0 }) });
+    fetch
+      .mockResolvedValueOnce(makeAccessTokenResponse())
+      .mockResolvedValueOnce({ ok: false, status: 429, json: () => Promise.resolve({ remaining: 0 }) });
 
     const handler = getHandler();
     await handler({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
