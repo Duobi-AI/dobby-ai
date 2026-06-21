@@ -3,7 +3,7 @@
 
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../shared/autosuggest-limits.js';
 import { DEFAULT_OPENAI_MODEL, DEFAULT_REASONING_EFFORT } from '../shared/model-config.js';
-import { getLocalStorage, setLocalStorage } from '../shared/storage.js';
+import { getLocalStorage, removeLocalStorage, setLocalStorage } from '../shared/storage.js';
 
 import type {
   AutosuggestBackgroundPort,
@@ -21,10 +21,14 @@ import type {
   ValidateApiKeyResponse,
 } from '../shared/types';
 
-const PROXY_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev/chat';
+const PROXY_BASE_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev';
+const PROXY_URL = `${PROXY_BASE_URL}/chat`;
+const PROXY_ACCESS_TOKEN_URL = `${PROXY_BASE_URL}/access-token`;
 const USAGE_STORAGE_KEY = 'dobbyUsage';
-// HMAC_SECRET is intentionally in extension source — it's light obfuscation per spec.
-// Real defense is IP rate limiting on the proxy.
+const PROXY_ACCESS_TOKEN_STORAGE_KEY = 'proxyAccessToken';
+const PROXY_ACCESS_TOKEN_HEADER = 'X-Dobby-Access-Token';
+// HMAC_SECRET is intentionally in extension source — it is request-shape validation, not auth.
+// Free proxy calls also require a server-issued access token and proxy-side quota checks.
 const HMAC_SECRET = 'dobby-ai-v2-hmac-key-change-in-production';
 // Set to your dev token to bypass rate limits during development; leave empty for normal user behavior
 const DEV_BYPASS_TOKEN = '';
@@ -211,6 +215,73 @@ export async function* parseSSEStream(
   }
 }
 
+type ProxyRequestPurpose = 'chat' | 'autosuggest';
+
+async function fetchProxyAccessToken(signal?: AbortSignal): Promise<string> {
+  const response = await fetch(PROXY_ACCESS_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal,
+  });
+
+  if (!response.ok) {
+    let errBody = '';
+    try { errBody = await response.text(); } catch (e) { /* ignore */ }
+    throw new Error(errBody ? `Proxy access token failed (${response.status}): ${errBody.substring(0, 200)}` : 'Proxy access token failed');
+  }
+
+  const data = await response.json() as { token?: string };
+  if (!data.token) {
+    throw new Error('Proxy access token response was missing token');
+  }
+
+  await setLocalStorage({ [PROXY_ACCESS_TOKEN_STORAGE_KEY]: data.token });
+  return data.token;
+}
+
+async function getProxyAccessToken(forceRefresh: boolean, signal?: AbortSignal): Promise<string> {
+  if (!forceRefresh) {
+    const stored = await getLocalStorage(PROXY_ACCESS_TOKEN_STORAGE_KEY);
+    if (stored.proxyAccessToken) return stored.proxyAccessToken;
+  }
+  if (forceRefresh) {
+    await removeLocalStorage(PROXY_ACCESS_TOKEN_STORAGE_KEY);
+  }
+  return fetchProxyAccessToken(signal);
+}
+
+async function fetchViaProxy(
+  messages: ChatMessage[],
+  purpose: ProxyRequestPurpose,
+  signal: AbortSignal,
+): Promise<Response> {
+  const request = async (forceRefreshToken: boolean): Promise<Response> => {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const signature = await generateSignature(messages, timestamp, HMAC_SECRET);
+    const token = await getProxyAccessToken(forceRefreshToken, signal);
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      [PROXY_ACCESS_TOKEN_HEADER]: token,
+    };
+    if (DEV_BYPASS_TOKEN) headers['X-Dev-Token'] = DEV_BYPASS_TOKEN;
+    const body = purpose === 'autosuggest'
+      ? { messages, signature, timestamp, purpose }
+      : { messages, signature, timestamp };
+
+    return fetch(PROXY_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal,
+    });
+  };
+
+  const response = await request(false);
+  if (response.status !== 401) return response;
+
+  return request(true);
+}
+
 // --- Chat Stream Port Handler ---
 
 chrome.runtime.onConnect.addListener((port) => {
@@ -250,17 +321,7 @@ chrome.runtime.onConnect.addListener((port) => {
           signal: abortController.signal,
         });
       } else {
-        // Via proxy with HMAC signing
-        const timestamp = Math.floor(Date.now() / 1000);
-        const signature = await generateSignature(messages, timestamp, HMAC_SECRET);
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (DEV_BYPASS_TOKEN) headers['X-Dev-Token'] = DEV_BYPASS_TOKEN;
-        response = await fetch(PROXY_URL, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ messages, signature, timestamp }),
-          signal: abortController.signal,
-        });
+        response = await fetchViaProxy(messages, 'chat', abortController.signal);
       }
 
       if (response.status === 429) {
@@ -344,17 +405,7 @@ chrome.runtime.onConnect.addListener((port) => {
           signal: abortController.signal,
         });
       } else {
-        // Via proxy with HMAC signing — include purpose for rate limiting
-        const timestamp = Math.floor(Date.now() / 1000);
-        const signature = await generateSignature(messages, timestamp, HMAC_SECRET);
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (DEV_BYPASS_TOKEN) headers['X-Dev-Token'] = DEV_BYPASS_TOKEN;
-        response = await fetch(PROXY_URL, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ messages, signature, timestamp, purpose: 'autosuggest' }),
-          signal: abortController.signal,
-        });
+        response = await fetchViaProxy(messages, 'autosuggest', abortController.signal);
       }
 
       if (response.status === 429) {

@@ -13,6 +13,12 @@ test.beforeAll(async () => {
     const originalFetch = globalThis.fetch.bind(globalThis);
     globalThis.fetch = async (input, init) => {
       const url = typeof input === 'string' ? input : input.url;
+      if (url.includes('dobby-ai-proxy') && url.includes('/access-token')) {
+        return new Response(
+          JSON.stringify({ token: 'e2e-proxy-access-token', expiresAt: '2026-06-28T00:00:00.000Z' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
       if (url.includes('dobby-ai-proxy') || url.includes('api.openai.com')) {
         return new Response(
           'data: {"choices":[{"delta":{"content":" from Dobby"}}]}\n\ndata: [DONE]\n\n',
