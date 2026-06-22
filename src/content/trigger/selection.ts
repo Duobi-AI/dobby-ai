@@ -20,9 +20,17 @@ import { showTrigger, hideTrigger, createTriggerButton } from './button.js';
 import { startScreenshotMode, cancelScreenshotMode } from './screenshot.js';
 import { _showProgressRing, _removeProgressRing } from './progress-ring.js';
 
+const SELECTION_SUPPRESS_MS = 1000;
+const SELECTION_RELEASE_GRACE_MS = 750;
+
 const INTERACTIVE_TAGS = new Set([
   'INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'VIDEO', 'AUDIO', 'LABEL', 'OPTION',
 ]);
+
+let primarySelectionActive = false;
+let suppressSelectionUntil = 0;
+let lastPrimarySelectionReleaseAt = 0;
+let canReshowSelectionOnScroll = false;
 
 function isInteractiveElement(el: HTMLElement | null): boolean {
   if (!el || !el.tagName) return false;
@@ -34,8 +42,10 @@ function isInteractiveElement(el: HTMLElement | null): boolean {
 
 function isScrollbarClick(e: MouseEvent): boolean {
   // Page-level scrollbars
-  if (e.clientX >= document.documentElement.clientWidth ||
-    e.clientY >= document.documentElement.clientHeight) return true;
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = document.documentElement.clientHeight;
+  if ((viewportWidth > 0 && e.clientX >= viewportWidth) ||
+    (viewportHeight > 0 && e.clientY >= viewportHeight)) return true;
   // Element-level scrollbars (e.g. scrollable divs)
   const el = e.target as HTMLElement | null;
   if (el && el.getBoundingClientRect) {
@@ -48,30 +58,90 @@ function isScrollbarClick(e: MouseEvent): boolean {
   return false;
 }
 
+function now(): number {
+  return Date.now();
+}
+
+function suppressSelectionTriggers(): void {
+  primarySelectionActive = false;
+  canReshowSelectionOnScroll = false;
+  suppressSelectionUntil = now() + SELECTION_SUPPRESS_MS;
+}
+
+function isSuppressedSelection(): boolean {
+  return now() < suppressSelectionUntil;
+}
+
+function isEligibleSelectionPointerDown(e: MouseEvent): boolean {
+  if (e.button !== 0) return false;
+  if (isClickInsideUI(e.target, getBubbleContainer)) return false;
+  if (isInteractiveElement(e.target as HTMLElement | null)) return false;
+  if (isScrollbarClick(e)) return false;
+  return true;
+}
+
+function markAcceptedSelection(): void {
+  canReshowSelectionOnScroll = true;
+}
+
+function showTriggerForCurrentSelection(x: number, y: number): void {
+  const text = getSelectedText();
+
+  if (text.length >= 3 && dobbyEnabled) {
+    const sel = window.getSelection()!;
+    const anchorNode = sel.anchorNode || null;
+    markAcceptedSelection();
+    showTrigger(x, y, { text, anchorNode, selection: sel }).catch(() => {});
+  } else {
+    canReshowSelectionOnScroll = false;
+    hideTrigger();
+  }
+}
+
 export function registerListeners(): void {
+  document.addEventListener('contextmenu', () => {
+    suppressSelectionTriggers();
+  }, true);
+
+  document.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) {
+      suppressSelectionTriggers();
+      return;
+    }
+
+    primarySelectionActive = isEligibleSelectionPointerDown(e);
+    if (primarySelectionActive) {
+      canReshowSelectionOnScroll = false;
+    }
+  }, true);
+
   // Listen for text selection
   document.addEventListener('mouseup', (e) => {
+    if (e.button !== 0) {
+      suppressSelectionTriggers();
+      return;
+    }
+    if (!primarySelectionActive || isSuppressedSelection()) return;
+
+    primarySelectionActive = false;
+    lastPrimarySelectionReleaseAt = now();
+
     if (isClickInsideUI(e.target, getBubbleContainer)) return;
 
     const cursorX = e.clientX;
     const cursorY = e.clientY;
     setTimeout(() => {
-      const text = getSelectedText();
-
-      if (text.length >= 3 && dobbyEnabled) {
-        const sel = window.getSelection()!;
-        const anchorNode = sel.anchorNode || null;
-        showTrigger(cursorX, cursorY, { text, anchorNode, selection: sel }).catch(() => {});
-      } else {
-        hideTrigger();
-      }
+      showTriggerForCurrentSelection(cursorX, cursorY);
     }, TIMING.MOUSEUP_DELAY);
-  });
+  }, true);
 
   // Fallback: selectionchange fires even when sites (Gmail, etc.) capture mouseup
   document.addEventListener('selectionchange', () => {
     clearTimeout(selectionChangeTimer!);
     setSelectionChangeTimer(setTimeout(() => {
+      if (primarySelectionActive || isSuppressedSelection()) return;
+      if (now() - lastPrimarySelectionReleaseAt > SELECTION_RELEASE_GRACE_MS) return;
+
       const text = getSelectedText();
       const selection = window.getSelection()!;
       if (text.length >= 3 && dobbyEnabled && selection.rangeCount > 0) {
@@ -79,6 +149,7 @@ export function registerListeners(): void {
         if (!triggerButton || triggerButton.style.display === 'none') {
           const anchorNode = selection.anchorNode || null;
           const rect = getSelectionRect();
+          markAcceptedSelection();
           showTrigger(rect.right, rect.bottom, { text, anchorNode, selection }).catch(() => {});
         }
       }
@@ -90,6 +161,8 @@ export function registerListeners(): void {
     hideTrigger();
     clearTimeout(scrollTimer!);
     setScrollTimer(setTimeout(() => {
+      if (!canReshowSelectionOnScroll || isSuppressedSelection()) return;
+
       const text = getSelectedText();
       const selection = window.getSelection()!;
       if (text.length >= 3 && dobbyEnabled && selection.rangeCount > 0) {
@@ -103,6 +176,7 @@ export function registerListeners(): void {
   // Hide on click away
   document.addEventListener('mousedown', (e) => {
     if (isClickInsideUI(e.target, getBubbleContainer)) return;
+    canReshowSelectionOnScroll = false;
     hideTrigger();
   });
 
@@ -177,6 +251,10 @@ export function _resetTriggerForTesting(): void {
   if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
   longPressState.startX = 0;
   longPressState.startY = 0;
+  primarySelectionActive = false;
+  suppressSelectionUntil = 0;
+  lastPrimarySelectionReleaseAt = 0;
+  canReshowSelectionOnScroll = false;
   _removeProgressRing();
   cancelScreenshotMode();
 }
