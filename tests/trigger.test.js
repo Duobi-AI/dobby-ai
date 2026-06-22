@@ -142,13 +142,83 @@ describe('event-driven behavior', () => {
     sharedMockSelection(text);
   }
 
+  function dispatchLeftSelectionRelease() {
+    document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 10, clientY: 10 }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0, clientX: 40, clientY: 10 }));
+  }
+
   it('mouseup with selection >= 3 chars shows trigger', async () => {
     vi.useFakeTimers();
     mockSelection('hello world');
 
-    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    dispatchLeftSelectionRelease();
     vi.advanceTimersByTime(20);
     // flush microtask queue multiple times so async showTrigger/createToolbar resolve
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const host = getHost();
+    expect(host).not.toBeNull();
+    expect(host.style.display).toBe('block');
+    vi.useRealTimers();
+  });
+
+  it('right-click mouseup with selection does not show trigger', async () => {
+    vi.useFakeTimers();
+    mockSelection('hello world');
+
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 2 }));
+    vi.advanceTimersByTime(20);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(getHost()).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('context menu selectionchange does not show trigger', async () => {
+    vi.useFakeTimers();
+    mockSelection('hello world');
+
+    document.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, button: 2 }));
+    document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+    vi.advanceTimersByTime(350);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(getHost()).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('scroll does not resurrect a context-menu selection', async () => {
+    vi.useFakeTimers();
+    mockSelection('hello world');
+
+    document.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, button: 2 }));
+    window.dispatchEvent(new Event('scroll'));
+    vi.advanceTimersByTime(200);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(getHost()).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('selectionchange during an active left-button drag waits for mouseup', async () => {
+    vi.useFakeTimers();
+    mockSelection('hello world');
+
+    document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 10, clientY: 10 }));
+    document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+    vi.advanceTimersByTime(350);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(getHost()).toBeNull();
+
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0, clientX: 40, clientY: 10 }));
+    vi.advanceTimersByTime(20);
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -165,7 +235,7 @@ describe('event-driven behavior', () => {
     await showTrigger(100, 100);
     mockSelection('ab');
 
-    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    dispatchLeftSelectionRelease();
     vi.advanceTimersByTime(20);
 
     expect(getHost()).toBeNull();
@@ -177,7 +247,7 @@ describe('event-driven behavior', () => {
     _setDobbyEnabled(false);
     mockSelection('hello world');
 
-    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    dispatchLeftSelectionRelease();
     vi.advanceTimersByTime(20);
 
     // Should not exist or should be hidden
