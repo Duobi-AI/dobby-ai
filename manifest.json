@@ -11,8 +11,7 @@
   ],
   "host_permissions": [
     "https://dobby-ai-proxy.zhongnansu.workers.dev/*",
-    "https://api.openai.com/*",
-    "<all_urls>"
+    "https://api.openai.com/*"
   ],
   "background": {
     "service_worker": "background.js"
