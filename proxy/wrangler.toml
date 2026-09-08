@@ -11,7 +11,13 @@ id = "d4714a769c944734babf5e75732207f7"
 # Secrets (set via `wrangler secret put <NAME>`):
 # - OPENAI_API_KEY
 # - HMAC_SECRET
-# - ALLOWED_ORIGINS (comma-separated extension origin IDs)
+# - ALLOWED_ORIGINS (comma-separated extension origin IDs; production must include
+#   chrome-extension://fobblgpebpnelefaneijkpbcljdlofoo)
 
 [vars]
 ENABLED = "true"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+redact_query_string = true

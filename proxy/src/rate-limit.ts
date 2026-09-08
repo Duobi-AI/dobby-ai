@@ -25,6 +25,12 @@ function tenSecBucket(): number {
   return Math.floor(Date.now() / 10000);
 }
 
+function secondsUntilNextUtcDay(now = Date.now()): number {
+  const date = new Date(now);
+  const nextDay = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1);
+  return Math.max(1, Math.ceil((nextDay - now) / 1000));
+}
+
 function keyPrefix(purpose: ProxyPurpose): string {
   return purpose === 'autosuggest' ? 'as' : 'rl';
 }
@@ -64,7 +70,7 @@ export async function checkRateLimit(
   }
 
   if (dayCount >= limits.perDay || ipDayCount >= limits.perDay) {
-    return { allowed: false, reason: 'Daily limit reached', remaining: 0 };
+    return { allowed: false, reason: 'Daily limit reached', remaining: 0, retryAfter: secondsUntilNextUtcDay() };
   }
 
   if (globalCount >= LIMITS.globalPerDay) {
