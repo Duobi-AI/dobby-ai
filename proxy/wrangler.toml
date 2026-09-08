@@ -15,3 +15,8 @@ id = "d4714a769c944734babf5e75732207f7"
 
 [vars]
 ENABLED = "true"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+redact_query_string = true
