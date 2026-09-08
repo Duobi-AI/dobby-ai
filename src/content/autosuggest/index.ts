@@ -6,6 +6,7 @@ import {
   setAutosuggestActiveEditor,
   setAutosuggestPendingRequest,
 } from '../shared/state.js';
+import { AUTOSUGGEST } from '../shared/constants.js';
 import { debouncedSuggest, cancelPending } from './debounce.js';
 import { buildCompletionMessages, gatherPageContext } from './context.js';
 import { showGhostText, hideGhostText, acceptSuggestion } from './ghost-text.js';
@@ -21,6 +22,7 @@ let focusinHandler: ((event: FocusEvent) => void) | null = null;
 let focusoutHandler: ((event: FocusEvent) => void) | null = null;
 let isComposing = false;
 let requestGeneration = 0;
+let autosuggestCooldownUntil = 0;
 
 export function initAutosuggest() {
   if (!autosuggestEnabled) return;
@@ -123,6 +125,8 @@ function invalidateSuggestion() {
 }
 
 function requestSuggestionFromAPI(text: string, editor: AutosuggestEditor) {
+  if (Date.now() < autosuggestCooldownUntil) return;
+
   const messages = buildCompletionMessages(text, gatherPageContext(editor));
   const requestId = ++requestGeneration;
 
@@ -146,9 +150,13 @@ function requestSuggestionFromAPI(text: string, editor: AutosuggestEditor) {
     () => {
       if (requestGeneration === requestId) setAutosuggestPendingRequest(null);
     },
-    (code, message) => {
+    (code, message, details) => {
       if (requestGeneration !== requestId) return;
       setAutosuggestPendingRequest(null);
+      if (code === 'RATE_LIMITED') {
+        const retryAfter = Math.min(Math.max(details?.retryAfter || 60, 1), AUTOSUGGEST.MAX_COOLDOWN_SECONDS);
+        autosuggestCooldownUntil = Math.max(autosuggestCooldownUntil, Date.now() + retryAfter * 1000);
+      }
       console.error('[Dobby Autosuggest] API error:', code, message);
       hideGhostText();
     }

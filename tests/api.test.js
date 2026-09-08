@@ -136,6 +136,20 @@ describe('requestAutosuggest', () => {
     expect(port.disconnect).toHaveBeenCalled();
   });
 
+  it('forwards Retry-After details for an autosuggest rate limit', () => {
+    const onError = vi.fn();
+    requestAutosuggest([], vi.fn(), vi.fn(), onError);
+    const handler = port.onMessage.addListener.mock.calls[0][0];
+
+    handler({ type: 'rate_limited', remaining: 0, retryAfter: 300 });
+
+    expect(onError).toHaveBeenCalledWith(
+      'RATE_LIMITED',
+      'Autosuggest limit reached',
+      { retryAfter: 300 },
+    );
+  });
+
   it('returns cancel function that disconnects port', () => {
     const result = requestAutosuggest([], vi.fn(), vi.fn(), vi.fn());
     result.cancel();

@@ -36,10 +36,16 @@ export type HistoryEntry = {
   timestamp: number;
 };
 
+export type AutosuggestCooldown = {
+  until: number;
+  consecutiveRateLimits: number;
+};
+
 export type StorageState = {
   dobbyEnabled?: boolean;
   screenshotEnabled?: boolean;
   autosuggestEnabled?: boolean;
+  autosuggestCooldown?: AutosuggestCooldown;
   theme?: ThemeMode;
   userApiKey?: string;
   proxyAccessToken?: string;

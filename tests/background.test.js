@@ -744,13 +744,39 @@ describe('autosuggest-stream port', () => {
 
     fetch
       .mockResolvedValueOnce(makeAccessTokenResponse())
-      .mockResolvedValueOnce({ ok: false, status: 429, json: () => Promise.resolve({ remaining: 0 }) });
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        headers: new Headers({ 'Retry-After': '300' }),
+        json: () => Promise.resolve({ remaining: 0 }),
+      });
 
     const handler = getHandler();
     await handler({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
 
     await vi.waitFor(() => {
-      expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'rate_limited', remaining: 0 }));
+      expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'rate_limited',
+        remaining: 0,
+        retryAfter: 300,
+      }));
     });
+  });
+
+  it('does not call the proxy while an autosuggest cooldown is active', async () => {
+    const { port, getHandler } = createAutosuggestPort();
+    const autosuggestHandler = connectListeners[1];
+    autosuggestHandler(port);
+    mockStorageGet.mockResolvedValue({
+      autosuggestCooldown: { until: Date.now() + 120_000, consecutiveRateLimits: 1 },
+    });
+
+    await getHandler()({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'rate_limited',
+      retryAfter: expect.any(Number),
+    }));
   });
 });

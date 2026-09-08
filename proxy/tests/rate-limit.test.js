@@ -47,6 +47,8 @@ describe('checkRateLimit', () => {
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('Daily');
     expect(result.remaining).toBe(0);
+    expect(result.retryAfter).toBeGreaterThan(0);
+    expect(result.retryAfter).toBeLessThanOrEqual(86400);
   });
 
   it('blocks when global daily cap reached', async () => {

@@ -103,6 +103,7 @@ export type ChatRateLimitedMessage = {
 export type AutosuggestRateLimitedMessage = {
   type: 'rate_limited';
   remaining: number;
+  retryAfter?: number;
 };
 
 export type ChatStreamResponse =
@@ -136,9 +137,13 @@ export type ChatErrorHandler = (
 ) => void;
 
 export type AutosuggestDoneHandler = () => void;
+export type AutosuggestRateLimitDetails = {
+  retryAfter?: number;
+};
 export type AutosuggestErrorHandler = (
   code: StreamErrorCode,
   message: string,
+  details?: AutosuggestRateLimitDetails,
 ) => void;
 
 export type PortMessageEvent<T> = Omit<chrome.events.Event<(message: T) => void>, 'addListener'> & {

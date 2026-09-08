@@ -214,6 +214,32 @@ describe('autosuggest lifecycle', () => {
     expect(removeSpy.mock.calls.filter((c) => c[0] === 'focusout')).toHaveLength(1);
   });
 
+  it('does not send another suggestion during a Retry-After cooldown', () => {
+    let onError;
+    requestAutosuggest.mockImplementationOnce((messages, onToken, onDone, error) => {
+      onError = error;
+      return { cancel: vi.fn() };
+    });
+
+    initAutosuggest();
+    textarea.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    textarea.value = 'First autosuggest request';
+    textarea.selectionStart = textarea.value.length;
+    textarea.selectionEnd = textarea.value.length;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    vi.advanceTimersByTime(500);
+    expect(requestAutosuggest).toHaveBeenCalledOnce();
+
+    onError('RATE_LIMITED', 'Autosuggest limit reached', { retryAfter: 300 });
+    textarea.value = 'Second autosuggest request';
+    textarea.selectionStart = textarea.value.length;
+    textarea.selectionEnd = textarea.value.length;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    vi.advanceTimersByTime(500);
+
+    expect(requestAutosuggest).toHaveBeenCalledOnce();
+  });
+
   it('cleans up on textarea blur', () => {
     initAutosuggest();
     textarea.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));

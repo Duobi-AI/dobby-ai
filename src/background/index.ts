@@ -4,6 +4,11 @@
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../shared/autosuggest-limits.js';
 import { DEFAULT_OPENAI_MODEL, DEFAULT_REASONING_EFFORT } from '../shared/model-config.js';
 import { getLocalStorage, removeLocalStorage, setLocalStorage } from '../shared/storage.js';
+import {
+  clearAutosuggestCooldown,
+  getAutosuggestCooldownRemaining,
+  recordAutosuggestRateLimit,
+} from './autosuggest-cooldown.js';
 
 import type {
   AutosuggestBackgroundPort,
@@ -385,6 +390,14 @@ chrome.runtime.onConnect.addListener((port) => {
 
     try {
       const stored = await getLocalStorage('userApiKey');
+      if (!stored.userApiKey) {
+        const retryAfter = await getAutosuggestCooldownRemaining();
+        if (retryAfter > 0) {
+          try { autosuggestPort.postMessage({ type: 'rate_limited', remaining: 0, retryAfter }); } catch (e) { /* port closed */ }
+          return;
+        }
+      }
+
       let response: Response;
 
       if (stored.userApiKey) {
@@ -411,8 +424,9 @@ chrome.runtime.onConnect.addListener((port) => {
       if (response.status === 429) {
         let data: { remaining?: number };
         try { data = await response.json(); } catch (e) { data = { remaining: 0 }; }
+        const retryAfter = await recordAutosuggestRateLimit(response.headers.get('Retry-After'));
         await recordUsage('autosuggest', { usingOwnKey: false, rateLimited: true });
-        try { autosuggestPort.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0 }); } catch (e) { /* port closed */ }
+        try { autosuggestPort.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0, retryAfter }); } catch (e) { /* port closed */ }
         return;
       }
 
@@ -423,6 +437,8 @@ chrome.runtime.onConnect.addListener((port) => {
         try { autosuggestPort.postMessage({ type: 'error', code: response.status, message: 'Autosuggest request failed: ' + errBody.substring(0, 200) }); } catch (e) { /* port closed */ }
         return;
       }
+
+      if (!stored.userApiKey) await clearAutosuggestCooldown();
 
       const reader = response.body!.getReader();
       for await (const token of parseSSEStream(reader)) {

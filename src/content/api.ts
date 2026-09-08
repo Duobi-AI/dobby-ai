@@ -78,7 +78,7 @@ export function requestAutosuggest(
         port.disconnect();
         break;
       case 'rate_limited':
-        onError('RATE_LIMITED', 'Autosuggest limit reached');
+        onError('RATE_LIMITED', 'Autosuggest limit reached', { retryAfter: msg.retryAfter });
         port.disconnect();
         break;
     }
