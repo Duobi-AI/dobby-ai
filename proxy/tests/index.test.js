@@ -151,6 +151,29 @@ describe('POST /access-token', () => {
     expect(res.status).toBe(429);
     expect(res.headers.get('Retry-After')).toBe('3600');
   });
+
+  it('returns a retryable response and structured log when KV storage is unavailable', async () => {
+    issueAccessToken.mockRejectedValue(new Error('KV put() limit exceeded for the day.'));
+    const logger = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const req = makeRequest('/access-token', { method: 'POST' });
+
+    const res = await handler.fetch(req, makeEnv());
+
+    expect(res.status).toBe(503);
+    expect(Number(res.headers.get('Retry-After'))).toBeGreaterThan(0);
+    await expect(res.json()).resolves.toEqual(expect.objectContaining({
+      error: 'Proxy storage temporarily unavailable',
+      retryAfter: expect.any(Number),
+    }));
+    expect(logger).toHaveBeenCalledWith(expect.objectContaining({
+      route: 'access_token',
+      stage: 'rate_write',
+      outcome: 'access_token_storage_unavailable',
+      status: 503,
+      retry_after_seconds: expect.any(Number),
+    }));
+    logger.mockRestore();
+  });
 });
 
 describe('POST /chat', () => {

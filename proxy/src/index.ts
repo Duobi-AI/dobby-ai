@@ -9,6 +9,18 @@ import type { ProxyPurpose } from '../../src/shared/types';
 import type { ProxyEnv, ValidProxyPayload } from './types';
 
 const MAX_BODY_SIZE = 2097152; // 2MB
+const TRANSIENT_STORAGE_RETRY_AFTER_SECONDS = 60;
+
+function storageRetryAfter(error: unknown): number {
+  const message = error instanceof Error ? error.message : '';
+  if (!/limit exceeded for the day|daily (operation )?limit/i.test(message)) {
+    return TRANSIENT_STORAGE_RETRY_AFTER_SECONDS;
+  }
+
+  const now = new Date();
+  const nextUtcDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+  return Math.max(1, Math.ceil((nextUtcDay - now.getTime()) / 1000));
+}
 
 function getCorsHeaders(request: Request, env: ProxyEnv): Record<string, string> {
   const origin = request.headers.get('Origin') || '';
@@ -80,7 +92,18 @@ export default {
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
 
     if (url.pathname === '/access-token') {
-      const tokenResult = await issueAccessToken(ip, env.RATE_LIMIT_KV);
+      let tokenResult;
+      try {
+        tokenResult = await issueAccessToken(ip, env.RATE_LIMIT_KV);
+      } catch (error) {
+        const retryAfter = storageRetryAfter(error);
+        return respond('access_token_storage_unavailable', 'rate_write', jsonResponse(
+          { error: 'Proxy storage temporarily unavailable', retryAfter },
+          503,
+          corsHeaders,
+          { 'Retry-After': String(retryAfter) },
+        ), { retry_after_seconds: retryAfter });
+      }
       if ('error' in tokenResult) {
         return respond('access_token_limited', 'rate_check', jsonResponse(
           { error: tokenResult.error },

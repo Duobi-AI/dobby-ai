@@ -9,6 +9,12 @@ import {
   getAutosuggestCooldownRemaining,
   recordAutosuggestRateLimit,
 } from './autosuggest-cooldown.js';
+import {
+  clearProxyCooldown,
+  getProxyCooldownRemaining,
+  ProxyCooldownError,
+  recordProxyTemporaryFailure,
+} from './proxy-cooldown.js';
 
 import type {
   AutosuggestBackgroundPort,
@@ -37,6 +43,7 @@ const PROXY_ACCESS_TOKEN_HEADER = 'X-Dobby-Access-Token';
 const HMAC_SECRET = 'dobby-ai-v2-hmac-key-change-in-production';
 // Set to your dev token to bypass rate limits during development; leave empty for normal user behavior
 const DEV_BYPASS_TOKEN = '';
+let proxyAccessTokenRequest: Promise<string> | null = null;
 
 function getUtcDay(): string {
   return new Date().toISOString().split('T')[0]!;
@@ -222,14 +229,27 @@ export async function* parseSSEStream(
 
 type ProxyRequestPurpose = 'chat' | 'autosuggest';
 
-async function fetchProxyAccessToken(signal?: AbortSignal): Promise<string> {
-  const response = await fetch(PROXY_ACCESS_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    signal,
-  });
+function isTemporaryProxyStatus(status: number): boolean {
+  return status >= 500 && status <= 599;
+}
+
+async function fetchProxyAccessToken(): Promise<string> {
+  let response: Response;
+  try {
+    response = await fetch(PROXY_ACCESS_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    const retryAfter = await recordProxyTemporaryFailure(null);
+    throw new ProxyCooldownError(retryAfter);
+  }
 
   if (!response.ok) {
+    if (response.status === 429 || isTemporaryProxyStatus(response.status)) {
+      const retryAfter = await recordProxyTemporaryFailure(response.headers.get('Retry-After'));
+      throw new ProxyCooldownError(retryAfter);
+    }
     let errBody = '';
     try { errBody = await response.text(); } catch (e) { /* ignore */ }
     throw new Error(errBody ? `Proxy access token failed (${response.status}): ${errBody.substring(0, 200)}` : 'Proxy access token failed');
@@ -241,10 +261,11 @@ async function fetchProxyAccessToken(signal?: AbortSignal): Promise<string> {
   }
 
   await setLocalStorage({ [PROXY_ACCESS_TOKEN_STORAGE_KEY]: data.token });
+  await clearProxyCooldown();
   return data.token;
 }
 
-async function getProxyAccessToken(forceRefresh: boolean, signal?: AbortSignal): Promise<string> {
+async function getProxyAccessToken(forceRefresh: boolean): Promise<string> {
   if (!forceRefresh) {
     const stored = await getLocalStorage(PROXY_ACCESS_TOKEN_STORAGE_KEY);
     if (stored.proxyAccessToken) return stored.proxyAccessToken;
@@ -252,7 +273,20 @@ async function getProxyAccessToken(forceRefresh: boolean, signal?: AbortSignal):
   if (forceRefresh) {
     await removeLocalStorage(PROXY_ACCESS_TOKEN_STORAGE_KEY);
   }
-  return fetchProxyAccessToken(signal);
+
+  if (!proxyAccessTokenRequest) {
+    const request = (async () => {
+      const retryAfter = await getProxyCooldownRemaining();
+      if (retryAfter > 0) throw new ProxyCooldownError(retryAfter);
+      return fetchProxyAccessToken();
+    })();
+    proxyAccessTokenRequest = request;
+    void request.then(
+      () => { if (proxyAccessTokenRequest === request) proxyAccessTokenRequest = null; },
+      () => { if (proxyAccessTokenRequest === request) proxyAccessTokenRequest = null; },
+    );
+  }
+  return proxyAccessTokenRequest;
 }
 
 async function fetchViaProxy(
@@ -260,10 +294,13 @@ async function fetchViaProxy(
   purpose: ProxyRequestPurpose,
   signal: AbortSignal,
 ): Promise<Response> {
+  const retryAfter = await getProxyCooldownRemaining();
+  if (retryAfter > 0) throw new ProxyCooldownError(retryAfter);
+
   const request = async (forceRefreshToken: boolean): Promise<Response> => {
     const timestamp = Math.floor(Date.now() / 1000);
     const signature = await generateSignature(messages, timestamp, HMAC_SECRET);
-    const token = await getProxyAccessToken(forceRefreshToken, signal);
+    const token = await getProxyAccessToken(forceRefreshToken);
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       [PROXY_ACCESS_TOKEN_HEADER]: token,
@@ -282,9 +319,18 @@ async function fetchViaProxy(
   };
 
   const response = await request(false);
+  if (isTemporaryProxyStatus(response.status)) {
+    const retryAfter = await recordProxyTemporaryFailure(response.headers.get('Retry-After'));
+    throw new ProxyCooldownError(retryAfter);
+  }
   if (response.status !== 401) return response;
 
-  return request(true);
+  const refreshedResponse = await request(true);
+  if (isTemporaryProxyStatus(refreshedResponse.status)) {
+    const retryAfter = await recordProxyTemporaryFailure(refreshedResponse.headers.get('Retry-After'));
+    throw new ProxyCooldownError(retryAfter);
+  }
+  return refreshedResponse;
 }
 
 // --- Chat Stream Port Handler ---
@@ -359,7 +405,8 @@ chrome.runtime.onConnect.addListener((port) => {
       if ((err as Error).name === 'AbortError') {
         try { chatPort.postMessage({ type: 'error', code: 0, message: 'Request timed out' }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
       } else {
-        try { chatPort.postMessage({ type: 'error', code: 0, message: (err as Error).message }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
+        const code = err instanceof ProxyCooldownError ? err.status : 0;
+        try { chatPort.postMessage({ type: 'error', code, message: (err as Error).message }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
       }
     } finally {
       clearTimeout(timeout);
@@ -448,7 +495,8 @@ chrome.runtime.onConnect.addListener((port) => {
       try { autosuggestPort.postMessage({ type: 'done' }); } catch (e) { /* port closed */ }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        try { autosuggestPort.postMessage({ type: 'error', code: 0, message: (err as Error).message }); } catch (e) { /* port closed */ }
+        const code = err instanceof ProxyCooldownError ? err.status : 0;
+        try { autosuggestPort.postMessage({ type: 'error', code, message: (err as Error).message }); } catch (e) { /* port closed */ }
       }
     } finally {
       clearTimeout(timeout);

@@ -14,12 +14,14 @@ export type RequestLog = {
   stage: 'routing' | 'payload' | 'signature' | 'rate_check' | 'rate_write' | 'upstream';
   outcome: 'preflight' | 'not_found' | 'method_not_allowed' | 'disabled' |
     'access_token_issued' | 'access_token_limited' |
+    'access_token_storage_unavailable' |
     'invalid_access_token' |
     'body_read_failed' | 'body_too_large' | 'invalid_json' | 'invalid_payload' |
     'invalid_signature' | 'rate_limited' | 'upstream_error' | 'stream_started' | 'exception';
   status?: number;
   body_chars?: number;
   remaining?: number;
+  retry_after_seconds?: number;
   rate_limit?: 'minute' | 'day' | 'global' | 'blocked' | 'other';
   upstream_status?: number;
   headers_duration_ms?: number;
