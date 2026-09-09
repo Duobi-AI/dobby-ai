@@ -41,11 +41,17 @@ export type AutosuggestCooldown = {
   consecutiveRateLimits: number;
 };
 
+export type ProxyCooldown = {
+  until: number;
+  consecutiveFailures: number;
+};
+
 export type StorageState = {
   dobbyEnabled?: boolean;
   screenshotEnabled?: boolean;
   autosuggestEnabled?: boolean;
   autosuggestCooldown?: AutosuggestCooldown;
+  proxyCooldown?: ProxyCooldown;
   theme?: ThemeMode;
   userApiKey?: string;
   proxyAccessToken?: string;

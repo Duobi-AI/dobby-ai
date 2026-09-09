@@ -546,6 +546,26 @@ describe('chat-stream integration', () => {
       expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'rate_limited', remaining: 0 }));
     });
   });
+
+  it('does not contact the proxy while a temporary proxy cooldown is active', async () => {
+    const { port, getHandler } = createStreamPort();
+    const connectHandler = connectListeners[0];
+    connectHandler(port);
+    mockStorageGet.mockImplementation((key) => Promise.resolve(
+      key === 'proxyCooldown'
+        ? { proxyCooldown: { until: Date.now() + 120_000, consecutiveFailures: 1 } }
+        : {},
+    ));
+
+    await getHandler()({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'error',
+      code: 503,
+      message: expect.stringContaining('temporarily unavailable'),
+    }));
+  });
 });
 
 describe('autosuggest-stream port', () => {
@@ -669,6 +689,7 @@ describe('autosuggest-stream port', () => {
     // Set up a fetch that hangs until aborted
     let abortSignal;
     fetch.mockImplementation((url, opts) => {
+      if (url.includes('/access-token')) return Promise.resolve(makeAccessTokenResponse());
       abortSignal = opts.signal;
       return new Promise((_, reject) => {
         opts.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
@@ -778,5 +799,56 @@ describe('autosuggest-stream port', () => {
       type: 'rate_limited',
       retryAfter: expect.any(Number),
     }));
+  });
+
+  it('persists a proxy-wide cooldown when token issuance is temporarily unavailable', async () => {
+    const { port, getHandler } = createAutosuggestPort();
+    const autosuggestHandler = connectListeners[1];
+    autosuggestHandler(port);
+    fetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      headers: new Headers({ 'Retry-After': '300' }),
+      text: () => Promise.resolve('Proxy storage temporarily unavailable'),
+    });
+
+    await getHandler()({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
+
+    expect(mockStorageSet).toHaveBeenCalledWith({
+      proxyCooldown: expect.objectContaining({ consecutiveFailures: 1 }),
+    });
+    expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'error',
+      code: 503,
+      message: expect.stringContaining('temporarily unavailable'),
+    }));
+  });
+
+  it('deduplicates concurrent proxy access-token fetches', async () => {
+    const first = createAutosuggestPort();
+    const second = createAutosuggestPort();
+    const autosuggestHandler = connectListeners[1];
+    autosuggestHandler(first.port);
+    autosuggestHandler(second.port);
+    let resolveToken;
+    const tokenResponse = new Promise((resolve) => { resolveToken = resolve; });
+    fetch.mockImplementation((url) => (
+      url.includes('/access-token')
+        ? tokenResponse
+        : Promise.resolve(makeSSEResponse(['data: [DONE]\\n\\n']))
+    ));
+
+    const requests = [
+      first.getHandler()({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'one' }] }),
+      second.getHandler()({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'two' }] }),
+    ];
+
+    await vi.waitFor(() => {
+      expect(fetch.mock.calls.filter(([url]) => url.includes('/access-token'))).toHaveLength(1);
+    });
+    resolveToken(makeAccessTokenResponse());
+    await Promise.all(requests);
+
+    expect(fetch.mock.calls.filter(([url]) => url.includes('/access-token'))).toHaveLength(1);
   });
 });

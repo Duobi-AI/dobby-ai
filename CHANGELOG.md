@@ -5,6 +5,12 @@ All notable changes to Dobby AI (formerly Ask AI) will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.4] - 2026-09-08
+
+### Fixed
+- Prevented repeated proxy access-token requests after Cloudflare KV quota or temporary storage failures by returning a retryable response and applying a shared client cooldown.
+- Deduplicated simultaneous proxy access-token requests across extension ports.
+
 ## [1.2.2] - 2026-06-07
 
 ### Changed
@@ -111,6 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Page context injection (title + URL)
 - CI/CD workflows (tests, coverage, security, release, PR preview, permission guard)
 
+[1.4.4]: https://github.com/Duobi-AI/dobby-ai/compare/v1.4.3...v1.4.4
 [1.2.2]: https://github.com/Duobi-AI/dobby-ai/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/Duobi-AI/dobby-ai/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Duobi-AI/dobby-ai/compare/v1.1.0...v1.2.0
