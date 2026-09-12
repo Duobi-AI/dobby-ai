@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
-  rawResponses,
   pushRawResponse,
   clearRawResponses,
-} from '../src/content/shared/state.js';
+  getRawResponses,
+} from '../src/content/bubble/lifecycle.js';
 import { createCopyButton } from '../src/content/bubble/stream.js';
 import { getColorPalette } from '../src/shared/color-palette.js';
 
@@ -14,7 +14,7 @@ describe('rawResponses state', () => {
   });
 
   it('starts empty', () => {
-    expect(rawResponses).toEqual([]);
+    expect(getRawResponses()).toEqual([]);
   });
 
   it('pushRawResponse appends to array and returns index', () => {
@@ -22,13 +22,13 @@ describe('rawResponses state', () => {
     const idx1 = pushRawResponse('second response');
     expect(idx0).toBe(0);
     expect(idx1).toBe(1);
-    expect(rawResponses).toEqual(['hello **world**', 'second response']);
+    expect(getRawResponses()).toEqual(['hello **world**', 'second response']);
   });
 
   it('clearRawResponses resets to empty', () => {
     pushRawResponse('something');
     clearRawResponses();
-    expect(rawResponses).toEqual([]);
+    expect(getRawResponses()).toEqual([]);
   });
 });
 

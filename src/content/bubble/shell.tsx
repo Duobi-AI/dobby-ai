@@ -11,10 +11,9 @@ import { BRAND_MARK_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
 import { getColorPalette } from '../../shared/color-palette.js';
 import { OPEN_OPTIONS_MESSAGE } from '../../shared/runtime-messages.js';
 import type { HistoryEntry, ImageContentPart, Preset } from '../../shared/types';
-import { rawResponses } from '../shared/state.js';
 import { TIMING } from '../shared/constants.js';
 import { renderMarkdown } from './markdown.js';
-import { useBubbleViewState, type BubbleViewMessage } from './view-model.js';
+import { getRawResponse, useBubbleLifecycleState, type BubbleViewMessage } from './lifecycle.js';
 
 const colors = getColorPalette('light');
 
@@ -37,6 +36,11 @@ export type BubbleShellProps = {
   onHistory: () => void;
   onHistoryEntry: (entry: HistoryEntry) => void;
   onClearHistory: () => void;
+  onClose: () => void;
+  onTogglePin: () => void;
+  onDragStart: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  onResizeStart: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  onEscape: () => void;
 };
 
 function PinIcon() {
@@ -144,7 +148,7 @@ function CopyButton({ responseIdx }: { responseIdx: number }) {
 
   const copy = async (event: ReactMouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    const text = rawResponses[responseIdx];
+    const text = getRawResponse(responseIdx);
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
@@ -218,7 +222,7 @@ function BubbleBody({
   onHistoryEntry,
   onClearHistory,
 }: Pick<BubbleShellProps, 'onHistoryEntry' | 'onClearHistory'>) {
-  const view = useBubbleViewState();
+  const view = useBubbleLifecycleState();
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
@@ -328,7 +332,7 @@ function ResponseSection({
   onHistoryEntry,
   onClearHistory,
 }: Pick<BubbleShellProps, 'onFollowUp' | 'onHistory' | 'onHistoryEntry' | 'onClearHistory'>) {
-  const view = useBubbleViewState();
+  const view = useBubbleLifecycleState();
 
   const handleFollowUpKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter' || !event.currentTarget.value.trim()) return;
@@ -363,22 +367,29 @@ export function BubbleShell({
   onHistory,
   onHistoryEntry,
   onClearHistory,
+  onClose,
+  onTogglePin,
+  onDragStart,
+  onResizeStart,
+  onEscape,
 }: BubbleShellProps) {
-  const view = useBubbleViewState();
+  const view = useBubbleLifecycleState();
   return (
     <>
       <style>{styles}</style>
-      <div className="bubble">
-        <div className="bubble-header">
+      <div className="bubble" onKeyDown={(event) => {
+        if (event.key === 'Escape' && !(event.target as Element).closest?.('.img-lightbox')) onEscape();
+      }}>
+        <div className={`bubble-header${view.pinned ? ' draggable' : ''}`} onMouseDown={onDragStart}>
           <span className="bubble-logo">
             <img className="bubble-logo-mark" src={BRAND_MARK_DATA_URI} alt="" aria-hidden="true" />
             <span>{BRAND_NAME}</span>
           </span>
           <span className="bubble-status">{view.status}</span>
-          <button className="pin-btn" title="Pin">
+          <button className={`pin-btn${view.pinned ? ' pinned' : ''}`} title={view.pinned ? 'Unpin' : 'Pin'} onClick={onTogglePin}>
             <PinIcon />
           </button>
-          <button className="close-btn" title="Close">✕</button>
+          <button className="close-btn" title="Close" onClick={onClose}>✕</button>
         </div>
         <Preview previewText={previewText} previewLabel={view.previewLabel || previewLabel} images={images} />
         {presets ? (
@@ -392,7 +403,7 @@ export function BubbleShell({
           onHistoryEntry={onHistoryEntry}
           onClearHistory={onClearHistory}
         />
-        <div className="resize-handle" title="Drag to resize">
+        <div className="resize-handle" title="Drag to resize" onMouseDown={onResizeStart}>
           <ResizeIcon />
         </div>
       </div>

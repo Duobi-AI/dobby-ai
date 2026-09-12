@@ -1,32 +1,11 @@
 // src/content/shared/state.js — Central mutable state for content scripts
 import type {
-  BubbleHost,
-  ChatMessage,
   LongPressState,
   ScreenshotState,
   StreamRequestHandle,
   ToolbarHost,
   ToolbarState,
 } from '../../shared/types';
-
-// Bubble state
-export let bubbleHost: BubbleHost | null = null;
-export let currentMessages: ChatMessage[] = [];
-export let responseText = '';
-export let currentRequest: StreamRequestHandle | null = null;
-export let renderTimer: ReturnType<typeof setTimeout> | null = null;
-
-export function setBubbleHost(v: BubbleHost | null) { bubbleHost = v; }
-export function setCurrentMessages(v: ChatMessage[]) { currentMessages = v; }
-export function setResponseText(v: string) { responseText = v; }
-export function appendResponseText(v: string) { responseText += v; }
-export function setCurrentRequest(v: StreamRequestHandle | null) { currentRequest = v; }
-export function setRenderTimer(v: ReturnType<typeof setTimeout> | null) { renderTimer = v; }
-
-// Raw AI response tracking (for copy button)
-export let rawResponses: string[] = [];
-export function pushRawResponse(text: string) { rawResponses.push(text); return rawResponses.length - 1; }
-export function clearRawResponses() { rawResponses.length = 0; }
 
 // Trigger state
 export let triggerButton: ToolbarHost | null = null;

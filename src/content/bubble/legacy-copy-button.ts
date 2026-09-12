@@ -1,4 +1,4 @@
-import { rawResponses } from '../shared/state.js';
+import { getRawResponse } from './lifecycle.js';
 import { TIMING } from '../shared/constants.js';
 import { getColorPalette } from '../../shared/color-palette.js';
 
@@ -17,7 +17,7 @@ export function createCopyButton(aiMsg: HTMLElement, responseIdx: number): void 
   btn.innerHTML = COPY_ICON;
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    const text = rawResponses[responseIdx];
+    const text = getRawResponse(responseIdx);
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);

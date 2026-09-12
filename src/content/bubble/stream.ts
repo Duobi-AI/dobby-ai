@@ -1,11 +1,4 @@
 // src/content/bubble/stream.js — Streaming response and follow-up logic
-import {
-  responseText, appendResponseText, setResponseText,
-  currentMessages, setCurrentMessages,
-  renderTimer, setRenderTimer,
-  setCurrentRequest,
-  pushRawResponse,
-} from '../shared/state.js';
 import { requestChat } from '../api.js';
 import { buildFollowUp } from '../prompt.js';
 import { saveConversation } from '../history.js';
@@ -13,14 +6,23 @@ import { TIMING } from '../shared/constants.js';
 import type { ChatMessage } from '../../shared/types';
 import {
   addUserResponse,
+  appendResponseText,
   completeAssistantResponse,
   failAssistantResponse,
+  getCurrentMessages,
+  getRenderTimer,
+  getResponseText,
   removeBubbleMessage,
+  pushRawResponse,
+  setCurrentMessages,
+  setCurrentRequest,
+  setRenderTimer,
+  setResponseText,
   setAssistantResponse,
   setBubbleViewStatus,
   showRateLimitView,
   startAssistantResponse,
-} from './view-model.js';
+} from './lifecycle.js';
 
 export { createCopyButton } from './legacy-copy-button.js';
 
@@ -38,10 +40,10 @@ export function startStreaming(shadow: ShadowRoot, messages: ChatMessage[]): voi
       }
       appendResponseText(token);
       // Debounce rendering to ~50ms for performance
-      if (!renderTimer) {
+      if (!getRenderTimer()) {
         setRenderTimer(setTimeout(() => {
           setRenderTimer(null);
-          setAssistantResponse(responseId, responseText);
+          setAssistantResponse(responseId, getResponseText());
           const body = shadow.querySelector<HTMLElement>('.bubble-body')!;
           body.scrollTop = body.scrollHeight;
         }, TIMING.RENDER_DEBOUNCE));
@@ -49,12 +51,14 @@ export function startStreaming(shadow: ShadowRoot, messages: ChatMessage[]): voi
     },
     (usageInfo) => {
       // Flush any pending render
+      const renderTimer = getRenderTimer();
       if (renderTimer) { clearTimeout(renderTimer); setRenderTimer(null); }
       let responseIdx: number | undefined;
-      if (responseText) {
-        responseIdx = pushRawResponse(responseText);
+      const response = getResponseText();
+      if (response) {
+        responseIdx = pushRawResponse(response);
       }
-      completeAssistantResponse(responseId, responseText, responseIdx);
+      completeAssistantResponse(responseId, response, responseIdx);
       if (usageInfo && usageInfo.usingOwnKey) {
         setBubbleViewStatus('your API key');
       } else if (usageInfo && usageInfo.remaining != null) {
@@ -63,7 +67,8 @@ export function startStreaming(shadow: ShadowRoot, messages: ChatMessage[]): voi
         setBubbleViewStatus('');
       }
       shadow.querySelector<HTMLInputElement>('.follow-up-input')?.focus();
-      setCurrentMessages([...currentMessages, { role: 'assistant', content: responseText }]);
+      const conversation = getCurrentMessages();
+      setCurrentMessages([...conversation, { role: 'assistant', content: response }]);
 
       // Save to history — extract text from multimodal content arrays
       const firstUser = messages.find((m) => m.role === 'user');
@@ -82,7 +87,7 @@ export function startStreaming(shadow: ShadowRoot, messages: ChatMessage[]): voi
       saveConversation({
         text: historyText,
         instruction: (instruction?.content as string) || '',
-        response: responseText,
+        response,
         pageUrl: window.location.href,
         pageTitle: document.title,
       });
@@ -111,8 +116,9 @@ export function handleFollowUp(shadow: ShadowRoot, question: string): void {
   // Reset responseText for the new AI reply (previous messages stay in DOM)
   setResponseText('');
 
-  setCurrentMessages(buildFollowUp(currentMessages, question));
-  startStreaming(shadow, currentMessages);
+  const messages = buildFollowUp(getCurrentMessages(), question);
+  setCurrentMessages(messages);
+  startStreaming(shadow, messages);
 }
 
 export function showRateLimitUI(shadow: ShadowRoot): void {
