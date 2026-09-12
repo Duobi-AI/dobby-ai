@@ -1,20 +1,13 @@
-// src/background/index.ts — Dobby AI API relay + streaming hub
+// src/background/index.js — Dobby AI API relay + streaming hub
 // All API calls from content scripts route through here (MV3 cross-origin constraint)
 
-import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../shared/autosuggest-limits.js';
-import { DEFAULT_OPENAI_MODEL, DEFAULT_REASONING_EFFORT } from '../shared/model-config.js';
-import { getLocalStorage, removeLocalStorage, setLocalStorage } from '../shared/storage.js';
+import { getLocalStorage, setLocalStorage } from '../shared/storage.js';
 import {
-  clearAutosuggestCooldown,
-  getAutosuggestCooldownRemaining,
-  recordAutosuggestRateLimit,
-} from './autosuggest-cooldown.js';
-import {
-  clearProxyCooldown,
-  getProxyCooldownRemaining,
-  ProxyCooldownError,
-  recordProxyTemporaryFailure,
-} from './proxy-cooldown.js';
+  recordUsage,
+  responseStreamExecutor,
+  type ResponseStreamEvent,
+  type ResponseStreamHandle,
+} from './model-stream.js';
 
 import type {
   AutosuggestBackgroundPort,
@@ -22,73 +15,13 @@ import type {
   BackgroundRuntimeMessage,
   CaptureScreenshotResponse,
   ChatBackgroundPort,
-  ChatMessage,
   ChatStreamRequest,
   ContentRuntimeMessage,
   ToggleMessageType,
-  UsageRequestKind,
-  UsageState,
-  UsageUpdateDetails,
   ValidateApiKeyResponse,
 } from '../shared/types';
 
-const PROXY_BASE_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev';
-const PROXY_URL = `${PROXY_BASE_URL}/chat`;
-const PROXY_ACCESS_TOKEN_URL = `${PROXY_BASE_URL}/access-token`;
-const USAGE_STORAGE_KEY = 'dobbyUsage';
-const PROXY_ACCESS_TOKEN_STORAGE_KEY = 'proxyAccessToken';
-const PROXY_ACCESS_TOKEN_HEADER = 'X-Dobby-Access-Token';
-// HMAC_SECRET is intentionally in extension source — it is request-shape validation, not auth.
-// Free proxy calls also require a server-issued access token and proxy-side quota checks.
-const HMAC_SECRET = 'dobby-ai-v2-hmac-key-change-in-production';
-// Set to your dev token to bypass rate limits during development; leave empty for normal user behavior
-const DEV_BYPASS_TOKEN = '';
-let proxyAccessTokenRequest: Promise<string> | null = null;
-
-function getUtcDay(): string {
-  return new Date().toISOString().split('T')[0]!;
-}
-
-function createEmptyUsage(): UsageState {
-  return {
-    day: getUtcDay(),
-    chatRequests: 0,
-    autosuggestRequests: 0,
-    screenshotRequests: 0,
-    freeChatRemaining: null,
-    usingOwnKey: false,
-    lastUpdated: Date.now(),
-  };
-}
-
-async function recordUsage(kind: UsageRequestKind, details: UsageUpdateDetails = {}): Promise<void> {
-  try {
-    const stored = await getLocalStorage(USAGE_STORAGE_KEY);
-    const current = stored[USAGE_STORAGE_KEY];
-    const usage = current && current.day === getUtcDay() ? { ...current } : createEmptyUsage();
-
-    if (!details.rateLimited) {
-      if (kind === 'chat') usage.chatRequests = (usage.chatRequests || 0) + 1;
-      if (kind === 'autosuggest') usage.autosuggestRequests = (usage.autosuggestRequests || 0) + 1;
-      if (kind === 'screenshot') usage.screenshotRequests = (usage.screenshotRequests || 0) + 1;
-    }
-
-    if (kind === 'chat' && details.remaining != null && !details.usingOwnKey) {
-      usage.freeChatRemaining = details.remaining;
-    }
-    if (details.remaining === 0 && !details.usingOwnKey) {
-      usage.freeChatRemaining = 0;
-    }
-    if (details.usingOwnKey != null) {
-      usage.usingOwnKey = details.usingOwnKey;
-    }
-    usage.lastUpdated = Date.now();
-
-    await setLocalStorage({ [USAGE_STORAGE_KEY]: usage });
-  } catch (e) {
-    console.warn('[Dobby AI] Failed to record usage:', (e as Error).message);
-  }
-}
+export { generateSignature, parseSSEStream } from './model-stream.js';
 
 // --- Context Menu ---
 
@@ -103,7 +36,6 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== 'dobby-ai') return;
 
-  // Image context menu click
   if (info.mediaType === 'image' && info.srcUrl) {
     sendContentMessage(tab!.id, { type: 'SHOW_BUBBLE', image: info.srcUrl }).catch(() => {
       chrome.notifications.create({
@@ -116,7 +48,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     return;
   }
 
-  // Text selection context menu click
   const text = (info.selectionText || '').trim();
   if (!text) return;
 
@@ -165,347 +96,74 @@ function toggleStoredSetting(
 }
 
 chrome.commands.onCommand.addListener((command) => {
-  if (command === 'toggle-dobby') {
-    toggleStoredSetting('dobbyEnabled', 'DOBBY_TOGGLE');
-  }
-  if (command === 'toggle-screenshot-mode') {
-    toggleStoredSetting('screenshotEnabled', 'SCREENSHOT_TOGGLE');
-  }
+  if (command === 'toggle-dobby') toggleStoredSetting('dobbyEnabled', 'DOBBY_TOGGLE');
+  if (command === 'toggle-screenshot-mode') toggleStoredSetting('screenshotEnabled', 'SCREENSHOT_TOGGLE');
 });
 
-// --- HMAC Signing ---
+// --- Model stream adapters ---
 
-export async function generateSignature(
-  messages: ChatMessage[],
-  timestamp: number,
-  secret: string,
-): Promise<string> {
-  const payload = `${timestamp}${JSON.stringify(messages)}`;
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
-  return Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-// --- SSE Stream Parsing ---
-
-export async function* parseSSEStream(
-  reader: ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>,
-): AsyncGenerator<string> {
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split(/\r?\n/);
-    buffer = lines.pop()!;
-
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const data = line.slice(6);
-        if (data === '[DONE]') return;
-        try {
-          const parsed = JSON.parse(data);
-          const token = parsed.choices?.[0]?.delta?.content;
-          if (token) yield token;
-        } catch (e) {
-          console.warn('[Dobby AI] Skipping malformed SSE JSON:', data);
-        }
-      }
-    }
-  }
-}
-
-type ProxyRequestPurpose = 'chat' | 'autosuggest';
-
-function isTemporaryProxyStatus(status: number): boolean {
-  return status >= 500 && status <= 599;
-}
-
-async function fetchProxyAccessToken(): Promise<string> {
-  let response: Response;
+function postChatEvent(port: ChatBackgroundPort, event: ResponseStreamEvent): void {
   try {
-    response = await fetch(PROXY_ACCESS_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    const retryAfter = await recordProxyTemporaryFailure(null);
-    throw new ProxyCooldownError(retryAfter);
-  }
-
-  if (!response.ok) {
-    if (response.status === 429 || isTemporaryProxyStatus(response.status)) {
-      const retryAfter = await recordProxyTemporaryFailure(response.headers.get('Retry-After'));
-      throw new ProxyCooldownError(retryAfter);
+    switch (event.type) {
+      case 'token': port.postMessage(event); break;
+      case 'done': port.postMessage(event); break;
+      case 'rate_limited': port.postMessage(event); break;
+      case 'error': port.postMessage(event); break;
     }
-    let errBody = '';
-    try { errBody = await response.text(); } catch (e) { /* ignore */ }
-    throw new Error(errBody ? `Proxy access token failed (${response.status}): ${errBody.substring(0, 200)}` : 'Proxy access token failed');
+  } catch (e) {
+    console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message);
   }
-
-  const data = await response.json() as { token?: string };
-  if (!data.token) {
-    throw new Error('Proxy access token response was missing token');
-  }
-
-  await setLocalStorage({ [PROXY_ACCESS_TOKEN_STORAGE_KEY]: data.token });
-  await clearProxyCooldown();
-  return data.token;
 }
 
-async function getProxyAccessToken(forceRefresh: boolean): Promise<string> {
-  if (!forceRefresh) {
-    const stored = await getLocalStorage(PROXY_ACCESS_TOKEN_STORAGE_KEY);
-    if (stored.proxyAccessToken) return stored.proxyAccessToken;
+function postAutosuggestEvent(port: AutosuggestBackgroundPort, event: ResponseStreamEvent): void {
+  try {
+    switch (event.type) {
+      case 'token': port.postMessage(event); break;
+      case 'done': port.postMessage({ type: 'done' }); break;
+      case 'rate_limited': port.postMessage({ type: 'rate_limited', remaining: event.remaining, retryAfter: event.retryAfter }); break;
+      case 'error': port.postMessage(event); break;
+    }
+  } catch {
+    // The content script may disconnect while an Autosuggestion is in flight.
   }
-  if (forceRefresh) {
-    await removeLocalStorage(PROXY_ACCESS_TOKEN_STORAGE_KEY);
-  }
-
-  if (!proxyAccessTokenRequest) {
-    const request = (async () => {
-      const retryAfter = await getProxyCooldownRemaining();
-      if (retryAfter > 0) throw new ProxyCooldownError(retryAfter);
-      return fetchProxyAccessToken();
-    })();
-    proxyAccessTokenRequest = request;
-    void request.then(
-      () => { if (proxyAccessTokenRequest === request) proxyAccessTokenRequest = null; },
-      () => { if (proxyAccessTokenRequest === request) proxyAccessTokenRequest = null; },
-    );
-  }
-  return proxyAccessTokenRequest;
 }
 
-async function fetchViaProxy(
-  messages: ChatMessage[],
-  purpose: ProxyRequestPurpose,
-  signal: AbortSignal,
-): Promise<Response> {
-  const retryAfter = await getProxyCooldownRemaining();
-  if (retryAfter > 0) throw new ProxyCooldownError(retryAfter);
-
-  const request = async (forceRefreshToken: boolean): Promise<Response> => {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signature = await generateSignature(messages, timestamp, HMAC_SECRET);
-    const token = await getProxyAccessToken(forceRefreshToken);
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      [PROXY_ACCESS_TOKEN_HEADER]: token,
-    };
-    if (DEV_BYPASS_TOKEN) headers['X-Dev-Token'] = DEV_BYPASS_TOKEN;
-    const body = purpose === 'autosuggest'
-      ? { messages, signature, timestamp, purpose }
-      : { messages, signature, timestamp };
-
-    return fetch(PROXY_URL, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      signal,
-    });
-  };
-
-  const response = await request(false);
-  if (isTemporaryProxyStatus(response.status)) {
-    const retryAfter = await recordProxyTemporaryFailure(response.headers.get('Retry-After'));
-    throw new ProxyCooldownError(retryAfter);
-  }
-  if (response.status !== 401) return response;
-
-  const refreshedResponse = await request(true);
-  if (isTemporaryProxyStatus(refreshedResponse.status)) {
-    const retryAfter = await recordProxyTemporaryFailure(refreshedResponse.headers.get('Retry-After'));
-    throw new ProxyCooldownError(retryAfter);
-  }
-  return refreshedResponse;
-}
-
-// --- Chat Stream Port Handler ---
-
-chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== 'chat-stream') return;
-
+function registerChatStreamAdapter(port: chrome.runtime.Port): void {
   const chatPort = port as ChatBackgroundPort;
-  let abortController: AbortController | null = null;
-
+  let activeRequest: ResponseStreamHandle | null = null;
   chatPort.onMessage.addListener(async (msg: ChatStreamRequest) => {
     if (msg.type !== 'CHAT_REQUEST') return;
-
-    abortController = new AbortController();
-    const { messages } = msg;
-
-    // 30-second timeout per spec
-    const timeout = setTimeout(() => abortController!.abort(), 30000);
-
-    try {
-      const stored = await getLocalStorage('userApiKey');
-      let response: Response;
-
-      if (stored.userApiKey) {
-        // Direct to OpenAI with user's own key
-        response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${stored.userApiKey}`,
-          },
-          body: JSON.stringify({
-            model: DEFAULT_OPENAI_MODEL,
-            messages,
-            stream: true,
-            reasoning_effort: DEFAULT_REASONING_EFFORT,
-            max_completion_tokens: 1000,
-          }),
-          signal: abortController.signal,
-        });
-      } else {
-        response = await fetchViaProxy(messages, 'chat', abortController.signal);
-      }
-
-      if (response.status === 429) {
-        let data: { remaining?: number; resetAt?: string | number };
-        try { data = await response.json(); } catch (e) { console.warn('[Dobby AI] Failed to parse rate limit response'); data = { remaining: 0 }; }
-        await recordUsage('chat', { remaining: data.remaining ?? 0, usingOwnKey: false, rateLimited: true });
-        try { chatPort.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0, resetAt: data.resetAt }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
-        return;
-      }
-
-      if (!response.ok) {
-        let errBody = '';
-        try { errBody = await response.text(); } catch (e) { /* ignore */ }
-        console.error('[Dobby AI] API error:', response.status, errBody);
-        const errMsg = errBody ? `Request failed (${response.status}): ${errBody.substring(0, 200)}` : 'Request failed';
-        try { chatPort.postMessage({ type: 'error', code: response.status, message: errMsg }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
-        return;
-      }
-
-      const usingOwnKey = !!stored.userApiKey;
-      const remaining = usingOwnKey ? null : parseInt(response.headers.get('X-RateLimit-Remaining')!) || 0;
-
-      const reader = response.body!.getReader();
-      for await (const token of parseSSEStream(reader)) {
-        try { chatPort.postMessage({ type: 'token', text: token }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); break; }
-      }
-      await recordUsage('chat', { remaining, usingOwnKey });
-      try { chatPort.postMessage({ type: 'done', remaining, usingOwnKey }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') {
-        try { chatPort.postMessage({ type: 'error', code: 0, message: 'Request timed out' }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
-      } else {
-        const code = err instanceof ProxyCooldownError ? err.status : 0;
-        try { chatPort.postMessage({ type: 'error', code, message: (err as Error).message }); } catch (e) { console.warn('[Dobby AI] port.postMessage failed:', (e as Error).message); }
-      }
-    } finally {
-      clearTimeout(timeout);
-    }
+    activeRequest = responseStreamExecutor.execute({
+      kind: 'chat',
+      messages: msg.messages,
+      onEvent: (event) => postChatEvent(chatPort, event),
+    });
+    await activeRequest.completion;
   });
+  port.onDisconnect.addListener(() => activeRequest?.cancel());
+}
 
-  port.onDisconnect.addListener(() => {
-    abortController?.abort();
-  });
-});
-
-// --- Autosuggest Stream Port Handler ---
-
-chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== 'autosuggest-stream') return;
-
+function registerAutosuggestStreamAdapter(port: chrome.runtime.Port): void {
   const autosuggestPort = port as AutosuggestBackgroundPort;
-  let abortController: AbortController | null = null;
-
+  let activeRequest: ResponseStreamHandle | null = null;
   autosuggestPort.onMessage.addListener(async (msg: AutosuggestStreamRequest) => {
     if (msg.type !== 'AUTOSUGGEST_REQUEST') return;
-
-    abortController = new AbortController();
-    const { messages } = msg;
-
-    // Shorter timeout for autosuggest (10s vs 30s for chat)
-    const timeout = setTimeout(() => abortController!.abort(), 10000);
-
-    try {
-      const stored = await getLocalStorage('userApiKey');
-      if (!stored.userApiKey) {
-        const retryAfter = await getAutosuggestCooldownRemaining();
-        if (retryAfter > 0) {
-          try { autosuggestPort.postMessage({ type: 'rate_limited', remaining: 0, retryAfter }); } catch (e) { /* port closed */ }
-          return;
-        }
-      }
-
-      let response: Response;
-
-      if (stored.userApiKey) {
-        // Direct to OpenAI with user's own key
-        response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${stored.userApiKey}`,
-          },
-          body: JSON.stringify({
-            model: DEFAULT_OPENAI_MODEL,
-            messages,
-            stream: true,
-            reasoning_effort: DEFAULT_REASONING_EFFORT,
-            max_completion_tokens: AUTOSUGGEST_MAX_SUGGESTION_TOKENS,
-          }),
-          signal: abortController.signal,
-        });
-      } else {
-        response = await fetchViaProxy(messages, 'autosuggest', abortController.signal);
-      }
-
-      if (response.status === 429) {
-        let data: { remaining?: number };
-        try { data = await response.json(); } catch (e) { data = { remaining: 0 }; }
-        const retryAfter = await recordAutosuggestRateLimit(response.headers.get('Retry-After'));
-        await recordUsage('autosuggest', { usingOwnKey: false, rateLimited: true });
-        try { autosuggestPort.postMessage({ type: 'rate_limited', remaining: data.remaining ?? 0, retryAfter }); } catch (e) { /* port closed */ }
-        return;
-      }
-
-      if (!response.ok) {
-        let errBody = '';
-        try { errBody = await response.text(); } catch (e) { /* ignore */ }
-        console.error('[Dobby AI] Autosuggest API error:', response.status, errBody);
-        try { autosuggestPort.postMessage({ type: 'error', code: response.status, message: 'Autosuggest request failed: ' + errBody.substring(0, 200) }); } catch (e) { /* port closed */ }
-        return;
-      }
-
-      if (!stored.userApiKey) await clearAutosuggestCooldown();
-
-      const reader = response.body!.getReader();
-      for await (const token of parseSSEStream(reader)) {
-        try { autosuggestPort.postMessage({ type: 'token', text: token }); } catch (e) { break; }
-      }
-      await recordUsage('autosuggest', { usingOwnKey: !!stored.userApiKey });
-      try { autosuggestPort.postMessage({ type: 'done' }); } catch (e) { /* port closed */ }
-    } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
-        const code = err instanceof ProxyCooldownError ? err.status : 0;
-        try { autosuggestPort.postMessage({ type: 'error', code, message: (err as Error).message }); } catch (e) { /* port closed */ }
-      }
-    } finally {
-      clearTimeout(timeout);
-    }
+    activeRequest = responseStreamExecutor.execute({
+      kind: 'autosuggest',
+      messages: msg.messages,
+      onEvent: (event) => postAutosuggestEvent(autosuggestPort, event),
+    });
+    await activeRequest.completion;
   });
+  port.onDisconnect.addListener(() => activeRequest?.cancel());
+}
 
-  port.onDisconnect.addListener(() => {
-    abortController?.abort();
-  });
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'chat-stream') registerChatStreamAdapter(port);
+});
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'autosuggest-stream') registerAutosuggestStreamAdapter(port);
 });
 
 // --- API Key Validation ---
@@ -516,7 +174,6 @@ chrome.runtime.onMessage.addListener((
   sendResponse: (response: CaptureScreenshotResponse | ValidateApiKeyResponse) => void,
 ) => {
   if (msg.type === 'CAPTURE_SCREENSHOT') {
-    // Preserve the existing null windowId behavior while satisfying the Chrome type definition.
     chrome.tabs.captureVisibleTab(null as unknown as number, { format: 'png' }, (dataUrl) => {
       if (chrome.runtime.lastError || !dataUrl) {
         sendResponse({ error: 'Screenshot failed' });
@@ -525,7 +182,7 @@ chrome.runtime.onMessage.addListener((
         sendResponse({ dataUrl });
       }
     });
-    return true; // async sendResponse
+    return true;
   }
   if (msg.type === 'OPEN_OPTIONS') {
     chrome.runtime.openOptionsPage();
@@ -533,9 +190,7 @@ chrome.runtime.onMessage.addListener((
   }
   if (msg.type === 'VALIDATE_API_KEY') {
     fetch('https://api.openai.com/v1/models', {
-      headers: {
-        Authorization: `Bearer ${msg.apiKey}`,
-      },
+      headers: { Authorization: `Bearer ${msg.apiKey}` },
     })
       .then((res) => {
         if (res.ok) {
@@ -545,9 +200,7 @@ chrome.runtime.onMessage.addListener((
           sendResponse({ valid: false, error: 'Invalid API key' });
         }
       })
-      .catch(() => {
-        sendResponse({ valid: false, error: 'Network error' });
-      });
-    return true; // async sendResponse
+      .catch(() => sendResponse({ valid: false, error: 'Network error' }));
+    return true;
   }
 });
