@@ -1,10 +1,6 @@
-// src/content/bubble/markdown.js — Safe Markdown rendering for chat responses
+// src/content/bubble/markdown.ts — Safe Markdown rendering for chat responses
 
 import MarkdownIt from 'markdown-it';
-
-export function escapeHtml(text: string): string {
-  return MarkdownIt().utils.escapeHtml(text);
-}
 
 function isValidImageUrl(url: string): boolean {
   try {
@@ -35,7 +31,6 @@ markdown.renderer.rules.image = (tokens, index, options, env, self) => {
 
   token.attrJoin('class', 'response-img');
   token.attrSet('loading', 'lazy');
-  token.attrSet('onerror', "this.style.display='none'");
 
   return defaultImageRenderer
     ? defaultImageRenderer(tokens, index, options, env, self)

@@ -580,6 +580,7 @@ describe('bubble.js', () => {
       expect(result).toContain('class="response-img"');
       expect(result).toContain('src="https://example.com/img.png"');
       expect(result).toContain('alt="diagram"');
+      expect(result).not.toContain('onerror=');
     });
 
     it('rejects non-https image URLs', async () => {
@@ -875,6 +876,18 @@ describe('bubble.js', () => {
   });
 
   describe('image lightbox', () => {
+    it('hides a response image that fails to load without inline HTML handlers', async () => {
+      await showBubble({ bottom: 100, left: 50, right: 250 }, []);
+      const shadow = _getBubbleContainer().shadowRoot;
+      const responseText = shadow.querySelector('.response-text');
+      responseText.innerHTML = '<img class="response-img" src="https://example.com/missing.png" alt="test">';
+
+      const image = shadow.querySelector('.response-img');
+      image.dispatchEvent(new Event('error'));
+
+      expect(image.style.display).toBe('none');
+    });
+
     it('opens lightbox overlay when image is clicked', async () => {
       await showBubble({ bottom: 100, left: 50, right: 250 }, []);
       const container = _getBubbleContainer();
