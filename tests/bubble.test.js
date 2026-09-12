@@ -293,6 +293,45 @@ describe('bubble.js', () => {
   });
 
   describe('renderMarkdown', () => {
+    it('renders section headings and thematic breaks from chat responses', async () => {
+      const result = renderMarkdown([
+        '当然，可以举例说明这三个概念：',
+        '',
+        '### 1) Label（标签）',
+        'Label 是附加在 metric 上的键值对。',
+        '',
+        '---',
+        '',
+        '### 2) Metric（指标）',
+      ].join('\n'));
+
+      expect(result).toContain('<h3>1) Label（标签）</h3>');
+      expect(result).toContain('<hr>');
+      expect(result).toContain('<h3>2) Metric（指标）</h3>');
+      expect(result).not.toContain('###');
+    });
+
+    it('renders standard block and inline Markdown through the chat renderer', async () => {
+      const result = renderMarkdown([
+        '*emphasis*',
+        '',
+        '1. first',
+        '2. second',
+        '',
+        '> quoted text',
+        '',
+        '[documentation](https://example.com/docs)',
+      ].join('\n'));
+
+      expect(result).toContain('<em>emphasis</em>');
+      expect(result).toContain('<ol>');
+      expect(result).toContain('<li>first</li>');
+      expect(result).toContain('<blockquote>');
+      expect(result).toContain('href="https://example.com/docs"');
+      expect(result).toContain('target="_blank"');
+      expect(result).toContain('rel="noopener noreferrer"');
+    });
+
     it('renders bold text', async () => {
       expect(renderMarkdown('**bold**')).toContain('<strong>bold</strong>');
     });
@@ -520,6 +559,12 @@ describe('bubble.js', () => {
       expect(result).not.toContain('<script>');
       expect(result).toContain('&lt;script&gt;');
     });
+
+    it('does not create links for unsafe URL schemes', async () => {
+      const result = renderMarkdown('[click me](javascript:alert("xss"))');
+      expect(result).not.toContain('<a');
+      expect(result).not.toContain('href=');
+    });
   });
 
   describe('renderMarkdown lists', () => {
@@ -532,7 +577,7 @@ describe('bubble.js', () => {
   describe('renderMarkdown images', () => {
     it('renders https image markdown as img tag', async () => {
       const result = renderMarkdown('![diagram](https://example.com/img.png)');
-      expect(result).toContain('<img class="response-img"');
+      expect(result).toContain('class="response-img"');
       expect(result).toContain('src="https://example.com/img.png"');
       expect(result).toContain('alt="diagram"');
     });
@@ -594,7 +639,7 @@ describe('bubble.js', () => {
       const text = '**bold** and ![img](https://example.com/pic.png) and `code`';
       const result = renderMarkdown(text);
       expect(result).toContain('<strong>bold</strong>');
-      expect(result).toContain('<img class="response-img"');
+      expect(result).toContain('class="response-img"');
       expect(result).toContain('<code>code</code>');
     });
   });
