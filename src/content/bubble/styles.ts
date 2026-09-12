@@ -173,6 +173,47 @@ export function getStyles(theme: ResolvedTheme): string {
     }
     .response-text pre code { background: none; padding: 0; }
     .response-text strong { font-weight: 600; }
+    .response-text p { margin: 0 0 8px; }
+    .response-text p:last-child { margin-bottom: 0; }
+    .response-text h1,
+    .response-text h2,
+    .response-text h3,
+    .response-text h4,
+    .response-text h5,
+    .response-text h6 {
+      margin: 10px 0 4px;
+      line-height: 1.3;
+      font-weight: 650;
+    }
+    .response-text h1 { font-size: 18px; }
+    .response-text h2 { font-size: 16px; }
+    .response-text h3 { font-size: 15px; }
+    .response-text h4,
+    .response-text h5,
+    .response-text h6 { font-size: 14px; }
+    .response-text hr {
+      border: 0;
+      border-top: 1px solid ${colors.borderDivider};
+      margin: 10px 0;
+    }
+    .response-text ul,
+    .response-text ol {
+      margin: 6px 0 10px;
+      padding-left: 22px;
+    }
+    .response-text li { margin: 3px 0; }
+    .response-text blockquote {
+      margin: 8px 0;
+      padding-left: 10px;
+      border-left: 3px solid ${colors.borderStrong};
+      color: ${colors.textMuted};
+    }
+    .response-text blockquote p { margin: 0; }
+    .response-text a {
+      color: ${accentInteractive};
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
     .response-text .response-img {
       max-width: 100%;
       border-radius: 8px;

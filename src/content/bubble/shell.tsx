@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -197,6 +198,12 @@ function ConversationMessage({ message }: { message: BubbleViewMessage }) {
   );
 }
 
+function hideBrokenResponseImage(event: Event): void {
+  const target = event.target;
+  if (!(target instanceof HTMLImageElement) || !target.classList.contains('response-img')) return;
+  target.style.display = 'none';
+}
+
 function getTimeAgo(timestamp: number): string {
   const diff = Date.now() - timestamp;
   const mins = Math.floor(diff / 60000);
@@ -219,6 +226,13 @@ function BubbleBody({
   useEffect(() => {
     lightboxRef.current?.focus();
   }, [lightbox]);
+
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    body.addEventListener('error', hideBrokenResponseImage, true);
+    return () => body.removeEventListener('error', hideBrokenResponseImage, true);
+  }, []);
 
   const openResponseImage = (event: ReactMouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
@@ -289,7 +303,11 @@ function BubbleBody({
 
   return (
     <>
-      <div className="bubble-body" ref={bodyRef} onClick={openResponseImage}>
+      <div
+        className="bubble-body"
+        ref={bodyRef}
+        onClick={openResponseImage}
+      >
         {view.restoredResponse ? (
           <div className="response-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(view.restoredResponse) }} />
         ) : (
