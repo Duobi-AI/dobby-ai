@@ -5,6 +5,15 @@ All notable changes to Dobby AI (formerly Ask AI) will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2026-09-12
+
+### Changed
+- Centralized model-response streaming, authentication, proxy cooldowns, usage accounting, and cancellation behind a shared background executor.
+- Deepened chat-bubble lifecycle state and rendering boundaries while preserving existing streaming, history, and copy-button behavior.
+
+### Fixed
+- Preserved timer receiver behavior across streaming adapters and verified the refactor against the full extension and proxy test suites.
+
 ## [1.4.4] - 2026-09-08
 
 ### Fixed
@@ -117,6 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Page context injection (title + URL)
 - CI/CD workflows (tests, coverage, security, release, PR preview, permission guard)
 
+[1.4.5]: https://github.com/Duobi-AI/dobby-ai/compare/v1.4.4...v1.4.5
 [1.4.4]: https://github.com/Duobi-AI/dobby-ai/compare/v1.4.3...v1.4.4
 [1.2.2]: https://github.com/Duobi-AI/dobby-ai/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/Duobi-AI/dobby-ai/compare/v1.2.0...v1.2.1
