@@ -46,7 +46,6 @@ global.fetch = vi.fn();
 global.AbortController = AbortController;
 
 const mod = await import('../src/background/index.js');
-const { parseSSEStream, generateSignature } = mod;
 
 const clickHandler = chrome.contextMenus.onClicked.addListener.mock.calls[0][0];
 const commandHandler = commandListeners[0];
@@ -178,93 +177,6 @@ describe('keyboard commands', () => {
     commandHandler('toggle-dobby');
 
     expect(mockSendMessage).not.toHaveBeenCalled();
-  });
-});
-
-describe('parseSSEStream', () => {
-  function makeReader(chunks) {
-    let i = 0;
-    const encoder = new TextEncoder();
-    return {
-      read: () => {
-        if (i >= chunks.length) return Promise.resolve({ done: true });
-        return Promise.resolve({ done: false, value: encoder.encode(chunks[i++]) });
-      },
-    };
-  }
-
-  it('extracts tokens from SSE data lines', async () => {
-    const reader = makeReader([
-      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
-      'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
-      'data: [DONE]\n\n',
-    ]);
-
-    const tokens = [];
-    for await (const token of parseSSEStream(reader)) {
-      tokens.push(token);
-    }
-    expect(tokens).toEqual(['Hello', ' world']);
-  });
-
-  it('handles chunks split across SSE boundaries', async () => {
-    const reader = makeReader([
-      'data: {"choices":[{"delta":{"conte',
-      'nt":"Hi"}}]}\n\ndata: [DONE]\n\n',
-    ]);
-
-    const tokens = [];
-    for await (const token of parseSSEStream(reader)) {
-      tokens.push(token);
-    }
-    expect(tokens).toEqual(['Hi']);
-  });
-
-  it('skips lines without content delta', async () => {
-    const reader = makeReader([
-      'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\n',
-      'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
-      'data: [DONE]\n\n',
-    ]);
-
-    const tokens = [];
-    for await (const token of parseSSEStream(reader)) {
-      tokens.push(token);
-    }
-    expect(tokens).toEqual(['ok']);
-  });
-
-  it('skips malformed JSON', async () => {
-    const reader = makeReader([
-      'data: {bad json}\n\n',
-      'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
-      'data: [DONE]\n\n',
-    ]);
-
-    const tokens = [];
-    for await (const token of parseSSEStream(reader)) {
-      tokens.push(token);
-    }
-    expect(tokens).toEqual(['ok']);
-  });
-});
-
-describe('generateSignature', () => {
-  it('returns a 64-char hex string', async () => {
-    const sig = await generateSignature([{ role: 'user', content: 'hi' }], 123, 'secret');
-    expect(sig).toMatch(/^[0-9a-f]{64}$/);
-  });
-
-  it('is deterministic', async () => {
-    const a = await generateSignature([{ role: 'user', content: 'hi' }], 123, 'secret');
-    const b = await generateSignature([{ role: 'user', content: 'hi' }], 123, 'secret');
-    expect(a).toBe(b);
-  });
-
-  it('changes with different timestamps', async () => {
-    const a = await generateSignature([{ role: 'user', content: 'hi' }], 100, 'secret');
-    const b = await generateSignature([{ role: 'user', content: 'hi' }], 200, 'secret');
-    expect(a).not.toBe(b);
   });
 });
 

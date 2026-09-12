@@ -5,7 +5,7 @@ import { setDobbyEnabled, setAutosuggestEnabled, setScreenshotEnabled } from './
 import { initAutosuggest, destroyAutosuggest } from './autosuggest/index.js';
 import { registerListeners } from './trigger/selection.js';
 import { hideTrigger } from './trigger/button.js';
-import { showBubbleWithPresets, showBubble, showHistoryBubble, hideBubble, getBubbleContainer } from './bubble/core.js';
+import { showBubbleWithPresets, showBubble, showHistoryBubble, hideBubble, getBubbleContainer, isBubblePinned } from './bubble/core.js';
 import { buildChatMessages } from './prompt.js';
 import { gatherCurrentTabContext } from './page-context.js';
 import { captureImage } from './image-capture.js';
@@ -107,7 +107,7 @@ setTimeout(() => {
     const bubble = getBubbleContainer();
     if (bubble && !bubble.contains(e.target as Node | null)) {
       if (isClickInsideUI(e.target, getBubbleContainer)) return;
-      if (bubble._isPinned) return;
+      if (isBubblePinned()) return;
       hideBubble();
     }
   });

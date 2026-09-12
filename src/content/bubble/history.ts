@@ -1,7 +1,7 @@
 // src/content/bubble/history.js — History panel UI
-import { setCurrentMessages, setResponseText } from '../shared/state.js';
+import { setCurrentMessages, setResponseText } from './lifecycle.js';
 import { getHistory, clearHistory } from '../history.js';
-import { showHistoryView, showRestoredHistoryResponse } from './view-model.js';
+import { showHistoryView, showRestoredHistoryResponse } from './lifecycle.js';
 import type { ChatMessage, HistoryEntry } from '../../shared/types';
 
 export async function showHistoryPanel(shadow: ShadowRoot): Promise<void> {

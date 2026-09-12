@@ -22,7 +22,7 @@ vi.mock('../src/content/bubble/markdown.js', () => ({
 const apiModule = await import('../src/content/api.js');
 const promptModule = await import('../src/content/prompt.js');
 const { startStreaming, handleFollowUp, showRateLimitUI } = await import('../src/content/bubble/stream.js');
-const stateModule = await import('../src/content/shared/state.js');
+const stateModule = await import('../src/content/bubble/lifecycle.js');
 const viewModel = await import('../src/content/bubble/view-model.js');
 
 // Create a minimal shadow DOM with all elements stream.js needs
@@ -176,7 +176,7 @@ describe('stream.js', () => {
       handleFollowUp(shadow, 'another question');
 
       // responseText is reset by handleFollowUp before startStreaming runs
-      expect(stateModule.responseText).toBe('');
+      expect(stateModule.getResponseText()).toBe('');
     });
   });
 
@@ -196,29 +196,29 @@ describe('stream.js', () => {
 
       lastCallbacks.onToken('Hello');
 
-      expect(stateModule.renderTimer).not.toBeNull();
+      expect(stateModule.getRenderTimer()).not.toBeNull();
     });
 
     it('clears renderTimer immediately when done fires before debounce expires', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hi' }]);
 
       lastCallbacks.onToken('Hello');
-      expect(stateModule.renderTimer).not.toBeNull(); // timer pending
+      expect(stateModule.getRenderTimer()).not.toBeNull(); // timer pending
 
       lastCallbacks.onDone(null); // done fires before debounce delay
 
-      expect(stateModule.renderTimer).toBeNull();
+      expect(stateModule.getRenderTimer()).toBeNull();
     });
 
     it('debounce timer fires and clears itself when not interrupted by done', () => {
       startStreaming(shadow, [{ role: 'user', content: 'hi' }]);
 
       lastCallbacks.onToken('Hello');
-      expect(stateModule.renderTimer).not.toBeNull();
+      expect(stateModule.getRenderTimer()).not.toBeNull();
 
       vi.advanceTimersByTime(100); // past 50ms RENDER_DEBOUNCE
 
-      expect(stateModule.renderTimer).toBeNull();
+      expect(stateModule.getRenderTimer()).toBeNull();
     });
 
     it('no error when runAllTimers called after done has already cleared the timer', () => {
@@ -228,7 +228,7 @@ describe('stream.js', () => {
       lastCallbacks.onDone(null);
 
       expect(() => vi.runAllTimers()).not.toThrow();
-      expect(stateModule.renderTimer).toBeNull();
+      expect(stateModule.getRenderTimer()).toBeNull();
     });
   });
 

@@ -36,6 +36,7 @@ vi.mock('../src/content/bubble/core.js', () => ({
   showHistoryBubble: vi.fn(),
   hideBubble: vi.fn(),
   getBubbleContainer: vi.fn(),
+  isBubblePinned: vi.fn(() => false),
 }));
 
 vi.mock('../src/content/prompt.js', () => ({
@@ -237,8 +238,10 @@ describe('content/index.js', () => {
     });
 
     it('does not call hideBubble when bubble is pinned', async () => {
-      const host = { _isPinned: true, contains: () => false };
+      const host = { contains: () => false };
       getBubbleContainer.mockReturnValue(host);
+      const { isBubblePinned } = await import('../src/content/bubble/core.js');
+      isBubblePinned.mockReturnValue(true);
 
       await new Promise((r) => setTimeout(r, 150));
 
