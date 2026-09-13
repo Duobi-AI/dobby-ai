@@ -7,6 +7,7 @@ export type ProxyEnv = {
   ALLOWED_ORIGINS?: string;
   DEV_BYPASS_TOKEN?: string;
   RATE_LIMIT_KV: KVNamespaceLike;
+  RATE_LIMITER?: RateLimiterNamespaceLike;
 };
 
 export type KVPutOptions = {
@@ -16,6 +17,15 @@ export type KVPutOptions = {
 export type KVNamespaceLike = {
   get(key: string): Promise<string | null>;
   put(key: string, value: string, options?: KVPutOptions): Promise<void>;
+};
+
+export type RateLimitStore = KVNamespaceLike & {
+  delete?: (key: string) => Promise<boolean | void>;
+};
+
+export type RateLimiterNamespaceLike = {
+  idFromName(name: string): unknown;
+  get(id: unknown): { fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> };
 };
 
 export type ValidationResult =

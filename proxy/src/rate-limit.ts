@@ -1,11 +1,11 @@
 // proxy/src/rate-limit.ts
 import type { ProxyPurpose } from '../../src/shared/types';
-import type { KVNamespaceLike, RateLimitResult } from './types';
+import type { RateLimitResult, RateLimitStore } from './types';
 
-const LIMITS = {
+export const LIMITS = {
   perMinute: 5,
   perDay: 30,
-  globalPerDay: 5000,
+  globalPerDay: 500,
 };
 
 const AUTOSUGGEST_LIMITS = {
@@ -37,12 +37,13 @@ function keyPrefix(purpose: ProxyPurpose): string {
 
 export async function checkRateLimit(
   ip: string,
-  kv: KVNamespaceLike,
+  store: RateLimitStore,
   purpose: ProxyPurpose = 'chat',
   tokenHash?: string,
+  globalStore: RateLimitStore | null = store,
 ): Promise<RateLimitResult> {
   // Check block list first (shared across both purposes)
-  const blocked = await kv.get(`blocked:${ip}`);
+  const blocked = await store.get(`blocked:${ip}`);
   if (blocked) {
     return { allowed: false, reason: 'IP blocked for abuse', retryAfter: 3600 };
   }
@@ -58,11 +59,11 @@ export async function checkRateLimit(
   const globalKey = `rl:global:${dayBucket()}`;
 
   const [minCount, dayCount, ipMinCount, ipDayCount, globalCount] = await Promise.all([
-    kv.get(minKey).then((v) => parseInt(v!) || 0),
-    kv.get(dayKey).then((v) => parseInt(v!) || 0),
-    tokenHash ? kv.get(ipMinKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
-    tokenHash ? kv.get(ipDayKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
-    kv.get(globalKey).then((v) => parseInt(v!) || 0),
+    store.get(minKey).then((v) => parseInt(v!) || 0),
+    store.get(dayKey).then((v) => parseInt(v!) || 0),
+    tokenHash ? store.get(ipMinKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
+    tokenHash ? store.get(ipDayKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
+    globalStore ? globalStore.get(globalKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
   ]);
 
   if (minCount >= limits.perMinute || ipMinCount >= limits.perMinute) {
@@ -84,9 +85,10 @@ export async function checkRateLimit(
 
 export async function incrementCounters(
   ip: string,
-  kv: KVNamespaceLike,
+  store: RateLimitStore,
   purpose: ProxyPurpose = 'chat',
   tokenHash?: string,
+  globalStore: RateLimitStore | null = store,
 ): Promise<void> {
   const prefix = keyPrefix(purpose);
   const subject = tokenHash ? `${ip}:${tokenHash}` : ip;
@@ -99,31 +101,37 @@ export async function incrementCounters(
   const burstKey = `rl:10s:${ip}:${tenSecBucket()}`;
 
   const [minCount, dayCount, ipMinCount, ipDayCount, globalCount, burstCount] = await Promise.all([
-    kv.get(minKey).then((v) => parseInt(v!) || 0),
-    kv.get(dayKey).then((v) => parseInt(v!) || 0),
-    tokenHash ? kv.get(ipMinKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
-    tokenHash ? kv.get(ipDayKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
-    kv.get(globalKey).then((v) => parseInt(v!) || 0),
-    kv.get(burstKey).then((v) => parseInt(v!) || 0),
+    store.get(minKey).then((v) => parseInt(v!) || 0),
+    store.get(dayKey).then((v) => parseInt(v!) || 0),
+    tokenHash ? store.get(ipMinKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
+    tokenHash ? store.get(ipDayKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
+    globalStore ? globalStore.get(globalKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
+    store.get(burstKey).then((v) => parseInt(v!) || 0),
   ]);
 
   // Note: KV is eventually consistent so counts are best-effort, which is acceptable for rate limiting
-  const puts = [
-    kv.put(minKey, String(minCount + 1), { expirationTtl: 120 }),
-    kv.put(dayKey, String(dayCount + 1), { expirationTtl: 86400 }),
-    kv.put(globalKey, String(globalCount + 1), { expirationTtl: 86400 }),
-    kv.put(burstKey, String(burstCount + 1), { expirationTtl: 60 }),
+  const puts: Array<Promise<unknown>> = [
+    store.put(minKey, String(minCount + 1), { expirationTtl: 120 }),
+    store.put(dayKey, String(dayCount + 1), { expirationTtl: 86400 }),
+    store.put(burstKey, String(burstCount + 1), { expirationTtl: 60 }),
   ];
+  if (globalStore) puts.push(globalStore.put(globalKey, String(globalCount + 1), { expirationTtl: 86400 }));
   if (tokenHash) {
     puts.push(
-      kv.put(ipMinKey, String(ipMinCount + 1), { expirationTtl: 120 }),
-      kv.put(ipDayKey, String(ipDayCount + 1), { expirationTtl: 86400 }),
+      store.put(ipMinKey, String(ipMinCount + 1), { expirationTtl: 120 }),
+      store.put(ipDayKey, String(ipDayCount + 1), { expirationTtl: 86400 }),
     );
+  }
+
+  if (store.delete) {
+    puts.push(store.delete(`${prefix}:min:${subject}:${minuteBucket() - 1}`));
+    puts.push(store.delete(`${prefix}:day:${subject}:${new Date(Date.now() - 86400000).toISOString().split('T')[0]!}`));
+    puts.push(store.delete(`${prefix}:10s:${ip}:${tenSecBucket() - 1}`));
   }
 
   // Abuse detection: 10+ requests in 10 seconds → 1-hour block
   if (burstCount + 1 >= 10) {
-    puts.push(kv.put(`blocked:${ip}`, '1', { expirationTtl: 3600 }));
+    puts.push(store.put(`blocked:${ip}`, '1', { expirationTtl: 3600 }));
   }
 
   await Promise.all(puts);
