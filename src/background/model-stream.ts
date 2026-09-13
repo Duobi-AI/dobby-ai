@@ -14,6 +14,7 @@ import {
   ProxyCooldownError,
   recordProxyTemporaryFailure,
 } from './proxy-cooldown.js';
+import { sendDailyUsageHeartbeat, type UsageMode } from './usage-telemetry.js';
 import type {
   ChatMessage,
   UsageRequestKind,
@@ -65,6 +66,7 @@ type ResponseStreamDependencies = {
   getAutosuggestCooldownRemaining: () => Promise<number>;
   recordAutosuggestRateLimit: (retryAfterHeader: string | null) => Promise<number>;
   clearAutosuggestCooldown: () => Promise<void>;
+  sendDailyUsageHeartbeat?: (mode: UsageMode) => Promise<void>;
   now: () => number;
   sign: (messages: ChatMessage[], timestamp: number, secret: string) => Promise<string>;
   recordUsage: (kind: UsageRequestKind, details?: UsageUpdateDetails) => Promise<void>;
@@ -290,6 +292,7 @@ const productionDependencies: ResponseStreamDependencies = {
   now: () => Date.now(),
   sign: generateSignature,
   recordUsage,
+  sendDailyUsageHeartbeat,
   setTimeout: (callback, delay) => globalThis.setTimeout(callback, delay),
   clearTimeout: (handle) => globalThis.clearTimeout(handle),
 };
@@ -385,9 +388,10 @@ export function createResponseStreamExecutor(
               : undefined;
             await dependencies.recordUsage(request.kind, {
               remaining: data.remaining ?? 0,
-              usingOwnKey: false,
+              usingOwnKey: !!apiKey,
               rateLimited: true,
             });
+            void dependencies.sendDailyUsageHeartbeat?.(apiKey ? 'byok' : 'free');
             request.onEvent({ type: 'rate_limited', remaining: data.remaining ?? 0, resetAt: data.resetAt, retryAfter });
             return;
           }
@@ -422,6 +426,7 @@ export function createResponseStreamExecutor(
             remaining: request.kind === 'chat' ? remaining : undefined,
             usingOwnKey,
           });
+          void dependencies.sendDailyUsageHeartbeat?.(usingOwnKey ? 'byok' : 'free');
           if (!apiKey && request.kind === 'autosuggest') {
             await dependencies.clearAutosuggestCooldown();
           }

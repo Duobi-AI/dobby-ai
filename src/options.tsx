@@ -3,14 +3,14 @@ import { flushSync } from 'react-dom';
 import { applyColorVariables } from './shared/color-palette.js';
 import { COLOR_SCHEME_QUERY, normalizeThemeMode, resolveTheme } from './shared/theme.js';
 import { mountReactRoot } from './shared/react-root.js';
-import { getLocalStorage, removeLocalStorage } from './shared/storage.js';
+import { getLocalStorage, removeLocalStorage, setLocalStorage } from './shared/storage.js';
 import { createValidateApiKeyMessage } from './shared/runtime-messages.js';
 import type { ThemeMode, ValidateApiKeyResponse } from './shared/types';
 
 type Provider = 'openai' | 'anthropic';
 type StatusTone = '' | 'error' | 'info';
 
-let applyStoredOptionsState: (userApiKey: string | undefined, theme: unknown) => void = () => {};
+let applyStoredOptionsState: (userApiKey: string | undefined, theme: unknown, telemetryEnabled: boolean | undefined) => void = () => {};
 
 function applyTheme(value: unknown): ThemeMode {
   const themeMode = normalizeThemeMode(value);
@@ -34,6 +34,7 @@ function OptionsApp() {
   const [validating, setValidating] = useState(false);
   const [provider, setProvider] = useState<Provider>('openai');
   const [themeMode, setThemeMode] = useState<ThemeMode>('auto');
+  const [telemetryEnabled, setTelemetryEnabled] = useState(true);
   const apiKeyInput = useRef<HTMLInputElement>(null);
   const version = chrome.runtime.getManifest ? `v${chrome.runtime.getManifest().version}` : 'v1.2.2';
 
@@ -46,10 +47,11 @@ function OptionsApp() {
     if (apiKeyInput.current) apiKeyInput.current.value = '';
   };
 
-  applyStoredOptionsState = (userApiKey, theme) => {
+  applyStoredOptionsState = (userApiKey, theme, storedTelemetryEnabled) => {
     flushSync(() => {
       setThemeMode(applyTheme(theme || 'auto'));
       setStoredKey(userApiKey || '');
+      setTelemetryEnabled(storedTelemetryEnabled !== false);
       setValidating(false);
       if (!userApiKey) {
         setStatus('');
@@ -210,6 +212,23 @@ function OptionsApp() {
           • <a href="https://docs.anthropic.com/en/docs/about-claude/models" target="_blank" style={{ color: 'inherit' }}>Claude models &amp; pricing</a>
         </div>
       </div>
+
+      <div className="card">
+        <h2>Anonymous usage metrics</h2>
+        <p>Help improve Dobby AI by sharing one daily event containing only your usage mode (free or your own API key), a random installation ID, and the extension version. Never your API key, prompts, pages, or responses.</p>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', lineHeight: 1.5 }}>
+          <input
+            type="checkbox"
+            checked={telemetryEnabled}
+            onChange={(event) => {
+              const enabled = event.target.checked;
+              setTelemetryEnabled(enabled);
+              setLocalStorage({ telemetryEnabled: enabled });
+            }}
+          />
+          <span>Share anonymous usage metrics</span>
+        </label>
+      </div>
     </div>
   );
 }
@@ -220,6 +239,6 @@ if (root !== document.body.firstElementChild || document.body.childElementCount 
   document.body.replaceChildren(root);
 }
 mountReactRoot(root, <OptionsApp />);
-getLocalStorage(['userApiKey', 'theme'], (result) => {
-  applyStoredOptionsState(result.userApiKey, result.theme);
+getLocalStorage(['userApiKey', 'theme', 'telemetryEnabled'], (result) => {
+  applyStoredOptionsState(result.userApiKey, result.theme, result.telemetryEnabled);
 });

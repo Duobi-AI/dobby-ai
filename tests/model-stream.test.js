@@ -29,6 +29,7 @@ function makeDependencies(overrides = {}) {
     now: vi.fn(() => 123000),
     sign: vi.fn(async () => 'signature'),
     recordUsage: vi.fn(async () => {}),
+    sendDailyUsageHeartbeat: vi.fn(async () => {}),
     fetchProxy: vi.fn(async (messages, purpose, signal, auth) => {
       const body = purpose === 'autosuggest'
         ? { messages, signature: auth.signature, timestamp: auth.timestamp, purpose }
@@ -89,6 +90,7 @@ describe('response stream executor', () => {
       123,
       expect.any(String),
     );
+    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('free');
     const body = JSON.parse(dependencies.fetch.mock.calls[0][1].body);
     expect(body).toMatchObject({
       messages: [{ role: 'user', content: 'test' }],
@@ -175,6 +177,27 @@ describe('response stream executor', () => {
     await Promise.resolve();
     expect(autosuggestDependencies.timers[0].delay).toBe(10000);
     expect(autosuggestEvents).toEqual([]);
+  });
+
+  it('keeps BYOK mode in local usage when the provider returns 429', async () => {
+    const dependencies = makeDependencies({
+      readUserApiKey: vi.fn(async () => 'sk-user'),
+      fetch: vi.fn(async () => ({
+        ok: false,
+        status: 429,
+        headers: new Headers(),
+        json: async () => ({ remaining: 0 }),
+      })),
+    });
+
+    await run(createResponseStreamExecutor(dependencies));
+
+    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('byok');
+    expect(dependencies.recordUsage).toHaveBeenCalledWith('chat', {
+      remaining: 0,
+      usingOwnKey: true,
+      rateLimited: true,
+    });
   });
 
   it('cancels an in-flight request without converting cancellation into an error', async () => {

@@ -4,17 +4,18 @@ export type RequestLog = {
   event: 'dobby_request';
   request_id: string;
   method: string;
-  route: 'chat' | 'access_token' | 'other';
+  route: 'chat' | 'access_token' | 'telemetry' | 'other';
   origin: 'allowed' | 'missing' | 'other';
   country?: string;
   asn?: number;
   purpose: 'unknown' | 'chat' | 'autosuggest' | 'invalid';
   signature: 'unchecked' | 'valid' | 'invalid';
   dev_bypass: boolean;
-  stage: 'routing' | 'payload' | 'signature' | 'rate_check' | 'rate_write' | 'upstream';
+  stage: 'routing' | 'payload' | 'signature' | 'rate_check' | 'rate_write' | 'telemetry' | 'upstream';
   outcome: 'preflight' | 'not_found' | 'method_not_allowed' | 'disabled' |
     'access_token_issued' | 'access_token_limited' |
     'access_token_storage_unavailable' |
+    'telemetry_recorded' | 'telemetry_rejected' |
     'invalid_access_token' |
     'body_read_failed' | 'body_too_large' | 'invalid_json' | 'invalid_payload' |
     'invalid_signature' | 'rate_limited' | 'upstream_error' | 'stream_started' | 'exception';
@@ -25,10 +26,19 @@ export type RequestLog = {
   rate_limit?: 'minute' | 'day' | 'global' | 'blocked' | 'other';
   upstream_status?: number;
   headers_duration_ms?: number;
+  usage_mode?: 'free' | 'byok';
+  telemetry_event?: 'daily_active';
+  installation_id?: string;
+  extension_version?: string;
 };
 
 // Allowlist fields and values: never log raw bodies, headers, URLs, or error messages.
 export function createRequestLog(request: Request, env: ProxyEnv): RequestLog {
+  const pathname = new URL(request.url).pathname;
+  const route: RequestLog['route'] = pathname === '/chat'
+    ? 'chat'
+    : pathname === '/access-token' ? 'access_token'
+      : pathname === '/telemetry' ? 'telemetry' : 'other';
   const origin = request.headers.get('Origin');
   const allowed = (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim());
   const cf = (request as Request & { cf?: { country?: unknown; asn?: unknown } }).cf;
@@ -37,9 +47,7 @@ export function createRequestLog(request: Request, env: ProxyEnv): RequestLog {
     request_id: crypto.randomUUID(),
     method: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE', 'HEAD'].includes(request.method)
       ? request.method : 'OTHER',
-    route: new URL(request.url).pathname === '/chat'
-      ? 'chat'
-      : new URL(request.url).pathname === '/access-token' ? 'access_token' : 'other',
+    route,
     origin: !origin ? 'missing' : allowed.includes(origin) ? 'allowed' : 'other',
     country: typeof cf?.country === 'string' && /^[A-Z]{2}$/.test(cf.country) ? cf.country : undefined,
     asn: typeof cf?.asn === 'number' && Number.isSafeInteger(cf.asn) && cf.asn > 0 ? cf.asn : undefined,
@@ -48,6 +56,7 @@ export function createRequestLog(request: Request, env: ProxyEnv): RequestLog {
     dev_bypass: false,
     stage: 'routing',
     outcome: 'exception',
+    usage_mode: route === 'chat' || route === 'access_token' ? 'free' : undefined,
   };
 }
 

@@ -114,6 +114,55 @@ describe('routing', () => {
   });
 });
 
+describe('POST /telemetry', () => {
+  it('records a valid daily usage mode without touching KV', async () => {
+    const logger = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const kv = { get: vi.fn(), put: vi.fn() };
+    const req = makeRequest('/telemetry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: {
+        event: 'daily_active',
+        mode: 'byok',
+        installation_id: '123e4567-e89b-12d3-a456-426614174000',
+        extension_version: '1.4.5',
+      },
+    });
+
+    const res = await handler.fetch(req, makeEnv({ RATE_LIMIT_KV: kv }));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
+    expect(kv.get).not.toHaveBeenCalled();
+    expect(kv.put).not.toHaveBeenCalled();
+    expect(logger).toHaveBeenCalledWith(expect.objectContaining({
+      route: 'telemetry',
+      usage_mode: 'byok',
+      telemetry_event: 'daily_active',
+      installation_id: '123e4567-e89b-12d3-a456-426614174000',
+      extension_version: '1.4.5',
+      outcome: 'telemetry_recorded',
+    }));
+    logger.mockRestore();
+  });
+
+  it('rejects telemetry with an invalid mode', async () => {
+    const req = makeRequest('/telemetry', {
+      method: 'POST',
+      body: {
+        event: 'daily_active',
+        mode: 'unknown',
+        installation_id: '123e4567-e89b-12d3-a456-426614174000',
+        extension_version: '1.4.5',
+      },
+    });
+
+    const res = await handler.fetch(req, makeEnv());
+
+    expect(res.status).toBe(400);
+  });
+});
+
 describe('POST /access-token', () => {
   beforeEach(() => {
     vi.clearAllMocks();

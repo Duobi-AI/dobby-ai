@@ -9,7 +9,26 @@ import type { ProxyPurpose } from '../../src/shared/types';
 import type { ProxyEnv, ValidProxyPayload } from './types';
 
 const MAX_BODY_SIZE = 2097152; // 2MB
+const MAX_TELEMETRY_BODY_SIZE = 4096;
 const TRANSIENT_STORAGE_RETRY_AFTER_SECONDS = 60;
+
+type UsageTelemetryPayload = {
+  event: 'daily_active';
+  mode: 'free' | 'byok';
+  installation_id: string;
+  extension_version: string;
+};
+
+function isUsageTelemetryPayload(value: unknown): value is UsageTelemetryPayload {
+  if (!value || typeof value !== 'object') return false;
+  const payload = value as Partial<UsageTelemetryPayload>;
+  return payload.event === 'daily_active'
+    && (payload.mode === 'free' || payload.mode === 'byok')
+    && typeof payload.installation_id === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(payload.installation_id)
+    && typeof payload.extension_version === 'string'
+    && /^[0-9A-Za-z._-]{1,32}$/.test(payload.extension_version);
+}
 
 function storageRetryAfter(error: unknown): number {
   const message = error instanceof Error ? error.message : '';
@@ -77,7 +96,7 @@ export default {
 
     const url = new URL(request.url);
 
-    if (url.pathname !== '/chat' && url.pathname !== '/access-token') {
+    if (url.pathname !== '/chat' && url.pathname !== '/access-token' && url.pathname !== '/telemetry') {
       return respond('not_found', 'routing', jsonResponse({ error: 'Not found' }, 404, corsHeaders));
     }
 
@@ -87,6 +106,35 @@ export default {
 
     if (env.ENABLED === 'false') {
       return respond('disabled', 'routing', jsonResponse({ error: 'Service temporarily disabled' }, 503, corsHeaders));
+    }
+
+    if (url.pathname === '/telemetry') {
+      let telemetryBody: string;
+      try {
+        telemetryBody = await request.text();
+      } catch {
+        return respond('telemetry_rejected', 'telemetry', jsonResponse({ error: 'Invalid telemetry payload' }, 400, corsHeaders));
+      }
+      if (telemetryBody.length > MAX_TELEMETRY_BODY_SIZE) {
+        return respond('telemetry_rejected', 'telemetry', jsonResponse({ error: 'Telemetry payload too large' }, 413, corsHeaders));
+      }
+
+      let parsedTelemetry: unknown;
+      try {
+        parsedTelemetry = JSON.parse(telemetryBody);
+      } catch {
+        return respond('telemetry_rejected', 'telemetry', jsonResponse({ error: 'Invalid telemetry payload' }, 400, corsHeaders));
+      }
+      if (!isUsageTelemetryPayload(parsedTelemetry)) {
+        return respond('telemetry_rejected', 'telemetry', jsonResponse({ error: 'Invalid telemetry payload' }, 400, corsHeaders));
+      }
+
+      return respond('telemetry_recorded', 'telemetry', jsonResponse({ ok: true }, 200, corsHeaders), {
+        usage_mode: parsedTelemetry.mode,
+        telemetry_event: parsedTelemetry.event,
+        installation_id: parsedTelemetry.installation_id,
+        extension_version: parsedTelemetry.extension_version,
+      });
     }
 
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';

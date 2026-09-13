@@ -54,6 +54,9 @@ export type StorageState = {
   proxyCooldown?: ProxyCooldown;
   theme?: ThemeMode;
   userApiKey?: string;
+  telemetryEnabled?: boolean;
+  telemetryInstallationId?: string;
+  telemetryLastSentDay?: string;
   proxyAccessToken?: string;
   dobbyUsage?: UsageState;
   chatHistory?: HistoryEntry[];

@@ -410,10 +410,10 @@ describe('chat-stream integration', () => {
     await handler({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
 
     await vi.waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(fetch.mock.calls.some(([, options]) => options?.headers?.['X-Dobby-Access-Token'] === 'stored-token')).toBe(true);
     });
 
-    expect(fetch.mock.calls[0][1].headers['X-Dobby-Access-Token']).toBe('stored-token');
+    expect(fetch.mock.calls.find(([, options]) => options?.headers?.['X-Dobby-Access-Token'] === 'stored-token')).toBeDefined();
   });
 
   it('refreshes the proxy access token once when the proxy rejects it', async () => {
