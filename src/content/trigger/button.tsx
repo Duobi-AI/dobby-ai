@@ -6,7 +6,7 @@ import { getToolbarStyles } from './styles.js';
 import { detectTheme, showBubble } from '../bubble/core.js';
 import { watchThemeChanges } from '../../shared/theme.js';
 import { mountReactRoot } from '../../shared/react-root.js';
-import { getColorPalette } from '../../shared/color-palette.js';
+import { removeSelectionHighlight, showSelectionHighlight } from './selection-highlight.js';
 import { buildChatMessages } from '../prompt.js';
 import { gatherCurrentTabContext } from '../page-context.js';
 import { Z_INDEX, TIMING } from '../shared/constants.js';
@@ -23,7 +23,6 @@ import { ToolbarShell } from './toolbar-shell.js';
 import type { ImageContentPart, PreservedSelection, Preset, SelectionData, ToolbarHost } from '../../shared/types';
 
 const SELECTION_IMAGE_WAIT_MS = 1000;
-const colors = getColorPalette('light');
 
 // --- Auto-hide timer ---
 let autoHideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -197,8 +196,6 @@ function morphIntoBubble(
   const selectionRequestId = host._selectionRequestId;
 
   clearAutoHide();
-  removeSelectionHighlight();
-
   resolveSelectionImages(host, selectionRequestId as number, (images) => {
     // Get toolbar position — bubble will appear growing from here
     const hostRect = host.getBoundingClientRect();
@@ -231,45 +228,8 @@ function morphIntoBubble(
     toolbar.style.transform = 'scale(0.9)';
 
     // Remove toolbar after fade completes
-    setTimeout(() => hideTrigger(), 220);
+    setTimeout(() => hideTrigger(true), 220);
   });
-}
-
-// --- Selection highlight overlay ---
-// When input mode is active, the browser clears the page's text selection highlight
-// because focus moves to the shadow DOM input. These overlays preserve the visual highlight.
-
-let selectionHighlights: HTMLDivElement[] = [];
-
-function showSelectionHighlight(): void {
-  removeSelectionHighlight();
-  const sel = window.getSelection()!;
-  if (!sel.rangeCount) return;
-  const range = sel.getRangeAt(0);
-  const rects = range.getClientRects();
-  for (const rect of rects) {
-    if (rect.width === 0 || rect.height === 0) continue;
-    const div = document.createElement('div');
-    div.className = 'dobby-selection-highlight';
-    Object.assign(div.style, {
-      position: 'fixed',
-      left: rect.left + 'px',
-      top: rect.top + 'px',
-      width: rect.width + 'px',
-      height: rect.height + 'px',
-      background: colors.selectionHighlight,
-      pointerEvents: 'none',
-      zIndex: '2147483646',
-      borderRadius: '2px',
-    });
-    document.body.appendChild(div);
-    selectionHighlights.push(div);
-  }
-}
-
-function removeSelectionHighlight(): void {
-  selectionHighlights.forEach(el => el.remove());
-  selectionHighlights = [];
 }
 
 // --- Public API ---
@@ -309,9 +269,9 @@ export async function showTrigger(x: number, y: number, selectionData: Selection
   startAutoHide(host!);
 }
 
-export function hideTrigger(): void {
+export function hideTrigger(preserveSelectionHighlight = false): void {
   clearAutoHide();
-  removeSelectionHighlight();
+  if (!preserveSelectionHighlight) removeSelectionHighlight();
   if (typeof document === 'undefined') return;
   const host = document.getElementById('dobby-ai-toolbar-host') as ToolbarHost | null;
   if (host) {

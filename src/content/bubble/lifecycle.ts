@@ -7,6 +7,7 @@ import { Z_INDEX } from '../shared/constants.js';
 import { removeElement } from '../shared/dom-utils.js';
 import { watchThemeChanges } from '../../shared/theme.js';
 import { getStyles } from './styles.js';
+import { removeSelectionHighlight } from '../trigger/selection-highlight.js';
 import type {
   BubbleHost,
   ChatMessage,
@@ -282,7 +283,8 @@ function clearDocumentInteractionListeners(): void {
 }
 
 export function openBubbleHost(selectionRect: SelectionRect): BubbleHost {
-  closeBubble();
+  // Replacing a bubble during selection flow must not clear its highlight.
+  closeBubble(true);
 
   const host = document.createElement('div') as BubbleHost;
   host.id = 'dobby-ai-bubble';
@@ -406,7 +408,8 @@ export function beginBubbleResize(event: ReactMouseEvent<HTMLDivElement>): void 
   };
 }
 
-export function closeBubble(): void {
+export function closeBubble(preserveSelectionHighlight = false): void {
+  if (!preserveSelectionHighlight) removeSelectionHighlight();
   if (renderTimer) clearTimeout(renderTimer);
   renderTimer = null;
   currentRequest?.cancel();

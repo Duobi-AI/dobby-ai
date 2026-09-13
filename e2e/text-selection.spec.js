@@ -36,6 +36,38 @@ test('open bubble via toolbar shows bubble in response mode', async () => {
   await waitForStreamingStarted(page);
 });
 
+test('keeps the selected text highlighted while chat is responding', async () => {
+  await selectText(page, 'h1');
+  await waitForToolbar(page);
+  await hoverToolbar(page);
+
+  await page.evaluate(() => {
+    const host = document.getElementById('dobby-ai-toolbar-host');
+    const pencil = host?.shadowRoot?.querySelector('.toolbar-pencil');
+    if (!pencil) throw new Error('Custom prompt button not found');
+    pencil.click();
+  });
+
+  await page.waitForFunction(() => {
+    const host = document.getElementById('dobby-ai-toolbar-host');
+    return host?.shadowRoot?.querySelector('.toolbar-input-section')?.classList.contains('visible');
+  });
+  await expect.poll(() => page.locator('.dobby-selection-highlight').count()).toBeGreaterThan(0);
+
+  await page.evaluate(() => {
+    const host = document.getElementById('dobby-ai-toolbar-host');
+    const input = host?.shadowRoot?.querySelector('.toolbar-input-field');
+    if (!input) throw new Error('Custom prompt input not found');
+    input.value = 'Explain this';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  });
+
+  await waitForBubble(page);
+  await waitForStreamingStarted(page);
+  await expect.poll(() => page.locator('.dobby-selection-highlight').count()).toBeGreaterThan(0);
+});
+
 test('clicking toolbar preset opens full bubble', async () => {
   await selectText(page, 'h1');
   await waitForToolbar(page);
