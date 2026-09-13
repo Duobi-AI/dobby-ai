@@ -141,10 +141,6 @@ export default {
       return respond('method_not_allowed', 'routing', jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders));
     }
 
-    if (env.ENABLED === 'false') {
-      return respond('disabled', 'routing', jsonResponse({ error: 'Service temporarily disabled' }, 503, corsHeaders));
-    }
-
     if (url.pathname === '/telemetry') {
       let telemetryBody: string;
       try {
@@ -174,6 +170,10 @@ export default {
         installation_id: parsedTelemetry.installation_id,
         extension_version: parsedTelemetry.extension_version,
       });
+    }
+
+    if (env.ENABLED === 'false') {
+      return respond('disabled', 'routing', jsonResponse({ error: 'Service temporarily disabled' }, 503, corsHeaders));
     }
 
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';

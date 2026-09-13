@@ -56,7 +56,6 @@ These services process data according to their own terms and privacy policies.
 - Conversation history is limited to recent conversations and can be cleared from the extension popup.
 - Extracted current-tab context is cached only in memory for a short time while the page is open and is not written to Chrome storage by Dobby.
 - Your OpenAI API key can be removed from the extension settings page.
-- Anonymous usage telemetry can be disabled from the extension settings page.
 - Removing the extension removes its local extension storage from Chrome.
 
 ## Permissions

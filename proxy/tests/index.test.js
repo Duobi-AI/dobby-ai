@@ -115,38 +115,40 @@ describe('routing', () => {
 });
 
 describe('POST /telemetry', () => {
+  const validTelemetryBody = {
+    event: 'daily_active',
+    schema_version: 1,
+    mode: 'byok',
+    installation_id: '123e4567-e89b-12d3-a456-426614174000',
+    extension_version: '1.4.5',
+    usage: {
+      free: {
+        chat_requests: 3,
+        autosuggest_requests: 11,
+        successful_requests: 12,
+        provider_errors: 1,
+        timeouts: 0,
+        rate_limited: 1,
+      },
+      byok: {
+        chat_requests: 5,
+        autosuggest_requests: 20,
+        successful_requests: 22,
+        provider_errors: 2,
+        timeouts: 1,
+        rate_limited: 0,
+      },
+      screenshot_requests: 2,
+    },
+  };
+
   it('records a valid daily usage mode without touching KV', async () => {
     const logger = vi.spyOn(console, 'log').mockImplementation(() => {});
     const kv = { get: vi.fn(), put: vi.fn() };
     const req = makeRequest('/telemetry', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: {
-        event: 'daily_active',
-        schema_version: 1,
-        mode: 'byok',
-        installation_id: '123e4567-e89b-12d3-a456-426614174000',
-        extension_version: '1.4.5',
-        usage: {
-          free: {
-            chat_requests: 3,
-            autosuggest_requests: 11,
-            successful_requests: 12,
-            provider_errors: 1,
-            timeouts: 0,
-            rate_limited: 1,
-          },
-          byok: {
-            chat_requests: 5,
-            autosuggest_requests: 20,
-            successful_requests: 22,
-            provider_errors: 2,
-            timeouts: 1,
-            rate_limited: 0,
-          },
-          screenshot_requests: 2,
-        },
-      },
+      body: validTelemetryBody,
     });
 
     const res = await handler.fetch(req, makeEnv({ RATE_LIMIT_KV: kv }));
@@ -184,6 +186,18 @@ describe('POST /telemetry', () => {
       outcome: 'telemetry_recorded',
     }));
     logger.mockRestore();
+  });
+
+  it('records telemetry while the model-service kill switch is active', async () => {
+    const req = makeRequest('/telemetry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: validTelemetryBody,
+    });
+
+    const res = await handler.fetch(req, makeEnv({ ENABLED: 'false' }));
+
+    expect(res.status).toBe(200);
   });
 
   it('rejects telemetry with an invalid mode', async () => {

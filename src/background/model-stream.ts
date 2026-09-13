@@ -367,6 +367,13 @@ export function createResponseStreamExecutor(
   overrides: Partial<ResponseStreamDependencies> = {},
 ): { execute: (request: ResponseStreamRequest) => ResponseStreamHandle } {
   const dependencies = { ...productionDependencies, ...overrides };
+  const recordUsageAndSendHeartbeat = async (
+    kind: UsageRequestKind,
+    details: UsageUpdateDetails & { usingOwnKey: boolean },
+  ): Promise<void> => {
+    await dependencies.recordUsage(kind, details);
+    await dependencies.sendDailyUsageHeartbeat?.(details.usingOwnKey ? 'byok' : 'free');
+  };
 
   return {
     execute(request): ResponseStreamHandle {
@@ -390,6 +397,11 @@ export function createResponseStreamExecutor(
           if (!apiKey && request.kind === 'autosuggest') {
             const retryAfter = await dependencies.getAutosuggestCooldownRemaining();
             if (retryAfter > 0) {
+              await recordUsageAndSendHeartbeat(request.kind, {
+                usingOwnKey: false,
+                rateLimited: true,
+                outcome: 'rate_limited',
+              });
               request.onEvent({ type: 'rate_limited', remaining: 0, retryAfter });
               return;
             }
@@ -423,13 +435,12 @@ export function createResponseStreamExecutor(
             const retryAfter = request.kind === 'autosuggest'
               ? await dependencies.recordAutosuggestRateLimit(response.headers.get('Retry-After'))
               : undefined;
-            await dependencies.recordUsage(request.kind, {
+            await recordUsageAndSendHeartbeat(request.kind, {
               remaining: data.remaining ?? 0,
               usingOwnKey,
               rateLimited: true,
               outcome: 'rate_limited',
             });
-            void dependencies.sendDailyUsageHeartbeat?.(usingOwnKey ? 'byok' : 'free');
             request.onEvent({ type: 'rate_limited', remaining: data.remaining ?? 0, resetAt: data.resetAt, retryAfter });
             return;
           }
@@ -448,12 +459,11 @@ export function createResponseStreamExecutor(
               ? (errBody ? `${prefix}: ${errBody.substring(0, 200)}` : 'Request failed')
               : `${prefix} ${errBody.substring(0, 200)}`;
             console.error(`[Dobby AI] ${request.kind === 'chat' ? 'API' : 'Autosuggest API'} error:`, response.status, errBody);
-            await dependencies.recordUsage(request.kind, {
+            await recordUsageAndSendHeartbeat(request.kind, {
               usingOwnKey,
               outcome: 'provider_error',
               countRequest: false,
             });
-            void dependencies.sendDailyUsageHeartbeat?.(usingOwnKey ? 'byok' : 'free');
             request.onEvent({ type: 'error', code: response.status, message });
             return;
           }
@@ -465,12 +475,11 @@ export function createResponseStreamExecutor(
           for await (const token of parseSSEStream(reader)) {
             request.onEvent({ type: 'token', text: token });
           }
-          await dependencies.recordUsage(request.kind, {
+          await recordUsageAndSendHeartbeat(request.kind, {
             remaining: request.kind === 'chat' ? remaining : undefined,
             usingOwnKey,
             outcome: 'success',
           });
-          void dependencies.sendDailyUsageHeartbeat?.(usingOwnKey ? 'byok' : 'free');
           if (!apiKey && request.kind === 'autosuggest') {
             await dependencies.clearAutosuggestCooldown();
           }
@@ -478,12 +487,11 @@ export function createResponseStreamExecutor(
         } catch (err) {
           if (controller.signal.aborted || (err as Error).name === 'AbortError') {
             if (timedOut) {
-              await dependencies.recordUsage(request.kind, {
+              await recordUsageAndSendHeartbeat(request.kind, {
                 usingOwnKey,
                 outcome: 'timeout',
                 countRequest: false,
               });
-              void dependencies.sendDailyUsageHeartbeat?.(usingOwnKey ? 'byok' : 'free');
               if (request.kind === 'chat') {
                 request.onEvent({ type: 'error', code: 0, message: 'Request timed out' });
               }
@@ -495,12 +503,11 @@ export function createResponseStreamExecutor(
             request.onEvent({ type: 'error', code, message: (err as Error).message });
             return;
           }
-          await dependencies.recordUsage(request.kind, {
+          await recordUsageAndSendHeartbeat(request.kind, {
             usingOwnKey,
             outcome: 'provider_error',
             countRequest: false,
           });
-          void dependencies.sendDailyUsageHeartbeat?.(usingOwnKey ? 'byok' : 'free');
           request.onEvent({ type: 'error', code, message: (err as Error).message });
         } finally {
           dependencies.clearTimeout(timeout);

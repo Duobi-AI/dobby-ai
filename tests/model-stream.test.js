@@ -142,6 +142,22 @@ describe('response stream executor', () => {
     });
   });
 
+  it('records locally cooldown-blocked Autosuggestions as free rate limits', async () => {
+    const dependencies = makeDependencies({
+      getAutosuggestCooldownRemaining: vi.fn(async () => 60),
+    });
+
+    await run(createResponseStreamExecutor(dependencies), 'autosuggest');
+
+    expect(dependencies.fetch).not.toHaveBeenCalled();
+    expect(dependencies.recordUsage).toHaveBeenCalledWith('autosuggest', {
+      usingOwnKey: false,
+      rateLimited: true,
+      outcome: 'rate_limited',
+    });
+    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('free');
+  });
+
   it('reports a Chat timeout but keeps Autosuggestion timeout silent', async () => {
     const createHangingDependencies = () => {
       const dependencies = makeDependencies({

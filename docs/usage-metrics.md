@@ -6,10 +6,9 @@ Dobby AI reports one anonymous `daily_active` event per installation per UTC day
 
 ```json
 {
-  "event": "dobby_request",
-  "telemetry_event": "daily_active",
-  "telemetry_schema_version": 1,
-  "usage_mode": "free",
+  "event": "daily_active",
+  "schema_version": 1,
+  "mode": "free",
   "installation_id": "random-uuid",
   "extension_version": "1.4.5",
   "usage": {
@@ -34,7 +33,7 @@ Dobby AI reports one anonymous `daily_active` event per installation per UTC day
 }
 ```
 
-`usage_mode` is either `free` or `byok`. The `usage` object contains aggregate counters from local extension state; it has no per-request detail. `telemetry_schema_version` is `1` for this payload shape. The installation ID is randomly generated and contains no account or API-key information. The mode and counters are client-reported, so they are useful for adoption, capacity, and reliability estimates rather than security or billing decisions.
+`mode` is either `free` or `byok`. The `usage` object contains aggregate counters from local extension state; it has no per-request detail. `schema_version` is `1` for this payload shape. The installation ID is randomly generated and contains no account or API-key information. The mode and counters are client-reported, so they are useful for adoption, capacity, and reliability estimates rather than security or billing decisions.
 
 ## Cloudflare Log Explorer
 

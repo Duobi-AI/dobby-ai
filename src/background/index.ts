@@ -8,6 +8,7 @@ import {
   type ResponseStreamEvent,
   type ResponseStreamHandle,
 } from './model-stream.js';
+import { sendDailyUsageHeartbeat } from './usage-telemetry.js';
 
 import type {
   AutosuggestBackgroundPort,
@@ -178,8 +179,12 @@ chrome.runtime.onMessage.addListener((
       if (chrome.runtime.lastError || !dataUrl) {
         sendResponse({ error: 'Screenshot failed' });
       } else {
-        recordUsage('screenshot');
-        sendResponse({ dataUrl });
+        void (async () => {
+          await recordUsage('screenshot');
+          const { userApiKey } = await getLocalStorage('userApiKey');
+          await sendDailyUsageHeartbeat(userApiKey ? 'byok' : 'free');
+          sendResponse({ dataUrl });
+        })();
       }
     });
     return true;

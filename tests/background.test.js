@@ -271,6 +271,28 @@ describe('API key validation message handler', () => {
     const result = handler({ type: 'OTHER' }, {}, vi.fn());
     expect(result).toBeUndefined();
   });
+
+  it('reports mandatory telemetry after a successful screenshot capture', async () => {
+    const handler = messageListeners[0];
+    const sendResponse = vi.fn();
+    mockStorageGet.mockImplementation((key, callback) => {
+      if (callback) callback({});
+      else return Promise.resolve({});
+    });
+    chrome.tabs.captureVisibleTab = vi.fn((windowId, options, callback) => callback('data:image/png;base64,image'));
+    fetch.mockResolvedValue({ ok: true });
+
+    const result = handler({ type: 'CAPTURE_SCREENSHOT' }, {}, sendResponse);
+
+    expect(result).toBe(true);
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ dataUrl: 'data:image/png;base64,image' });
+      expect(fetch).toHaveBeenCalledWith(
+        'https://dobby-ai-proxy.zhongnansu.workers.dev/telemetry',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+  });
 });
 
 describe('chat-stream integration', () => {
@@ -712,7 +734,11 @@ describe('autosuggest-stream port', () => {
 
     await getHandler()({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
 
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(
+      'https://dobby-ai-proxy.zhongnansu.workers.dev/telemetry',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(fetch.mock.calls.some(([url]) => url.includes('/chat'))).toBe(false);
     expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({
       type: 'rate_limited',
       retryAfter: expect.any(Number),
