@@ -64,7 +64,7 @@ async function initBubble(
 ): Promise<ShadowRoot> {
   const host = openBubbleHost(selectionRect, options);
   setResponseText('');
-  const shadow = host.attachShadow({ mode: 'open' });
+  const shadow = host.attachShadow({ mode: 'open', delegatesFocus: true });
   stopShadowRootKeyboardEventPropagation(shadow);
 
   const reactRoot = mountReactRoot(
