@@ -113,6 +113,8 @@ export class RateLimiter {
     const globalKey = `rl:global:${today}`;
     const previousGlobalKey = `rl:global:${previousDay}`;
 
+    // Keep the per-IP decision and write in the same serialized section. The
+    // shared global decision is serialized by the dedicated global instance.
     const result = await this.state.blockConcurrencyWhile(async (): Promise<RateLimitResult> => {
       const perIpResult = await checkRateLimit(
         payload.ip!,
