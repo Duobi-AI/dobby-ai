@@ -39,6 +39,7 @@ import {
   setBubbleViewStatus,
   startAssistantResponse,
   toggleBubblePin,
+  type BubbleOpenOptions,
 } from './lifecycle.js';
 
 export { detectTheme, isBubblePinned };
@@ -59,8 +60,9 @@ async function initBubble(
   previewLabel: string,
   images?: ImageContentPart[] | null,
   presets?: BubblePresetSelection,
+  options: BubbleOpenOptions = {},
 ): Promise<ShadowRoot> {
-  const host = openBubbleHost(selectionRect);
+  const host = openBubbleHost(selectionRect, options);
   setResponseText('');
   const shadow = host.attachShadow({ mode: 'open' });
   stopShadowRootKeyboardEventPropagation(shadow);
@@ -149,8 +151,9 @@ export async function showBubble(
   selectedText: string,
   instruction: string,
   images?: ImageContentPart[] | null,
+  options: BubbleOpenOptions = {},
 ): Promise<void> {
-  const shadow = await initBubble(selectionRect, selectedText, instruction || 'Selected text', images);
+  const shadow = await initBubble(selectionRect, selectedText, instruction || 'Selected text', images, undefined, options);
   setCurrentMessages(messages);
   activateResponseSection(shadow, messages);
 }

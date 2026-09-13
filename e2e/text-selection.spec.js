@@ -66,6 +66,35 @@ test('keeps the selected text highlighted while chat is responding', async () =>
   await waitForBubble(page);
   await waitForStreamingStarted(page);
   await expect.poll(() => page.locator('.dobby-selection-highlight').count()).toBeGreaterThan(0);
+
+  await clickInShadow(page, '.close-btn');
+  await expect(page.locator('.dobby-selection-highlight')).toHaveCount(0);
+});
+
+test('clears the selection highlight when another bubble replaces it', async () => {
+  await selectText(page, 'h1');
+  await waitForToolbar(page);
+  await hoverToolbar(page);
+
+  await page.evaluate(() => {
+    const host = document.getElementById('dobby-ai-toolbar-host');
+    const pencil = host?.shadowRoot?.querySelector('.toolbar-pencil');
+    if (!pencil) throw new Error('Custom prompt button not found');
+    pencil.click();
+  });
+  await page.waitForFunction(() => document.getElementById('dobby-ai-toolbar-host')
+    ?.shadowRoot?.querySelector('.toolbar-input-section')?.classList.contains('visible'));
+  await expect.poll(() => page.locator('.dobby-selection-highlight').count()).toBeGreaterThan(0);
+
+  const serviceWorker = context.serviceWorkers()[0];
+  await serviceWorker.evaluate(async () => {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs[0]) await chrome.tabs.sendMessage(tabs[0].id, { type: 'SHOW_BUBBLE', text: 'Example Domain' });
+  });
+
+  await waitForBubble(page);
+  await waitForStreamingStarted(page);
+  await expect(page.locator('.dobby-selection-highlight')).toHaveCount(0);
 });
 
 test('clicking toolbar preset opens full bubble', async () => {

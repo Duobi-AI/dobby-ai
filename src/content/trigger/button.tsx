@@ -219,7 +219,7 @@ function morphIntoBubble(
 
     // Crossfade: start bubble creation and toolbar fade simultaneously.
     // showBubble is async (theme read) but the fade timer is independent of that.
-    showBubble(selectionRect, messages, text, instruction, images)
+    showBubble(selectionRect, messages, text, instruction, images, { preserveSelectionHighlight: true })
       .catch((err) => console.error('[Dobby AI] Bubble creation failed:', err));
 
     // Fade out toolbar smoothly over the same duration as bubble entry animation
@@ -228,7 +228,7 @@ function morphIntoBubble(
     toolbar.style.transform = 'scale(0.9)';
 
     // Remove toolbar after fade completes
-    setTimeout(() => hideTrigger(true), 220);
+    setTimeout(() => hideTrigger({ preserveSelectionHighlight: true }), 220);
   });
 }
 
@@ -269,9 +269,13 @@ export async function showTrigger(x: number, y: number, selectionData: Selection
   startAutoHide(host!);
 }
 
-export function hideTrigger(preserveSelectionHighlight = false): void {
+type HideTriggerOptions = {
+  preserveSelectionHighlight?: boolean;
+};
+
+export function hideTrigger(options: HideTriggerOptions = {}): void {
   clearAutoHide();
-  if (!preserveSelectionHighlight) removeSelectionHighlight();
+  if (!options.preserveSelectionHighlight) removeSelectionHighlight();
   if (typeof document === 'undefined') return;
   const host = document.getElementById('dobby-ai-toolbar-host') as ToolbarHost | null;
   if (host) {

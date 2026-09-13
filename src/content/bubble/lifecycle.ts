@@ -282,9 +282,15 @@ function clearDocumentInteractionListeners(): void {
   resizeCleanup = null;
 }
 
-export function openBubbleHost(selectionRect: SelectionRect): BubbleHost {
-  // Replacing a bubble during selection flow must not clear its highlight.
-  closeBubble(true);
+export type BubbleOpenOptions = {
+  preserveSelectionHighlight?: boolean;
+};
+
+export function openBubbleHost(
+  selectionRect: SelectionRect,
+  options: BubbleOpenOptions = {},
+): BubbleHost {
+  closeBubble(options);
 
   const host = document.createElement('div') as BubbleHost;
   host.id = 'dobby-ai-bubble';
@@ -408,7 +414,7 @@ export function beginBubbleResize(event: ReactMouseEvent<HTMLDivElement>): void 
   };
 }
 
-export function closeBubble(preserveSelectionHighlight = false): void {
+export function closeBubble({ preserveSelectionHighlight = false }: BubbleOpenOptions = {}): void {
   if (!preserveSelectionHighlight) removeSelectionHighlight();
   if (renderTimer) clearTimeout(renderTimer);
   renderTimer = null;
