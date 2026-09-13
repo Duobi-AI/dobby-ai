@@ -10,7 +10,7 @@ import type { ThemeMode, ValidateApiKeyResponse } from './shared/types';
 type Provider = 'openai' | 'anthropic';
 type StatusTone = '' | 'error' | 'info';
 
-let applyStoredOptionsState: (userApiKey: string | undefined, theme: unknown, telemetryEnabled: boolean | undefined) => void = () => {};
+let applyStoredOptionsState: (userApiKey: string | undefined, theme: unknown) => void = () => {};
 
 function applyTheme(value: unknown): ThemeMode {
   const themeMode = normalizeThemeMode(value);
@@ -34,7 +34,6 @@ function OptionsApp() {
   const [validating, setValidating] = useState(false);
   const [provider, setProvider] = useState<Provider>('openai');
   const [themeMode, setThemeMode] = useState<ThemeMode>('auto');
-  const [telemetryEnabled, setTelemetryEnabled] = useState(true);
   const apiKeyInput = useRef<HTMLInputElement>(null);
   const version = chrome.runtime.getManifest ? `v${chrome.runtime.getManifest().version}` : 'v1.2.2';
 
@@ -47,11 +46,10 @@ function OptionsApp() {
     if (apiKeyInput.current) apiKeyInput.current.value = '';
   };
 
-  applyStoredOptionsState = (userApiKey, theme, storedTelemetryEnabled) => {
+  applyStoredOptionsState = (userApiKey, theme) => {
     flushSync(() => {
       setThemeMode(applyTheme(theme || 'auto'));
       setStoredKey(userApiKey || '');
-      setTelemetryEnabled(storedTelemetryEnabled !== false);
       setValidating(false);
       if (!userApiKey) {
         setStatus('');
@@ -213,22 +211,6 @@ function OptionsApp() {
         </div>
       </div>
 
-      <div className="card">
-        <h2>Anonymous usage metrics</h2>
-        <p>Help improve Dobby AI by sharing one daily event containing only your usage mode (free or your own API key), a random installation ID, and the extension version. Never your API key, prompts, pages, or responses.</p>
-        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', lineHeight: 1.5 }}>
-          <input
-            type="checkbox"
-            checked={telemetryEnabled}
-            onChange={(event) => {
-              const enabled = event.target.checked;
-              setTelemetryEnabled(enabled);
-              setLocalStorage({ telemetryEnabled: enabled });
-            }}
-          />
-          <span>Share anonymous usage metrics</span>
-        </label>
-      </div>
     </div>
   );
 }
@@ -239,6 +221,6 @@ if (root !== document.body.firstElementChild || document.body.childElementCount 
   document.body.replaceChildren(root);
 }
 mountReactRoot(root, <OptionsApp />);
-getLocalStorage(['userApiKey', 'theme', 'telemetryEnabled'], (result) => {
-  applyStoredOptionsState(result.userApiKey, result.theme, result.telemetryEnabled);
+getLocalStorage(['userApiKey', 'theme'], (result) => {
+  applyStoredOptionsState(result.userApiKey, result.theme);
 });

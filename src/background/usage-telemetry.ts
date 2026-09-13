@@ -51,13 +51,10 @@ function getDefaultDependencies(): TelemetryDependencies {
 
 async function sendHeartbeat(mode: UsageMode, dependencies: TelemetryDependencies): Promise<void> {
   const stored = await getLocalStorage([
-    'telemetryEnabled',
     'telemetryInstallationId',
     'telemetryLastSentDay',
     'dobbyUsage',
   ]);
-  if (stored.telemetryEnabled === false) return;
-
   const day = getUtcDay(dependencies.now());
   if (stored.telemetryLastSentDay === day) return;
 

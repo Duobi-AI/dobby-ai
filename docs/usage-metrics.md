@@ -1,6 +1,6 @@
 # Usage Metrics
 
-Dobby AI reports one anonymous `daily_active` event per installation per UTC day when anonymous usage metrics are enabled in Settings. The event is sent to the proxy's `/telemetry` endpoint and is recorded in the Worker's structured observability logs; it does not use the rate-limit KV namespace.
+Dobby AI reports one anonymous `daily_active` event per installation per UTC day as part of operating the service. The event is sent to the proxy's `/telemetry` endpoint and is recorded in the Worker's structured observability logs; it does not use the rate-limit KV namespace.
 
 ## Event fields
 

@@ -107,12 +107,12 @@ describe('daily usage telemetry', () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
-  it('does not send telemetry when disabled', async () => {
-    mockStorageGet.mockResolvedValueOnce({ telemetryEnabled: false });
+  it('always sends telemetry because usage metrics are mandatory', async () => {
+    mockStorageGet.mockResolvedValueOnce({ telemetryInstallationId: installationId });
     const fetch = vi.fn();
 
     await sendDailyUsageHeartbeat('free', { fetch, now: () => now });
 
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledOnce();
   });
 });
