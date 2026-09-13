@@ -29,6 +29,7 @@ function makeDependencies(overrides = {}) {
     now: vi.fn(() => 123000),
     sign: vi.fn(async () => 'signature'),
     recordUsage: vi.fn(async () => {}),
+    sendDailyUsageHeartbeat: vi.fn(async () => {}),
     fetchProxy: vi.fn(async (messages, purpose, signal, auth) => {
       const body = purpose === 'autosuggest'
         ? { messages, signature: auth.signature, timestamp: auth.timestamp, purpose }
@@ -89,6 +90,7 @@ describe('response stream executor', () => {
       123,
       expect.any(String),
     );
+    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('free');
     const body = JSON.parse(dependencies.fetch.mock.calls[0][1].body);
     expect(body).toMatchObject({
       messages: [{ role: 'user', content: 'test' }],
@@ -136,7 +138,24 @@ describe('response stream executor', () => {
     expect(dependencies.recordUsage).toHaveBeenCalledWith('autosuggest', {
       remaining: undefined,
       usingOwnKey: false,
+      outcome: 'success',
     });
+  });
+
+  it('records locally cooldown-blocked Autosuggestions as free rate limits', async () => {
+    const dependencies = makeDependencies({
+      getAutosuggestCooldownRemaining: vi.fn(async () => 60),
+    });
+
+    await run(createResponseStreamExecutor(dependencies), 'autosuggest');
+
+    expect(dependencies.fetch).not.toHaveBeenCalled();
+    expect(dependencies.recordUsage).toHaveBeenCalledWith('autosuggest', {
+      usingOwnKey: false,
+      rateLimited: true,
+      outcome: 'rate_limited',
+    });
+    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('free');
   });
 
   it('reports a Chat timeout but keeps Autosuggestion timeout silent', async () => {
@@ -161,6 +180,11 @@ describe('response stream executor', () => {
     await vi.waitFor(() => expect(chatEvents).toEqual([
       { type: 'error', code: 0, message: 'Request timed out' },
     ]));
+    expect(chatDependencies.recordUsage).toHaveBeenCalledWith('chat', {
+      usingOwnKey: false,
+      outcome: 'timeout',
+      countRequest: false,
+    });
     expect(chatDependencies.timers[0].delay).toBe(30000);
 
     const autosuggestDependencies = createHangingDependencies();
@@ -175,6 +199,49 @@ describe('response stream executor', () => {
     await Promise.resolve();
     expect(autosuggestDependencies.timers[0].delay).toBe(10000);
     expect(autosuggestEvents).toEqual([]);
+  });
+
+  it('records provider errors by credential mode without counting them as requests', async () => {
+    const dependencies = makeDependencies({
+      readUserApiKey: vi.fn(async () => 'sk-user'),
+      fetch: vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        text: async () => 'upstream unavailable',
+        headers: new Headers(),
+      })),
+    });
+
+    await run(createResponseStreamExecutor(dependencies));
+
+    expect(dependencies.recordUsage).toHaveBeenCalledWith('chat', {
+      usingOwnKey: true,
+      outcome: 'provider_error',
+      countRequest: false,
+    });
+    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('byok');
+  });
+
+  it('keeps BYOK mode in local usage when the provider returns 429', async () => {
+    const dependencies = makeDependencies({
+      readUserApiKey: vi.fn(async () => 'sk-user'),
+      fetch: vi.fn(async () => ({
+        ok: false,
+        status: 429,
+        headers: new Headers(),
+        json: async () => ({ remaining: 0 }),
+      })),
+    });
+
+    await run(createResponseStreamExecutor(dependencies));
+
+    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('byok');
+    expect(dependencies.recordUsage).toHaveBeenCalledWith('chat', {
+      remaining: 0,
+      usingOwnKey: true,
+      rateLimited: true,
+      outcome: 'rate_limited',
+    });
   });
 
   it('cancels an in-flight request without converting cancellation into an error', async () => {

@@ -25,7 +25,7 @@ It's a Chrome extension that lets you select any text on a webpage and get insta
 **Why it's different:**
 - No account required — works offline with 30 free questions/day
 - Fully open source (MIT license)
-- Zero data collection — your selections never leave your browser or get stored
+- No prompts or API keys are collected; anonymous aggregate usage metrics
 - Smart detection figures out if you selected code, an error, a formula, or a foreign language and suggests relevant actions
 - Supports follow-up conversations within the same bubble
 
@@ -65,7 +65,7 @@ Long-press anywhere on the page for 1 second, drag to select a region, and Dobby
 - Works offline with 30 free questions/day (optional OpenAI API key for unlimited)
 
 **Privacy & Open Source:**
-- Zero data collection
+- No prompts or API keys are collected; anonymous aggregate usage metrics
 - MIT license
 - All code on GitHub
 
@@ -104,7 +104,7 @@ Long-press anywhere on a page for 1 second, drag to select a region, and Dobby A
 **Accessibility:**
 - No account required
 - 30 free questions/day (or bring your own OpenAI key for unlimited)
-- Zero data collection — privacy-first
+- No prompts or API keys are collected; anonymous aggregate usage metrics
 - Open source (MIT)
 
 **Links:**
@@ -159,7 +159,7 @@ No other extension does this.
 Oh, and no account required. 30 free questions/day.
 
 **Tweet 5 (CTA):**
-Fully open source (MIT). Zero data collection.
+Fully open source (MIT). No prompts or API keys are collected.
 
 Try it: https://chromewebstore.google.com/detail/fobblgpebpnelefaneijkpbcljdlofoo
 
@@ -209,7 +209,7 @@ I was tired of the workflow: select → copy → new tab → paste → wait → 
 
 **Openness & Privacy:**
 - MIT license, fully open source on GitHub
-- Zero data collection — no analytics, no tracking, no accounts
+- No prompt or API-key collection; anonymous aggregate usage metrics; no accounts
 - 30 free questions/day built-in (or bring your own OpenAI API key)
 - Direct API calls (no data stored on servers)
 
@@ -243,7 +243,7 @@ Productivity isn't just about speed — it's about friction. Every time you swit
 **What makes it different:**
 - Screenshot-and-ask capability (no other extension does this)
 - Inline responses (no new tabs, no sidebar interruptions)
-- Zero data collection (privacy-first)
+- No prompts or API keys are collected (privacy-first); anonymous aggregate usage metrics
 - No account required
 - Open source
 
@@ -313,5 +313,5 @@ These can be generated using Playwright and are referenced in the CLAUDE.md work
 ### Messaging Callouts
 - **For developers:** "Finally, no more context-switching"
 - **For productivity folks:** "AI exactly where you need it"
-- **For privacy-conscious users:** "Zero data collection, fully open source"
+- **For privacy-conscious users:** "No prompt or API-key collection, fully open source"
 - **For managers:** "Reduces context-switching friction across your team"

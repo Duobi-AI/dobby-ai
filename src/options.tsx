@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { applyColorVariables } from './shared/color-palette.js';
 import { COLOR_SCHEME_QUERY, normalizeThemeMode, resolveTheme } from './shared/theme.js';
 import { mountReactRoot } from './shared/react-root.js';
-import { getLocalStorage, removeLocalStorage } from './shared/storage.js';
+import { getLocalStorage, removeLocalStorage, setLocalStorage } from './shared/storage.js';
 import { createValidateApiKeyMessage } from './shared/runtime-messages.js';
 import type { ThemeMode, ValidateApiKeyResponse } from './shared/types';
 
@@ -210,6 +210,7 @@ function OptionsApp() {
           • <a href="https://docs.anthropic.com/en/docs/about-claude/models" target="_blank" style={{ color: 'inherit' }}>Claude models &amp; pricing</a>
         </div>
       </div>
+
     </div>
   );
 }

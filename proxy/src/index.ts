@@ -3,13 +3,69 @@ import { validatePayload, verifyHmac } from './validate.js';
 import { checkRateLimit, incrementCounters } from './rate-limit.js';
 import { createChatStream } from './openai.js';
 import { ACCESS_TOKEN_HEADER, issueAccessToken, verifyAccessToken } from './access-token.js';
-import { classifyRateLimit, createRequestLog, writeRequestLog } from './request-log.js';
+import {
+  classifyRateLimit,
+  createRequestLog,
+  writeRequestLog,
+  type UsageMetrics,
+  type UsageModeMetrics,
+} from './request-log.js';
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../../src/shared/autosuggest-limits.js';
 import type { ProxyPurpose } from '../../src/shared/types';
 import type { ProxyEnv, ValidProxyPayload } from './types';
 
 const MAX_BODY_SIZE = 2097152; // 2MB
+const MAX_TELEMETRY_BODY_SIZE = 4096;
 const TRANSIENT_STORAGE_RETRY_AFTER_SECONDS = 60;
+
+type UsageTelemetryPayload = {
+  event: 'daily_active';
+  schema_version: 1;
+  mode: 'free' | 'byok';
+  installation_id: string;
+  extension_version: string;
+  usage: UsageMetrics;
+};
+
+function isUsageModeMetrics(value: unknown): value is UsageModeMetrics {
+  if (!value || typeof value !== 'object') return false;
+  const metrics = value as Partial<UsageModeMetrics>;
+  return [
+    metrics.chat_requests,
+    metrics.autosuggest_requests,
+    metrics.successful_requests,
+    metrics.provider_errors,
+    metrics.timeouts,
+    metrics.rate_limited,
+  ].every(item => typeof item === 'number'
+    && Number.isSafeInteger(item)
+    && item >= 0
+    && item <= 1_000_000);
+}
+
+function isUsageMetrics(value: unknown): value is UsageMetrics {
+  if (!value || typeof value !== 'object') return false;
+  const usage = value as Partial<UsageMetrics>;
+  return isUsageModeMetrics(usage.free)
+    && isUsageModeMetrics(usage.byok)
+    && typeof usage.screenshot_requests === 'number'
+    && Number.isSafeInteger(usage.screenshot_requests)
+    && usage.screenshot_requests >= 0
+    && usage.screenshot_requests <= 1_000_000;
+}
+
+function isUsageTelemetryPayload(value: unknown): value is UsageTelemetryPayload {
+  if (!value || typeof value !== 'object') return false;
+  const payload = value as Partial<UsageTelemetryPayload>;
+  return payload.event === 'daily_active'
+    && payload.schema_version === 1
+    && (payload.mode === 'free' || payload.mode === 'byok')
+    && typeof payload.installation_id === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(payload.installation_id)
+    && typeof payload.extension_version === 'string'
+    && /^[0-9A-Za-z._-]{1,32}$/.test(payload.extension_version)
+    && isUsageMetrics(payload.usage);
+}
 
 function storageRetryAfter(error: unknown): number {
   const message = error instanceof Error ? error.message : '';
@@ -77,12 +133,43 @@ export default {
 
     const url = new URL(request.url);
 
-    if (url.pathname !== '/chat' && url.pathname !== '/access-token') {
+    if (url.pathname !== '/chat' && url.pathname !== '/access-token' && url.pathname !== '/telemetry') {
       return respond('not_found', 'routing', jsonResponse({ error: 'Not found' }, 404, corsHeaders));
     }
 
     if (request.method !== 'POST') {
       return respond('method_not_allowed', 'routing', jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders));
+    }
+
+    if (url.pathname === '/telemetry') {
+      let telemetryBody: string;
+      try {
+        telemetryBody = await request.text();
+      } catch {
+        return respond('telemetry_rejected', 'telemetry', jsonResponse({ error: 'Invalid telemetry payload' }, 400, corsHeaders));
+      }
+      if (telemetryBody.length > MAX_TELEMETRY_BODY_SIZE) {
+        return respond('telemetry_rejected', 'telemetry', jsonResponse({ error: 'Telemetry payload too large' }, 413, corsHeaders));
+      }
+
+      let parsedTelemetry: unknown;
+      try {
+        parsedTelemetry = JSON.parse(telemetryBody);
+      } catch {
+        return respond('telemetry_rejected', 'telemetry', jsonResponse({ error: 'Invalid telemetry payload' }, 400, corsHeaders));
+      }
+      if (!isUsageTelemetryPayload(parsedTelemetry)) {
+        return respond('telemetry_rejected', 'telemetry', jsonResponse({ error: 'Invalid telemetry payload' }, 400, corsHeaders));
+      }
+
+      return respond('telemetry_recorded', 'telemetry', jsonResponse({ ok: true }, 200, corsHeaders), {
+        usage_mode: parsedTelemetry.mode,
+        telemetry_event: parsedTelemetry.event,
+        telemetry_schema_version: parsedTelemetry.schema_version,
+        usage: parsedTelemetry.usage,
+        installation_id: parsedTelemetry.installation_id,
+        extension_version: parsedTelemetry.extension_version,
+      });
     }
 
     if (env.ENABLED === 'false') {

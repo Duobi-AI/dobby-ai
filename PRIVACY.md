@@ -15,7 +15,17 @@ Dobby AI handles data only when needed to provide user-facing extension features
 - **Authentication information:** if you choose to use your own OpenAI API key, the key is stored locally in Chrome extension storage and used only to send your requests to OpenAI.
 - **Extension settings and usage state:** preferences, feature toggles, local usage counters, and local conversation history are stored with Chrome's local extension storage.
 
-Dobby AI does not collect names, email addresses, payment information, health information, precise location, analytics, telemetry, advertising identifiers, or cookies.
+Dobby AI does not collect names, email addresses, payment information, health information, precise location, advertising identifiers, or cookies. Dobby AI collects the limited anonymous usage telemetry described below as part of operating the service.
+
+## Anonymous Usage Telemetry
+
+Dobby AI sends at most one daily usage event containing:
+
+- whether the request used the Dobby AI free proxy or the user's own API key;
+- a randomly generated installation identifier; and
+- the extension version.
+
+This telemetry contains no API keys, prompts, webpage content, URLs, screenshots, model responses, or conversation history. It contains only daily aggregate counters for Chat, Autosuggestions, screenshots, successful requests, provider errors, timeouts, and rate limits, split between free-proxy and own-key usage. It is used only for product capacity and reliability measurement. Cloudflare may process standard network metadata for the telemetry request according to its terms and privacy policy.
 
 ## How Data Is Used
 
@@ -25,6 +35,7 @@ Dobby AI uses handled data only to provide or improve its single purpose: answer
 - Current-tab context extraction is local and attempts to prioritize useful page information such as headings, nearby selected-text context, and main content while excluding common page chrome and editable/form fields such as navigation, footers, inputs, textareas, and contenteditable regions.
 - If you provide your own OpenAI API key, requests are sent directly from the extension to the OpenAI API over HTTPS.
 - If you do not provide your own API key, requests are relayed through the Dobby AI proxy over HTTPS and then sent to OpenAI. The proxy relays requests and responses for the feature and does not store prompt content or model responses.
+- The extension sends the limited usage event described above to the Dobby AI proxy. The proxy records the event in its structured observability logs and does not write it to the rate-limit KV namespace.
 - Local conversation history is stored only in your browser and can be cleared from the extension popup.
 - Local usage counters are used only to show request counts and free-tier status in the extension popup.
 

@@ -271,6 +271,28 @@ describe('API key validation message handler', () => {
     const result = handler({ type: 'OTHER' }, {}, vi.fn());
     expect(result).toBeUndefined();
   });
+
+  it('reports mandatory telemetry after a successful screenshot capture', async () => {
+    const handler = messageListeners[0];
+    const sendResponse = vi.fn();
+    mockStorageGet.mockImplementation((key, callback) => {
+      if (callback) callback({});
+      else return Promise.resolve({});
+    });
+    chrome.tabs.captureVisibleTab = vi.fn((windowId, options, callback) => callback('data:image/png;base64,image'));
+    fetch.mockResolvedValue({ ok: true });
+
+    const result = handler({ type: 'CAPTURE_SCREENSHOT' }, {}, sendResponse);
+
+    expect(result).toBe(true);
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ dataUrl: 'data:image/png;base64,image' });
+      expect(fetch).toHaveBeenCalledWith(
+        'https://dobby-ai-proxy.zhongnansu.workers.dev/telemetry',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+  });
 });
 
 describe('chat-stream integration', () => {
@@ -363,6 +385,12 @@ describe('chat-stream integration', () => {
           chatRequests: 1,
           freeChatRemaining: 25,
           usingOwnKey: false,
+          modeUsage: expect.objectContaining({
+            free: expect.objectContaining({
+              chatRequests: 1,
+              successfulRequests: 1,
+            }),
+          }),
         }),
       });
     });
@@ -410,10 +438,10 @@ describe('chat-stream integration', () => {
     await handler({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
 
     await vi.waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(fetch.mock.calls.some(([, options]) => options?.headers?.['X-Dobby-Access-Token'] === 'stored-token')).toBe(true);
     });
 
-    expect(fetch.mock.calls[0][1].headers['X-Dobby-Access-Token']).toBe('stored-token');
+    expect(fetch.mock.calls.find(([, options]) => options?.headers?.['X-Dobby-Access-Token'] === 'stored-token')).toBeDefined();
   });
 
   it('refreshes the proxy access token once when the proxy rejects it', async () => {
@@ -706,7 +734,11 @@ describe('autosuggest-stream port', () => {
 
     await getHandler()({ type: 'AUTOSUGGEST_REQUEST', messages: [{ role: 'user', content: 'test' }] });
 
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(
+      'https://dobby-ai-proxy.zhongnansu.workers.dev/telemetry',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(fetch.mock.calls.some(([url]) => url.includes('/chat'))).toBe(false);
     expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({
       type: 'rate_limited',
       retryAfter: expect.any(Number),
