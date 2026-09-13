@@ -20,6 +20,7 @@ import type {
   UsageRequestKind,
   UsageState,
   UsageUpdateDetails,
+  ModeUsageState,
 } from '../shared/types';
 
 const PROXY_BASE_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev';
@@ -78,6 +79,17 @@ function getUtcDay(): string {
   return new Date().toISOString().split('T')[0]!;
 }
 
+function createEmptyModeUsage(): ModeUsageState {
+  return {
+    chatRequests: 0,
+    autosuggestRequests: 0,
+    successfulRequests: 0,
+    providerErrors: 0,
+    timeouts: 0,
+    rateLimited: 0,
+  };
+}
+
 function createEmptyUsage(): UsageState {
   return {
     day: getUtcDay(),
@@ -87,7 +99,19 @@ function createEmptyUsage(): UsageState {
     freeChatRemaining: null,
     usingOwnKey: false,
     lastUpdated: Date.now(),
+    modeUsage: {
+      free: createEmptyModeUsage(),
+      byok: createEmptyModeUsage(),
+    },
   };
+}
+
+function ensureModeUsage(usage: UsageState): { free: ModeUsageState; byok: ModeUsageState } {
+  usage.modeUsage = {
+    free: { ...createEmptyModeUsage(), ...usage.modeUsage?.free },
+    byok: { ...createEmptyModeUsage(), ...usage.modeUsage?.byok },
+  };
+  return usage.modeUsage;
 }
 
 export async function recordUsage(kind: UsageRequestKind, details: UsageUpdateDetails = {}): Promise<void> {
@@ -96,10 +120,21 @@ export async function recordUsage(kind: UsageRequestKind, details: UsageUpdateDe
     const current = stored[USAGE_STORAGE_KEY];
     const usage = current && current.day === getUtcDay() ? { ...current } : createEmptyUsage();
 
-    if (!details.rateLimited) {
+    if (!details.rateLimited && details.countRequest !== false) {
       if (kind === 'chat') usage.chatRequests = (usage.chatRequests || 0) + 1;
       if (kind === 'autosuggest') usage.autosuggestRequests = (usage.autosuggestRequests || 0) + 1;
       if (kind === 'screenshot') usage.screenshotRequests = (usage.screenshotRequests || 0) + 1;
+    }
+
+    if (details.usingOwnKey != null && details.outcome) {
+      const mode = details.usingOwnKey ? 'byok' : 'free';
+      const modeUsage = ensureModeUsage(usage)[mode];
+      if (kind === 'chat') modeUsage.chatRequests += 1;
+      if (kind === 'autosuggest') modeUsage.autosuggestRequests += 1;
+      if (details.outcome === 'success') modeUsage.successfulRequests += 1;
+      if (details.outcome === 'provider_error') modeUsage.providerErrors += 1;
+      if (details.outcome === 'timeout') modeUsage.timeouts += 1;
+      if (details.outcome === 'rate_limited') modeUsage.rateLimited += 1;
     }
 
     if (kind === 'chat' && details.remaining != null && !details.usingOwnKey) {
@@ -343,8 +378,10 @@ export function createResponseStreamExecutor(
       }, request.kind === 'chat' ? 30000 : 10000);
 
       const run = async (): Promise<void> => {
+        let usingOwnKey = false;
         try {
           const apiKey = await dependencies.readUserApiKey();
+          usingOwnKey = !!apiKey;
           if (controller.signal.aborted) return;
 
           const timestamp = Math.floor(dependencies.now() / 1000);
@@ -388,10 +425,11 @@ export function createResponseStreamExecutor(
               : undefined;
             await dependencies.recordUsage(request.kind, {
               remaining: data.remaining ?? 0,
-              usingOwnKey: !!apiKey,
+              usingOwnKey,
               rateLimited: true,
+              outcome: 'rate_limited',
             });
-            void dependencies.sendDailyUsageHeartbeat?.(apiKey ? 'byok' : 'free');
+            void dependencies.sendDailyUsageHeartbeat?.(usingOwnKey ? 'byok' : 'free');
             request.onEvent({ type: 'rate_limited', remaining: data.remaining ?? 0, resetAt: data.resetAt, retryAfter });
             return;
           }
@@ -410,11 +448,16 @@ export function createResponseStreamExecutor(
               ? (errBody ? `${prefix}: ${errBody.substring(0, 200)}` : 'Request failed')
               : `${prefix} ${errBody.substring(0, 200)}`;
             console.error(`[Dobby AI] ${request.kind === 'chat' ? 'API' : 'Autosuggest API'} error:`, response.status, errBody);
+            await dependencies.recordUsage(request.kind, {
+              usingOwnKey,
+              outcome: 'provider_error',
+              countRequest: false,
+            });
+            void dependencies.sendDailyUsageHeartbeat?.(usingOwnKey ? 'byok' : 'free');
             request.onEvent({ type: 'error', code: response.status, message });
             return;
           }
 
-          const usingOwnKey = !!apiKey;
           const remaining = request.kind === 'chat' && !usingOwnKey
             ? parseInt(response.headers.get('X-RateLimit-Remaining') || '', 10) || 0
             : null;
@@ -425,6 +468,7 @@ export function createResponseStreamExecutor(
           await dependencies.recordUsage(request.kind, {
             remaining: request.kind === 'chat' ? remaining : undefined,
             usingOwnKey,
+            outcome: 'success',
           });
           void dependencies.sendDailyUsageHeartbeat?.(usingOwnKey ? 'byok' : 'free');
           if (!apiKey && request.kind === 'autosuggest') {
@@ -433,12 +477,30 @@ export function createResponseStreamExecutor(
           request.onEvent({ type: 'done', remaining, usingOwnKey });
         } catch (err) {
           if (controller.signal.aborted || (err as Error).name === 'AbortError') {
-            if (timedOut && request.kind === 'chat') {
-              request.onEvent({ type: 'error', code: 0, message: 'Request timed out' });
+            if (timedOut) {
+              await dependencies.recordUsage(request.kind, {
+                usingOwnKey,
+                outcome: 'timeout',
+                countRequest: false,
+              });
+              void dependencies.sendDailyUsageHeartbeat?.(usingOwnKey ? 'byok' : 'free');
+              if (request.kind === 'chat') {
+                request.onEvent({ type: 'error', code: 0, message: 'Request timed out' });
+              }
             }
             return;
           }
           const code = err instanceof ProxyCooldownError ? err.status : 0;
+          if (err instanceof ProxyCooldownError) {
+            request.onEvent({ type: 'error', code, message: (err as Error).message });
+            return;
+          }
+          await dependencies.recordUsage(request.kind, {
+            usingOwnKey,
+            outcome: 'provider_error',
+            countRequest: false,
+          });
+          void dependencies.sendDailyUsageHeartbeat?.(usingOwnKey ? 'byok' : 'free');
           request.onEvent({ type: 'error', code, message: (err as Error).message });
         } finally {
           dependencies.clearTimeout(timeout);

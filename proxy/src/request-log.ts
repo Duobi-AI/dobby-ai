@@ -1,5 +1,20 @@
 import type { ProxyEnv } from './types';
 
+export type UsageModeMetrics = {
+  chat_requests: number;
+  autosuggest_requests: number;
+  successful_requests: number;
+  provider_errors: number;
+  timeouts: number;
+  rate_limited: number;
+};
+
+export type UsageMetrics = {
+  free: UsageModeMetrics;
+  byok: UsageModeMetrics;
+  screenshot_requests: number;
+};
+
 export type RequestLog = {
   event: 'dobby_request';
   request_id: string;
@@ -28,6 +43,8 @@ export type RequestLog = {
   headers_duration_ms?: number;
   usage_mode?: 'free' | 'byok';
   telemetry_event?: 'daily_active';
+  telemetry_schema_version?: number;
+  usage?: UsageMetrics;
   installation_id?: string;
   extension_version?: string;
 };

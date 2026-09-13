@@ -1,4 +1,5 @@
 import { getLocalStorage, setLocalStorage } from '../shared/storage.js';
+import type { ModeUsageState, UsageState } from '../shared/types/storage';
 
 const TELEMETRY_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev/telemetry';
 
@@ -10,6 +11,22 @@ type TelemetryDependencies = {
   createInstallationId: () => string;
   getExtensionVersion: () => string;
 };
+
+function getUsageSummary(usage?: UsageState) {
+  const toTelemetryMetrics = (metrics?: ModeUsageState) => ({
+    chat_requests: metrics?.chatRequests || 0,
+    autosuggest_requests: metrics?.autosuggestRequests || 0,
+    successful_requests: metrics?.successfulRequests || 0,
+    provider_errors: metrics?.providerErrors || 0,
+    timeouts: metrics?.timeouts || 0,
+    rate_limited: metrics?.rateLimited || 0,
+  });
+  return {
+    free: toTelemetryMetrics(usage?.modeUsage?.free),
+    byok: toTelemetryMetrics(usage?.modeUsage?.byok),
+    screenshot_requests: usage?.screenshotRequests || 0,
+  };
+}
 
 let heartbeatInFlight: Promise<void> | null = null;
 
@@ -37,6 +54,7 @@ async function sendHeartbeat(mode: UsageMode, dependencies: TelemetryDependencie
     'telemetryEnabled',
     'telemetryInstallationId',
     'telemetryLastSentDay',
+    'dobbyUsage',
   ]);
   if (stored.telemetryEnabled === false) return;
 
@@ -53,9 +71,11 @@ async function sendHeartbeat(mode: UsageMode, dependencies: TelemetryDependencie
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       event: 'daily_active',
+      schema_version: 1,
       mode,
       installation_id: installationId,
       extension_version: dependencies.getExtensionVersion(),
+      usage: getUsageSummary(stored.dobbyUsage),
     }),
   });
   if (response.ok) {

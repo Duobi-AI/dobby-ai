@@ -212,7 +212,7 @@ E2E tests run inside `ci.yml`; there is no separate `e2e.yml` workflow.
 
 ## Privacy
 
-Dobby AI does not collect accounts, cookies, advertising identifiers, prompts, page content, or API keys. If enabled in Settings, it sends one daily anonymous usage event indicating free-proxy versus own-key mode, a random installation ID, and the extension version. See [PRIVACY.md](PRIVACY.md) for details.
+Dobby AI does not collect accounts, cookies, advertising identifiers, prompts, page content, or API keys. If enabled in Settings, it sends one daily anonymous usage event with aggregate request and outcome counters split between free-proxy and own-key mode, a random installation ID, and the extension version. See [PRIVACY.md](PRIVACY.md) for details.
 
 ## License
 

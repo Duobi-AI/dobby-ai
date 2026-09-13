@@ -3,7 +3,13 @@ import { validatePayload, verifyHmac } from './validate.js';
 import { checkRateLimit, incrementCounters } from './rate-limit.js';
 import { createChatStream } from './openai.js';
 import { ACCESS_TOKEN_HEADER, issueAccessToken, verifyAccessToken } from './access-token.js';
-import { classifyRateLimit, createRequestLog, writeRequestLog } from './request-log.js';
+import {
+  classifyRateLimit,
+  createRequestLog,
+  writeRequestLog,
+  type UsageMetrics,
+  type UsageModeMetrics,
+} from './request-log.js';
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../../src/shared/autosuggest-limits.js';
 import type { ProxyPurpose } from '../../src/shared/types';
 import type { ProxyEnv, ValidProxyPayload } from './types';
@@ -14,20 +20,51 @@ const TRANSIENT_STORAGE_RETRY_AFTER_SECONDS = 60;
 
 type UsageTelemetryPayload = {
   event: 'daily_active';
+  schema_version: 1;
   mode: 'free' | 'byok';
   installation_id: string;
   extension_version: string;
+  usage: UsageMetrics;
 };
+
+function isUsageModeMetrics(value: unknown): value is UsageModeMetrics {
+  if (!value || typeof value !== 'object') return false;
+  const metrics = value as Partial<UsageModeMetrics>;
+  return [
+    metrics.chat_requests,
+    metrics.autosuggest_requests,
+    metrics.successful_requests,
+    metrics.provider_errors,
+    metrics.timeouts,
+    metrics.rate_limited,
+  ].every(item => typeof item === 'number'
+    && Number.isSafeInteger(item)
+    && item >= 0
+    && item <= 1_000_000);
+}
+
+function isUsageMetrics(value: unknown): value is UsageMetrics {
+  if (!value || typeof value !== 'object') return false;
+  const usage = value as Partial<UsageMetrics>;
+  return isUsageModeMetrics(usage.free)
+    && isUsageModeMetrics(usage.byok)
+    && typeof usage.screenshot_requests === 'number'
+    && Number.isSafeInteger(usage.screenshot_requests)
+    && usage.screenshot_requests >= 0
+    && usage.screenshot_requests <= 1_000_000;
+}
 
 function isUsageTelemetryPayload(value: unknown): value is UsageTelemetryPayload {
   if (!value || typeof value !== 'object') return false;
   const payload = value as Partial<UsageTelemetryPayload>;
   return payload.event === 'daily_active'
+    && payload.schema_version === 1
     && (payload.mode === 'free' || payload.mode === 'byok')
     && typeof payload.installation_id === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(payload.installation_id)
     && typeof payload.extension_version === 'string'
-    && /^[0-9A-Za-z._-]{1,32}$/.test(payload.extension_version);
+    && /^[0-9A-Za-z._-]{1,32}$/.test(payload.extension_version)
+    && isUsageMetrics(payload.usage);
 }
 
 function storageRetryAfter(error: unknown): number {
@@ -132,6 +169,8 @@ export default {
       return respond('telemetry_recorded', 'telemetry', jsonResponse({ ok: true }, 200, corsHeaders), {
         usage_mode: parsedTelemetry.mode,
         telemetry_event: parsedTelemetry.event,
+        telemetry_schema_version: parsedTelemetry.schema_version,
+        usage: parsedTelemetry.usage,
         installation_id: parsedTelemetry.installation_id,
         extension_version: parsedTelemetry.extension_version,
       });

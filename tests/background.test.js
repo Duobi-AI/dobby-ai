@@ -363,6 +363,12 @@ describe('chat-stream integration', () => {
           chatRequests: 1,
           freeChatRemaining: 25,
           usingOwnKey: false,
+          modeUsage: expect.objectContaining({
+            free: expect.objectContaining({
+              chatRequests: 1,
+              successfulRequests: 1,
+            }),
+          }),
         }),
       });
     });

@@ -123,9 +123,29 @@ describe('POST /telemetry', () => {
       headers: { 'Content-Type': 'application/json' },
       body: {
         event: 'daily_active',
+        schema_version: 1,
         mode: 'byok',
         installation_id: '123e4567-e89b-12d3-a456-426614174000',
         extension_version: '1.4.5',
+        usage: {
+          free: {
+            chat_requests: 3,
+            autosuggest_requests: 11,
+            successful_requests: 12,
+            provider_errors: 1,
+            timeouts: 0,
+            rate_limited: 1,
+          },
+          byok: {
+            chat_requests: 5,
+            autosuggest_requests: 20,
+            successful_requests: 22,
+            provider_errors: 2,
+            timeouts: 1,
+            rate_limited: 0,
+          },
+          screenshot_requests: 2,
+        },
       },
     });
 
@@ -141,6 +161,26 @@ describe('POST /telemetry', () => {
       telemetry_event: 'daily_active',
       installation_id: '123e4567-e89b-12d3-a456-426614174000',
       extension_version: '1.4.5',
+      telemetry_schema_version: 1,
+      usage: {
+        free: {
+          chat_requests: 3,
+          autosuggest_requests: 11,
+          successful_requests: 12,
+          provider_errors: 1,
+          timeouts: 0,
+          rate_limited: 1,
+        },
+        byok: {
+          chat_requests: 5,
+          autosuggest_requests: 20,
+          successful_requests: 22,
+          provider_errors: 2,
+          timeouts: 1,
+          rate_limited: 0,
+        },
+        screenshot_requests: 2,
+      },
       outcome: 'telemetry_recorded',
     }));
     logger.mockRestore();

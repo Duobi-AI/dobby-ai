@@ -26,10 +26,38 @@ describe('daily usage telemetry', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete storage.telemetryLastSentDay;
+    delete storage.dobbyUsage;
   });
 
   it('sends the selected usage mode without sensitive request data', async () => {
     const fetch = vi.fn(async () => ({ ok: true, status: 204 }));
+    storage.dobbyUsage = {
+      day: '2026-09-13',
+      chatRequests: 8,
+      autosuggestRequests: 31,
+      screenshotRequests: 2,
+      freeChatRemaining: 42,
+      usingOwnKey: true,
+      lastUpdated: now,
+      modeUsage: {
+        free: {
+          chatRequests: 3,
+          autosuggestRequests: 11,
+          successfulRequests: 12,
+          providerErrors: 1,
+          timeouts: 0,
+          rateLimited: 1,
+        },
+        byok: {
+          chatRequests: 5,
+          autosuggestRequests: 20,
+          successfulRequests: 22,
+          providerErrors: 2,
+          timeouts: 1,
+          rateLimited: 0,
+        },
+      },
+    };
 
     await sendDailyUsageHeartbeat('byok', { fetch, now: () => now });
 
@@ -39,9 +67,29 @@ describe('daily usage telemetry', () => {
         method: 'POST',
         body: JSON.stringify({
           event: 'daily_active',
+          schema_version: 1,
           mode: 'byok',
           installation_id: installationId,
           extension_version: '1.4.5',
+          usage: {
+            free: {
+              chat_requests: 3,
+              autosuggest_requests: 11,
+              successful_requests: 12,
+              provider_errors: 1,
+              timeouts: 0,
+              rate_limited: 1,
+            },
+            byok: {
+              chat_requests: 5,
+              autosuggest_requests: 20,
+              successful_requests: 22,
+              provider_errors: 2,
+              timeouts: 1,
+              rate_limited: 0,
+            },
+            screenshot_requests: 2,
+          },
         }),
       }),
     );

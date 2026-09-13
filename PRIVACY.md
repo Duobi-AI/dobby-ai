@@ -25,7 +25,7 @@ When enabled, Dobby AI sends at most one daily usage event containing:
 - a randomly generated installation identifier; and
 - the extension version.
 
-This telemetry contains no API keys, prompts, webpage content, URLs, screenshots, model responses, or conversation history. It is used only to measure active installations and the split between free-proxy and own-key usage. Users can disable it at any time in Settings by unchecking **Share anonymous usage metrics**. Cloudflare may process standard network metadata for the telemetry request according to its terms and privacy policy.
+This telemetry contains no API keys, prompts, webpage content, URLs, screenshots, model responses, or conversation history. It contains only daily aggregate counters for Chat, Autosuggestions, screenshots, successful requests, provider errors, timeouts, and rate limits, split between free-proxy and own-key usage. It is used only for product capacity and reliability measurement. Users can disable it at any time in Settings by unchecking **Share anonymous usage metrics**. Cloudflare may process standard network metadata for the telemetry request according to its terms and privacy policy.
 
 ## How Data Is Used
 

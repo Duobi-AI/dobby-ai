@@ -138,6 +138,7 @@ describe('response stream executor', () => {
     expect(dependencies.recordUsage).toHaveBeenCalledWith('autosuggest', {
       remaining: undefined,
       usingOwnKey: false,
+      outcome: 'success',
     });
   });
 
@@ -163,6 +164,11 @@ describe('response stream executor', () => {
     await vi.waitFor(() => expect(chatEvents).toEqual([
       { type: 'error', code: 0, message: 'Request timed out' },
     ]));
+    expect(chatDependencies.recordUsage).toHaveBeenCalledWith('chat', {
+      usingOwnKey: false,
+      outcome: 'timeout',
+      countRequest: false,
+    });
     expect(chatDependencies.timers[0].delay).toBe(30000);
 
     const autosuggestDependencies = createHangingDependencies();
@@ -177,6 +183,27 @@ describe('response stream executor', () => {
     await Promise.resolve();
     expect(autosuggestDependencies.timers[0].delay).toBe(10000);
     expect(autosuggestEvents).toEqual([]);
+  });
+
+  it('records provider errors by credential mode without counting them as requests', async () => {
+    const dependencies = makeDependencies({
+      readUserApiKey: vi.fn(async () => 'sk-user'),
+      fetch: vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        text: async () => 'upstream unavailable',
+        headers: new Headers(),
+      })),
+    });
+
+    await run(createResponseStreamExecutor(dependencies));
+
+    expect(dependencies.recordUsage).toHaveBeenCalledWith('chat', {
+      usingOwnKey: true,
+      outcome: 'provider_error',
+      countRequest: false,
+    });
+    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('byok');
   });
 
   it('keeps BYOK mode in local usage when the provider returns 429', async () => {
@@ -197,6 +224,7 @@ describe('response stream executor', () => {
       remaining: 0,
       usingOwnKey: true,
       rateLimited: true,
+      outcome: 'rate_limited',
     });
   });
 
