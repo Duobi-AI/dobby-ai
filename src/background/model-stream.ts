@@ -504,6 +504,11 @@ export function createResponseStreamExecutor(
           }
           const code = err instanceof ProxyCooldownError ? err.status : 0;
           if (err instanceof ProxyCooldownError) {
+            await recordUsageAndSendTelemetry(request.kind, {
+              usingOwnKey,
+              rateLimited: true,
+              outcome: 'rate_limited',
+            });
             request.onEvent({ type: 'error', code, message: (err as Error).message });
             return;
           }

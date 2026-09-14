@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createResponseStreamExecutor, generateSignature } from '../src/background/model-stream.js';
+import { ProxyCooldownError } from '../src/background/proxy-cooldown.js';
 
 function makeResponse(chunks, headers = new Map([['X-RateLimit-Remaining', '25']])) {
   const encoder = new TextEncoder();
@@ -159,6 +160,25 @@ describe('response stream executor', () => {
     });
     expect(dependencies.sendUsageRequestTelemetry).toHaveBeenCalledWith({
       kind: 'autosuggest', mode: 'free', outcome: 'rate_limited',
+    });
+  });
+
+  it('records proxy-cooldown-blocked requests as free rate limits', async () => {
+    const dependencies = makeDependencies({
+      fetchProxy: vi.fn(async () => {
+        throw new ProxyCooldownError(60);
+      }),
+    });
+
+    await run(createResponseStreamExecutor(dependencies));
+
+    expect(dependencies.recordUsage).toHaveBeenCalledWith('chat', {
+      usingOwnKey: false,
+      rateLimited: true,
+      outcome: 'rate_limited',
+    });
+    expect(dependencies.sendUsageRequestTelemetry).toHaveBeenCalledWith({
+      kind: 'chat', mode: 'free', outcome: 'rate_limited',
     });
   });
 
