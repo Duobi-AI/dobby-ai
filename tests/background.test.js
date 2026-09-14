@@ -289,8 +289,18 @@ describe('API key validation message handler', () => {
       expect(sendResponse).toHaveBeenCalledWith({ dataUrl: 'data:image/png;base64,image' });
       expect(fetch).toHaveBeenCalledWith(
         'https://dobby-ai-proxy.zhongnansu.workers.dev/telemetry',
-        expect.objectContaining({ method: 'POST' }),
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"event":"usage_request"'),
+        }),
       );
+      expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({
+        event: 'usage_request',
+        schema_version: 2,
+        mode: 'free',
+        request_kind: 'screenshot',
+        outcome: 'success',
+      });
     });
   });
 });

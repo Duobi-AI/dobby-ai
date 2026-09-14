@@ -1,6 +1,6 @@
 # Privacy Policy - Dobby AI Chrome Extension
 
-**Last updated:** May 26, 2026
+**Last updated:** September 13, 2026
 
 ## Overview
 
@@ -19,13 +19,13 @@ Dobby AI does not collect names, email addresses, payment information, health in
 
 ## Anonymous Usage Telemetry
 
-Dobby AI sends at most one daily usage event containing:
+Dobby AI sends an anonymous usage event for each tracked request containing:
 
 - whether the request used the Dobby AI free proxy or the user's own API key;
 - a randomly generated installation identifier; and
 - the extension version.
 
-This telemetry contains no API keys, prompts, webpage content, URLs, screenshots, model responses, or conversation history. It contains only daily aggregate counters for Chat, Autosuggestions, screenshots, successful requests, provider errors, timeouts, and rate limits, split between free-proxy and own-key usage. It is used only for product capacity and reliability measurement. Cloudflare may process standard network metadata for the telemetry request according to its terms and privacy policy.
+This telemetry also identifies the request kind (Chat, Autosuggestion, or screenshot capture) and final outcome (success, provider error, timeout, or rate limit). It contains no API keys, prompts, webpage content, URLs, screenshots, model responses, or conversation history. It is used only for product capacity and reliability measurement. Cloudflare may process standard network metadata for the telemetry request according to its terms and privacy policy.
 
 ## How Data Is Used
 

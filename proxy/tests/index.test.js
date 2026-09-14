@@ -116,33 +116,16 @@ describe('routing', () => {
 
 describe('POST /telemetry', () => {
   const validTelemetryBody = {
-    event: 'daily_active',
-    schema_version: 1,
+    event: 'usage_request',
+    schema_version: 2,
     mode: 'byok',
     installation_id: '123e4567-e89b-12d3-a456-426614174000',
     extension_version: '1.4.5',
-    usage: {
-      free: {
-        chat_requests: 3,
-        autosuggest_requests: 11,
-        successful_requests: 12,
-        provider_errors: 1,
-        timeouts: 0,
-        rate_limited: 1,
-      },
-      byok: {
-        chat_requests: 5,
-        autosuggest_requests: 20,
-        successful_requests: 22,
-        provider_errors: 2,
-        timeouts: 1,
-        rate_limited: 0,
-      },
-      screenshot_requests: 2,
-    },
+    request_kind: 'chat',
+    outcome: 'success',
   };
 
-  it('records a valid daily usage mode without touching KV', async () => {
+  it('records each usage request without touching KV', async () => {
     const logger = vi.spyOn(console, 'log').mockImplementation(() => {});
     const kv = { get: vi.fn(), put: vi.fn() };
     const req = makeRequest('/telemetry', {
@@ -160,29 +143,12 @@ describe('POST /telemetry', () => {
     expect(logger).toHaveBeenCalledWith(expect.objectContaining({
       route: 'telemetry',
       usage_mode: 'byok',
-      telemetry_event: 'daily_active',
+      telemetry_event: 'usage_request',
       installation_id: '123e4567-e89b-12d3-a456-426614174000',
       extension_version: '1.4.5',
-      telemetry_schema_version: 1,
-      usage: {
-        free: {
-          chat_requests: 3,
-          autosuggest_requests: 11,
-          successful_requests: 12,
-          provider_errors: 1,
-          timeouts: 0,
-          rate_limited: 1,
-        },
-        byok: {
-          chat_requests: 5,
-          autosuggest_requests: 20,
-          successful_requests: 22,
-          provider_errors: 2,
-          timeouts: 1,
-          rate_limited: 0,
-        },
-        screenshot_requests: 2,
-      },
+      telemetry_schema_version: 2,
+      telemetry_request_kind: 'chat',
+      telemetry_outcome: 'success',
       outcome: 'telemetry_recorded',
     }));
     logger.mockRestore();
@@ -200,11 +166,55 @@ describe('POST /telemetry', () => {
     expect(res.status).toBe(200);
   });
 
-  it('rejects telemetry with an invalid mode', async () => {
+  it('continues to accept the previous daily event during extension rollout', async () => {
+    const logger = vi.spyOn(console, 'log').mockImplementation(() => {});
     const req = makeRequest('/telemetry', {
       method: 'POST',
       body: {
         event: 'daily_active',
+        schema_version: 1,
+        mode: 'free',
+        installation_id: '123e4567-e89b-12d3-a456-426614174000',
+        extension_version: '1.4.6',
+        usage: {
+          free: {
+            chat_requests: 1,
+            autosuggest_requests: 0,
+            successful_requests: 1,
+            provider_errors: 0,
+            timeouts: 0,
+            rate_limited: 0,
+          },
+          byok: {
+            chat_requests: 0,
+            autosuggest_requests: 0,
+            successful_requests: 0,
+            provider_errors: 0,
+            timeouts: 0,
+            rate_limited: 0,
+          },
+          screenshot_requests: 0,
+        },
+      },
+    });
+
+    const res = await handler.fetch(req, makeEnv());
+
+    expect(res.status).toBe(200);
+    expect(logger).toHaveBeenCalledWith(expect.objectContaining({
+      telemetry_event: 'daily_active',
+      telemetry_schema_version: 1,
+      outcome: 'telemetry_recorded',
+    }));
+    logger.mockRestore();
+  });
+
+  it('rejects telemetry with an invalid mode', async () => {
+    const req = makeRequest('/telemetry', {
+      method: 'POST',
+      body: {
+        event: 'usage_request',
+        schema_version: 2,
         mode: 'unknown',
         installation_id: '123e4567-e89b-12d3-a456-426614174000',
         extension_version: '1.4.5',

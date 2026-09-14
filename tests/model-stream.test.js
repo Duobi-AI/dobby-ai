@@ -29,7 +29,7 @@ function makeDependencies(overrides = {}) {
     now: vi.fn(() => 123000),
     sign: vi.fn(async () => 'signature'),
     recordUsage: vi.fn(async () => {}),
-    sendDailyUsageHeartbeat: vi.fn(async () => {}),
+    sendUsageRequestTelemetry: vi.fn(async () => {}),
     fetchProxy: vi.fn(async (messages, purpose, signal, auth) => {
       const body = purpose === 'autosuggest'
         ? { messages, signature: auth.signature, timestamp: auth.timestamp, purpose }
@@ -90,7 +90,9 @@ describe('response stream executor', () => {
       123,
       expect.any(String),
     );
-    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('free');
+    expect(dependencies.sendUsageRequestTelemetry).toHaveBeenCalledWith({
+      kind: 'chat', mode: 'free', outcome: 'success',
+    });
     const body = JSON.parse(dependencies.fetch.mock.calls[0][1].body);
     expect(body).toMatchObject({
       messages: [{ role: 'user', content: 'test' }],
@@ -155,7 +157,9 @@ describe('response stream executor', () => {
       rateLimited: true,
       outcome: 'rate_limited',
     });
-    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('free');
+    expect(dependencies.sendUsageRequestTelemetry).toHaveBeenCalledWith({
+      kind: 'autosuggest', mode: 'free', outcome: 'rate_limited',
+    });
   });
 
   it('reports a Chat timeout but keeps Autosuggestion timeout silent', async () => {
@@ -219,7 +223,9 @@ describe('response stream executor', () => {
       outcome: 'provider_error',
       countRequest: false,
     });
-    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('byok');
+    expect(dependencies.sendUsageRequestTelemetry).toHaveBeenCalledWith({
+      kind: 'chat', mode: 'byok', outcome: 'provider_error',
+    });
   });
 
   it('keeps BYOK mode in local usage when the provider returns 429', async () => {
@@ -235,7 +241,9 @@ describe('response stream executor', () => {
 
     await run(createResponseStreamExecutor(dependencies));
 
-    expect(dependencies.sendDailyUsageHeartbeat).toHaveBeenCalledWith('byok');
+    expect(dependencies.sendUsageRequestTelemetry).toHaveBeenCalledWith({
+      kind: 'chat', mode: 'byok', outcome: 'rate_limited',
+    });
     expect(dependencies.recordUsage).toHaveBeenCalledWith('chat', {
       remaining: 0,
       usingOwnKey: true,

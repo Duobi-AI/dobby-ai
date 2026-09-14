@@ -8,7 +8,7 @@ import {
   type ResponseStreamEvent,
   type ResponseStreamHandle,
 } from './model-stream.js';
-import { sendDailyUsageHeartbeat } from './usage-telemetry.js';
+import { sendUsageRequestTelemetry } from './usage-telemetry.js';
 
 import type {
   AutosuggestBackgroundPort,
@@ -182,7 +182,11 @@ chrome.runtime.onMessage.addListener((
         void (async () => {
           await recordUsage('screenshot');
           const { userApiKey } = await getLocalStorage('userApiKey');
-          await sendDailyUsageHeartbeat(userApiKey ? 'byok' : 'free');
+          await sendUsageRequestTelemetry({
+            kind: 'screenshot',
+            mode: userApiKey ? 'byok' : 'free',
+            outcome: 'success',
+          });
           sendResponse({ dataUrl });
         })();
       }

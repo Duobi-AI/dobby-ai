@@ -7,9 +7,8 @@ import {
   classifyRateLimit,
   createRequestLog,
   writeRequestLog,
-  type UsageMetrics,
-  type UsageModeMetrics,
 } from './request-log.js';
+import type { UsageMetrics, UsageModeMetrics } from './request-log.js';
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../../src/shared/autosuggest-limits.js';
 import type { ProxyPurpose } from '../../src/shared/types';
 import type { ProxyEnv, ValidProxyPayload } from './types';
@@ -19,6 +18,16 @@ const MAX_TELEMETRY_BODY_SIZE = 4096;
 const TRANSIENT_STORAGE_RETRY_AFTER_SECONDS = 60;
 
 type UsageTelemetryPayload = {
+  event: 'usage_request';
+  schema_version: 2;
+  mode: 'free' | 'byok';
+  installation_id: string;
+  extension_version: string;
+  request_kind: 'chat' | 'autosuggest' | 'screenshot';
+  outcome: 'success' | 'provider_error' | 'timeout' | 'rate_limited';
+};
+
+type LegacyDailyTelemetryPayload = {
   event: 'daily_active';
   schema_version: 1;
   mode: 'free' | 'byok';
@@ -27,44 +36,58 @@ type UsageTelemetryPayload = {
   usage: UsageMetrics;
 };
 
+type TelemetryPayload = UsageTelemetryPayload | LegacyDailyTelemetryPayload;
+
+function isValidTelemetryEnvelope(value: Partial<TelemetryPayload>): boolean {
+  return (value.mode === 'free' || value.mode === 'byok')
+    && typeof value.installation_id === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.installation_id)
+    && typeof value.extension_version === 'string'
+    && /^[0-9A-Za-z._-]{1,32}$/.test(value.extension_version);
+}
+
 function isUsageModeMetrics(value: unknown): value is UsageModeMetrics {
   if (!value || typeof value !== 'object') return false;
   const metrics = value as Partial<UsageModeMetrics>;
-  return [
-    metrics.chat_requests,
-    metrics.autosuggest_requests,
-    metrics.successful_requests,
-    metrics.provider_errors,
-    metrics.timeouts,
-    metrics.rate_limited,
-  ].every(item => typeof item === 'number'
-    && Number.isSafeInteger(item)
-    && item >= 0
-    && item <= 1_000_000);
+  return Object.values(metrics).length === 6
+    && Object.values(metrics).every(metric => Number.isSafeInteger(metric) && metric >= 0);
 }
 
 function isUsageMetrics(value: unknown): value is UsageMetrics {
   if (!value || typeof value !== 'object') return false;
-  const usage = value as Partial<UsageMetrics>;
-  return isUsageModeMetrics(usage.free)
-    && isUsageModeMetrics(usage.byok)
-    && typeof usage.screenshot_requests === 'number'
-    && Number.isSafeInteger(usage.screenshot_requests)
-    && usage.screenshot_requests >= 0
-    && usage.screenshot_requests <= 1_000_000;
+  const metrics = value as Partial<UsageMetrics>;
+  return isUsageModeMetrics(metrics.free)
+    && isUsageModeMetrics(metrics.byok)
+    && Number.isSafeInteger(metrics.screenshot_requests)
+    && (metrics.screenshot_requests ?? -1) >= 0;
 }
 
 function isUsageTelemetryPayload(value: unknown): value is UsageTelemetryPayload {
   if (!value || typeof value !== 'object') return false;
   const payload = value as Partial<UsageTelemetryPayload>;
+  return payload.event === 'usage_request'
+    && payload.schema_version === 2
+    && isValidTelemetryEnvelope(payload)
+    && (payload.request_kind === 'chat'
+      || payload.request_kind === 'autosuggest'
+      || payload.request_kind === 'screenshot')
+    && (payload.outcome === 'success'
+      || payload.outcome === 'provider_error'
+      || payload.outcome === 'timeout'
+      || payload.outcome === 'rate_limited');
+}
+
+function isLegacyDailyTelemetryPayload(value: unknown): value is LegacyDailyTelemetryPayload {
+  if (!value || typeof value !== 'object') return false;
+  const payload = value as Partial<LegacyDailyTelemetryPayload>;
   return payload.event === 'daily_active'
     && payload.schema_version === 1
-    && (payload.mode === 'free' || payload.mode === 'byok')
-    && typeof payload.installation_id === 'string'
-    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(payload.installation_id)
-    && typeof payload.extension_version === 'string'
-    && /^[0-9A-Za-z._-]{1,32}$/.test(payload.extension_version)
+    && isValidTelemetryEnvelope(payload)
     && isUsageMetrics(payload.usage);
+}
+
+function isTelemetryPayload(value: unknown): value is TelemetryPayload {
+  return isUsageTelemetryPayload(value) || isLegacyDailyTelemetryPayload(value);
 }
 
 function storageRetryAfter(error: unknown): number {
@@ -158,7 +181,7 @@ export default {
       } catch {
         return respond('telemetry_rejected', 'telemetry', jsonResponse({ error: 'Invalid telemetry payload' }, 400, corsHeaders));
       }
-      if (!isUsageTelemetryPayload(parsedTelemetry)) {
+      if (!isTelemetryPayload(parsedTelemetry)) {
         return respond('telemetry_rejected', 'telemetry', jsonResponse({ error: 'Invalid telemetry payload' }, 400, corsHeaders));
       }
 
@@ -166,7 +189,12 @@ export default {
         usage_mode: parsedTelemetry.mode,
         telemetry_event: parsedTelemetry.event,
         telemetry_schema_version: parsedTelemetry.schema_version,
-        usage: parsedTelemetry.usage,
+        ...(parsedTelemetry.event === 'usage_request'
+          ? {
+            telemetry_request_kind: parsedTelemetry.request_kind,
+            telemetry_outcome: parsedTelemetry.outcome,
+          }
+          : { usage: parsedTelemetry.usage }),
         installation_id: parsedTelemetry.installation_id,
         extension_version: parsedTelemetry.extension_version,
       });

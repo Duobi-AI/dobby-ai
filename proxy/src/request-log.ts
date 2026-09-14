@@ -42,8 +42,10 @@ export type RequestLog = {
   upstream_status?: number;
   headers_duration_ms?: number;
   usage_mode?: 'free' | 'byok';
-  telemetry_event?: 'daily_active';
+  telemetry_event?: 'daily_active' | 'usage_request';
   telemetry_schema_version?: number;
+  telemetry_request_kind?: 'chat' | 'autosuggest' | 'screenshot';
+  telemetry_outcome?: 'success' | 'provider_error' | 'timeout' | 'rate_limited';
   usage?: UsageMetrics;
   installation_id?: string;
   extension_version?: string;
