@@ -509,7 +509,14 @@ describe('chat-stream integration', () => {
 
     await getHandler()({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
 
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/chat'),
+      expect.anything(),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/telemetry'),
+      expect.objectContaining({ method: 'POST' }),
+    );
     expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({
       type: 'error',
       code: 503,
