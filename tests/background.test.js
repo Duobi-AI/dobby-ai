@@ -289,8 +289,18 @@ describe('API key validation message handler', () => {
       expect(sendResponse).toHaveBeenCalledWith({ dataUrl: 'data:image/png;base64,image' });
       expect(fetch).toHaveBeenCalledWith(
         'https://dobby-ai-proxy.zhongnansu.workers.dev/telemetry',
-        expect.objectContaining({ method: 'POST' }),
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"event":"usage_request"'),
+        }),
       );
+      expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({
+        event: 'usage_request',
+        schema_version: 2,
+        mode: 'free',
+        request_kind: 'screenshot',
+        outcome: 'success',
+      });
     });
   });
 });
@@ -499,7 +509,14 @@ describe('chat-stream integration', () => {
 
     await getHandler()({ type: 'CHAT_REQUEST', messages: [{ role: 'user', content: 'test' }] });
 
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/chat'),
+      expect.anything(),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/telemetry'),
+      expect.objectContaining({ method: 'POST' }),
+    );
     expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({
       type: 'error',
       code: 503,

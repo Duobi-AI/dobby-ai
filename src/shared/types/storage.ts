@@ -72,7 +72,6 @@ export type StorageState = {
   theme?: ThemeMode;
   userApiKey?: string;
   telemetryInstallationId?: string;
-  telemetryLastSentDay?: string;
   proxyAccessToken?: string;
   dobbyUsage?: UsageState;
   chatHistory?: HistoryEntry[];

@@ -14,7 +14,7 @@ import {
   ProxyCooldownError,
   recordProxyTemporaryFailure,
 } from './proxy-cooldown.js';
-import { sendDailyUsageHeartbeat, type UsageMode } from './usage-telemetry.js';
+import { sendUsageRequestTelemetry, type UsageTelemetryRequest } from './usage-telemetry.js';
 import type {
   ChatMessage,
   UsageRequestKind,
@@ -67,7 +67,7 @@ type ResponseStreamDependencies = {
   getAutosuggestCooldownRemaining: () => Promise<number>;
   recordAutosuggestRateLimit: (retryAfterHeader: string | null) => Promise<number>;
   clearAutosuggestCooldown: () => Promise<void>;
-  sendDailyUsageHeartbeat?: (mode: UsageMode) => Promise<void>;
+  sendUsageRequestTelemetry?: (request: UsageTelemetryRequest) => Promise<void>;
   now: () => number;
   sign: (messages: ChatMessage[], timestamp: number, secret: string) => Promise<string>;
   recordUsage: (kind: UsageRequestKind, details?: UsageUpdateDetails) => Promise<void>;
@@ -327,7 +327,7 @@ const productionDependencies: ResponseStreamDependencies = {
   now: () => Date.now(),
   sign: generateSignature,
   recordUsage,
-  sendDailyUsageHeartbeat,
+  sendUsageRequestTelemetry,
   setTimeout: (callback, delay) => globalThis.setTimeout(callback, delay),
   clearTimeout: (handle) => globalThis.clearTimeout(handle),
 };
@@ -367,12 +367,16 @@ export function createResponseStreamExecutor(
   overrides: Partial<ResponseStreamDependencies> = {},
 ): { execute: (request: ResponseStreamRequest) => ResponseStreamHandle } {
   const dependencies = { ...productionDependencies, ...overrides };
-  const recordUsageAndSendHeartbeat = async (
+  const recordUsageAndSendTelemetry = async (
     kind: UsageRequestKind,
-    details: UsageUpdateDetails & { usingOwnKey: boolean },
+    details: UsageUpdateDetails & { usingOwnKey: boolean; outcome: UsageTelemetryRequest['outcome'] },
   ): Promise<void> => {
     await dependencies.recordUsage(kind, details);
-    await dependencies.sendDailyUsageHeartbeat?.(details.usingOwnKey ? 'byok' : 'free');
+    await dependencies.sendUsageRequestTelemetry?.({
+      kind,
+      mode: details.usingOwnKey ? 'byok' : 'free',
+      outcome: details.outcome,
+    });
   };
 
   return {
@@ -397,7 +401,7 @@ export function createResponseStreamExecutor(
           if (!apiKey && request.kind === 'autosuggest') {
             const retryAfter = await dependencies.getAutosuggestCooldownRemaining();
             if (retryAfter > 0) {
-              await recordUsageAndSendHeartbeat(request.kind, {
+              await recordUsageAndSendTelemetry(request.kind, {
                 usingOwnKey: false,
                 rateLimited: true,
                 outcome: 'rate_limited',
@@ -435,7 +439,7 @@ export function createResponseStreamExecutor(
             const retryAfter = request.kind === 'autosuggest'
               ? await dependencies.recordAutosuggestRateLimit(response.headers.get('Retry-After'))
               : undefined;
-            await recordUsageAndSendHeartbeat(request.kind, {
+            await recordUsageAndSendTelemetry(request.kind, {
               remaining: data.remaining ?? 0,
               usingOwnKey,
               rateLimited: true,
@@ -459,7 +463,7 @@ export function createResponseStreamExecutor(
               ? (errBody ? `${prefix}: ${errBody.substring(0, 200)}` : 'Request failed')
               : `${prefix} ${errBody.substring(0, 200)}`;
             console.error(`[Dobby AI] ${request.kind === 'chat' ? 'API' : 'Autosuggest API'} error:`, response.status, errBody);
-            await recordUsageAndSendHeartbeat(request.kind, {
+            await recordUsageAndSendTelemetry(request.kind, {
               usingOwnKey,
               outcome: 'provider_error',
               countRequest: false,
@@ -475,7 +479,7 @@ export function createResponseStreamExecutor(
           for await (const token of parseSSEStream(reader)) {
             request.onEvent({ type: 'token', text: token });
           }
-          await recordUsageAndSendHeartbeat(request.kind, {
+          await recordUsageAndSendTelemetry(request.kind, {
             remaining: request.kind === 'chat' ? remaining : undefined,
             usingOwnKey,
             outcome: 'success',
@@ -487,7 +491,7 @@ export function createResponseStreamExecutor(
         } catch (err) {
           if (controller.signal.aborted || (err as Error).name === 'AbortError') {
             if (timedOut) {
-              await recordUsageAndSendHeartbeat(request.kind, {
+              await recordUsageAndSendTelemetry(request.kind, {
                 usingOwnKey,
                 outcome: 'timeout',
                 countRequest: false,
@@ -500,10 +504,15 @@ export function createResponseStreamExecutor(
           }
           const code = err instanceof ProxyCooldownError ? err.status : 0;
           if (err instanceof ProxyCooldownError) {
+            await recordUsageAndSendTelemetry(request.kind, {
+              usingOwnKey,
+              rateLimited: true,
+              outcome: 'rate_limited',
+            });
             request.onEvent({ type: 'error', code, message: (err as Error).message });
             return;
           }
-          await recordUsageAndSendHeartbeat(request.kind, {
+          await recordUsageAndSendTelemetry(request.kind, {
             usingOwnKey,
             outcome: 'provider_error',
             countRequest: false,

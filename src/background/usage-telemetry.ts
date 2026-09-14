@@ -1,43 +1,26 @@
 import { getLocalStorage, setLocalStorage } from '../shared/storage.js';
-import type { ModeUsageState, UsageState } from '../shared/types/storage';
+import type { UsageOutcome, UsageRequestKind } from '../shared/types/storage';
 
 const TELEMETRY_URL = 'https://dobby-ai-proxy.zhongnansu.workers.dev/telemetry';
 
 export type UsageMode = 'free' | 'byok';
+export type UsageTelemetryRequest = {
+  kind: UsageRequestKind;
+  mode: UsageMode;
+  outcome: UsageOutcome;
+};
 
 type TelemetryDependencies = {
   fetch: typeof globalThis.fetch;
-  now: () => number;
   createInstallationId: () => string;
   getExtensionVersion: () => string;
 };
 
-function getUsageSummary(usage?: UsageState) {
-  const toTelemetryMetrics = (metrics?: ModeUsageState) => ({
-    chat_requests: metrics?.chatRequests || 0,
-    autosuggest_requests: metrics?.autosuggestRequests || 0,
-    successful_requests: metrics?.successfulRequests || 0,
-    provider_errors: metrics?.providerErrors || 0,
-    timeouts: metrics?.timeouts || 0,
-    rate_limited: metrics?.rateLimited || 0,
-  });
-  return {
-    free: toTelemetryMetrics(usage?.modeUsage?.free),
-    byok: toTelemetryMetrics(usage?.modeUsage?.byok),
-    screenshot_requests: usage?.screenshotRequests || 0,
-  };
-}
-
-let heartbeatInFlight: Promise<void> | null = null;
-
-function getUtcDay(now: number): string {
-  return new Date(now).toISOString().split('T')[0]!;
-}
+let installationIdInFlight: Promise<string> | null = null;
 
 function getDefaultDependencies(): TelemetryDependencies {
   return {
     fetch: (...args) => globalThis.fetch(...args),
-    now: () => Date.now(),
     createInstallationId: () => crypto.randomUUID(),
     getExtensionVersion: () => {
       try {
@@ -49,47 +32,44 @@ function getDefaultDependencies(): TelemetryDependencies {
   };
 }
 
-async function sendHeartbeat(mode: UsageMode, dependencies: TelemetryDependencies): Promise<void> {
-  const stored = await getLocalStorage([
-    'telemetryInstallationId',
-    'telemetryLastSentDay',
-    'dobbyUsage',
-  ]);
-  const day = getUtcDay(dependencies.now());
-  if (stored.telemetryLastSentDay === day) return;
+async function getInstallationId(dependencies: TelemetryDependencies): Promise<string> {
+  const { telemetryInstallationId } = await getLocalStorage('telemetryInstallationId');
+  if (telemetryInstallationId) return telemetryInstallationId;
 
-  const installationId = stored.telemetryInstallationId || dependencies.createInstallationId();
-  if (!stored.telemetryInstallationId) {
-    await setLocalStorage({ telemetryInstallationId: installationId });
+  if (!installationIdInFlight) {
+    const installationId = dependencies.createInstallationId();
+    installationIdInFlight = Promise.resolve(setLocalStorage({ telemetryInstallationId: installationId }))
+      .then(() => installationId)
+      .finally(() => {
+        installationIdInFlight = null;
+      });
   }
+  return installationIdInFlight;
+}
 
-  const response = await dependencies.fetch(TELEMETRY_URL, {
+async function sendUsageRequest(
+  request: UsageTelemetryRequest,
+  dependencies: TelemetryDependencies,
+): Promise<void> {
+  const installationId = await getInstallationId(dependencies);
+  await dependencies.fetch(TELEMETRY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      event: 'daily_active',
-      schema_version: 1,
-      mode,
+      event: 'usage_request',
+      schema_version: 2,
+      mode: request.mode,
       installation_id: installationId,
       extension_version: dependencies.getExtensionVersion(),
-      usage: getUsageSummary(stored.dobbyUsage),
+      request_kind: request.kind,
+      outcome: request.outcome,
     }),
   });
-  if (response.ok) {
-    await setLocalStorage({ telemetryLastSentDay: day });
-  }
 }
 
-export function sendDailyUsageHeartbeat(
-  mode: UsageMode,
+export function sendUsageRequestTelemetry(
+  request: UsageTelemetryRequest,
   overrides: Partial<TelemetryDependencies> = {},
 ): Promise<void> {
-  if (heartbeatInFlight) return heartbeatInFlight;
-
-  heartbeatInFlight = sendHeartbeat(mode, { ...getDefaultDependencies(), ...overrides })
-    .catch(() => {})
-    .finally(() => {
-      heartbeatInFlight = null;
-    });
-  return heartbeatInFlight;
+  return sendUsageRequest(request, { ...getDefaultDependencies(), ...overrides }).catch(() => {});
 }
