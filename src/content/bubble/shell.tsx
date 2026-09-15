@@ -43,6 +43,22 @@ export type BubbleShellProps = {
   onEscape: () => void;
 };
 
+const FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function getFocusableElements(bubble: HTMLElement | null): HTMLElement[] {
+  if (!bubble) return [];
+  return Array.from(bubble.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((element) => {
+    if (element.closest('.collapsed')) return false;
+    const style = window.getComputedStyle(element);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  });
+}
+
 function PinIcon() {
   return (
     <svg
@@ -117,6 +133,16 @@ function PresetSelection({ selection }: { selection: BubblePresetSelection }) {
     if (event.key === 'Escape') selection.onEscape();
   };
 
+  const handlePresetKeyDown = (
+    event: ReactKeyboardEvent<HTMLDivElement>,
+    preset: Preset,
+  ) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    event.stopPropagation();
+    selection.onPreset(preset);
+  };
+
   return (
     <>
       {selection.detectionLabel ? (
@@ -128,6 +154,10 @@ function PresetSelection({ selection }: { selection: BubblePresetSelection }) {
             className="preset-chip"
             key={`${preset.label}-${preset.instruction}`}
             onMouseDown={(event) => handlePresetMouseDown(event, preset)}
+            onKeyDown={(event) => handlePresetKeyDown(event, preset)}
+            role="button"
+            tabIndex={0}
+            aria-label={preset.label}
           >
             {preset.label}
           </div>
@@ -136,6 +166,7 @@ function PresetSelection({ selection }: { selection: BubblePresetSelection }) {
       <input
         className="preset-input"
         placeholder={selection.customPlaceholder}
+        aria-label={selection.customPlaceholder}
         onKeyDown={handleCustomKeyDown}
       />
     </>
@@ -348,10 +379,11 @@ function ResponseSection({
         <input
           className="follow-up-input"
           placeholder="Ask a follow-up..."
+          aria-label="Ask a follow-up"
           disabled={view.followUpDisabled}
           onKeyDown={handleFollowUpKeyDown}
         />
-        <button className="action-btn history-btn" title="History" onClick={onHistory}>🕐</button>
+        <button className="action-btn history-btn" title="History" aria-label="View history" onClick={onHistory}>🕐</button>
       </div>
     </div>
   );
@@ -374,22 +406,54 @@ export function BubbleShell({
   onEscape,
 }: BubbleShellProps) {
   const view = useBubbleLifecycleState();
+  const bubbleRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const bubble = bubbleRef.current;
+    if (!bubble) return;
+    const presetInput = bubble.querySelector<HTMLElement>('.preset-input');
+    const firstPreset = bubble.querySelector<HTMLElement>('.preset-chip');
+    const followUp = bubble.querySelector<HTMLInputElement>('.follow-up-input');
+    const target = presetInput || firstPreset || (followUp && !followUp.disabled ? followUp : null);
+    (target || getFocusableElements(bubble)[0])?.focus();
+  }, []);
+
+  const handleBubbleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' && !(event.target as Element).closest?.('.img-lightbox')) {
+      onEscape();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const focusable = getFocusableElements(bubbleRef.current);
+    if (focusable.length === 0) {
+      event.preventDefault();
+      return;
+    }
+    const root = bubbleRef.current?.getRootNode();
+    const active = root instanceof ShadowRoot ? root.activeElement : document.activeElement;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey ? active === first || !focusable.includes(active as HTMLElement) : active === last || !focusable.includes(active as HTMLElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first)?.focus();
+    }
+  };
+
   return (
     <>
       <style>{styles}</style>
-      <div className="bubble" onKeyDown={(event) => {
-        if (event.key === 'Escape' && !(event.target as Element).closest?.('.img-lightbox')) onEscape();
-      }}>
+      <div className="bubble" ref={bubbleRef} onKeyDown={handleBubbleKeyDown}>
         <div className={`bubble-header${view.pinned ? ' draggable' : ''}`} onMouseDown={onDragStart}>
           <span className="bubble-logo">
             <img className="bubble-logo-mark" src={BRAND_MARK_DATA_URI} alt="" aria-hidden="true" />
             <span>{BRAND_NAME}</span>
           </span>
           <span className="bubble-status">{view.status}</span>
-          <button className={`pin-btn${view.pinned ? ' pinned' : ''}`} title={view.pinned ? 'Unpin' : 'Pin'} onClick={onTogglePin}>
+          <button className={`pin-btn${view.pinned ? ' pinned' : ''}`} title={view.pinned ? 'Unpin' : 'Pin'} aria-label={view.pinned ? 'Unpin chat bubble' : 'Pin chat bubble'} onClick={onTogglePin}>
             <PinIcon />
           </button>
-          <button className="close-btn" title="Close" onClick={onClose}>✕</button>
+          <button className="close-btn" title="Close" aria-label="Close chat" onClick={onClose}>✕</button>
         </div>
         <Preview previewText={previewText} previewLabel={view.previewLabel || previewLabel} images={images} />
         {presets ? (
