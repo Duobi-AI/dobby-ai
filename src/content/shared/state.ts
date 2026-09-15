@@ -32,6 +32,8 @@ export const screenshotState: ScreenshotState = {
   startY: 0,
   rect: null,
   dragStarted: false,
+  rafId: null,
+  pendingRect: null,
 };
 
 export function resetScreenshotState() {
@@ -40,6 +42,8 @@ export function resetScreenshotState() {
   screenshotState.startY = 0;
   screenshotState.rect = null;
   screenshotState.dragStarted = false;
+  screenshotState.rafId = null;
+  screenshotState.pendingRect = null;
 }
 
 // Long-press state

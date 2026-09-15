@@ -32,6 +32,18 @@ let suppressSelectionUntil = 0;
 let lastPrimarySelectionReleaseAt = 0;
 let canReshowSelectionOnScroll = false;
 
+function applyPendingDragRect(): void {
+  screenshotState.rafId = null;
+  const pending = screenshotState.pendingRect;
+  if (!pending || !screenshotState.rect || !screenshotState.dragStarted) return;
+  Object.assign(screenshotState.rect.style, {
+    left: pending.x + 'px',
+    top: pending.y + 'px',
+    width: pending.width + 'px',
+    height: pending.height + 'px',
+  });
+}
+
 function isInteractiveElement(el: HTMLElement | null): boolean {
   if (!el || !el.tagName) return false;
   if (INTERACTIVE_TAGS.has(el.tagName)) return true;
@@ -216,18 +228,16 @@ export function registerListeners(): void {
       }
     }
 
-    // Screenshot region drag
+    // Screenshot region drag — coalesce DOM writes to one per animation frame.
     if (screenshotState.overlay && screenshotState.rect && screenshotState.dragStarted) {
       const x = Math.min(screenshotState.startX, e.clientX);
       const y = Math.min(screenshotState.startY, e.clientY);
       const w = Math.abs(e.clientX - screenshotState.startX);
       const h = Math.abs(e.clientY - screenshotState.startY);
-      Object.assign(screenshotState.rect.style, {
-        left: x + 'px',
-        top: y + 'px',
-        width: w + 'px',
-        height: h + 'px',
-      });
+      screenshotState.pendingRect = { x, y, width: w, height: h };
+      if (screenshotState.rafId === null) {
+        screenshotState.rafId = window.requestAnimationFrame(applyPendingDragRect);
+      }
     }
   });
 

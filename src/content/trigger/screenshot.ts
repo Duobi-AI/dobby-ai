@@ -11,6 +11,14 @@ import type { CaptureRect, ScreenshotOverlay } from '../../shared/types';
 
 const colors = getColorPalette('light');
 
+function cancelPendingDragRect(): void {
+  if (screenshotState.rafId !== null) {
+    window.cancelAnimationFrame(screenshotState.rafId);
+  }
+  screenshotState.rafId = null;
+  screenshotState.pendingRect = null;
+}
+
 export function startScreenshotMode(): void {
   if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
   _removeProgressRing();
@@ -96,6 +104,15 @@ export function startScreenshotMode(): void {
     const y = Math.min(screenshotState.startY, e.clientY);
     const w = Math.abs(e.clientX - screenshotState.startX);
     const h = Math.abs(e.clientY - screenshotState.startY);
+
+    // Flush the final pointer position before cancelling any queued frame.
+    cancelPendingDragRect();
+    Object.assign(screenshotState.rect!.style, {
+      left: x + 'px',
+      top: y + 'px',
+      width: w + 'px',
+      height: h + 'px',
+    });
 
     // Too small — reset selection and let user try again
     if (w < 10 || h < 10) {
@@ -240,6 +257,7 @@ function _showConfirmToolbar(overlay: ScreenshotOverlay, banner: HTMLDivElement,
 }
 
 export function cancelScreenshotMode(): void {
+  cancelPendingDragRect();
   if (screenshotState.overlay) {
     if (screenshotState.overlay._escHandler) {
       document.removeEventListener('keydown', screenshotState.overlay._escHandler);

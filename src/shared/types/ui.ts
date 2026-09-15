@@ -49,6 +49,8 @@ export type ScreenshotState = {
   startY: number;
   rect: HTMLDivElement | null;
   dragStarted: boolean;
+  rafId: number | null;
+  pendingRect: { x: number; y: number; width: number; height: number } | null;
 };
 
 export type LongPressState = {
