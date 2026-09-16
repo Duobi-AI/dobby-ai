@@ -1,6 +1,5 @@
 // proxy/src/index.ts
 import { validatePayload, verifyHmac } from './validate.js';
-import { checkRateLimit, incrementCounters } from './rate-limit.js';
 import { createChatStream } from './openai.js';
 import { ACCESS_TOKEN_HEADER, issueAccessToken, verifyAccessToken } from './access-token.js';
 import {
@@ -11,11 +10,42 @@ import {
 import type { UsageMetrics, UsageModeMetrics } from './request-log.js';
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../../src/shared/autosuggest-limits.js';
 import type { ProxyPurpose } from '../../src/shared/types';
-import type { ProxyEnv, ValidProxyPayload } from './types';
+import type { ProxyEnv, RateLimitResult, ValidProxyPayload } from './types';
+
+export { RateLimiter } from './rate-limit-do.js';
 
 const MAX_BODY_SIZE = 2097152; // 2MB
 const MAX_TELEMETRY_BODY_SIZE = 4096;
 const TRANSIENT_STORAGE_RETRY_AFTER_SECONDS = 60;
+
+async function checkRateLimitDO(
+  env: ProxyEnv,
+  ip: string,
+  purpose: ProxyPurpose,
+  tokenHash: string,
+): Promise<RateLimitResult> {
+  const binding = env.RATE_LIMITER;
+  if (!binding) {
+    return { allowed: false, reason: 'Rate limiter temporarily unavailable', retryAfter: 60 };
+  }
+  try {
+    const stub = binding.get(binding.idFromName(ip));
+    const response = await stub.fetch('https://rate-limiter/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip, purpose, tokenHash }),
+    });
+    if (!response.ok) {
+      return { allowed: false, reason: 'Rate limiter temporarily unavailable', retryAfter: 60 };
+    }
+    const result = await response.json() as RateLimitResult;
+    return typeof result.allowed === 'boolean'
+      ? result
+      : { allowed: false, reason: 'Rate limiter temporarily unavailable', retryAfter: 60 };
+  } catch {
+    return { allowed: false, reason: 'Rate limiter temporarily unavailable', retryAfter: 60 };
+  }
+}
 
 type UsageTelemetryPayload = {
   event: 'usage_request';
@@ -285,7 +315,7 @@ export default {
 
     const rateResult = devBypass
       ? { allowed: true, remaining: null }
-      : await checkRateLimit(ip, env.RATE_LIMIT_KV, purpose, tokenResult.tokenHash);
+      : await checkRateLimitDO(env, ip, purpose, tokenResult.tokenHash);
     if (!rateResult.allowed) {
       return respond('rate_limited', 'rate_check', jsonResponse(
         { error: rateResult.reason, remaining: rateResult.remaining ?? 0 },
@@ -297,8 +327,6 @@ export default {
         rate_limit: classifyRateLimit(rateResult.reason),
       });
     }
-
-    if (!devBypass) await incrementCounters(ip, env.RATE_LIMIT_KV, purpose, tokenResult.tokenHash);
 
     const maxTokens = purpose === 'autosuggest' ? AUTOSUGGEST_MAX_SUGGESTION_TOKENS : undefined;
     let openaiResponse: Response;
