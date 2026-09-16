@@ -103,6 +103,19 @@ test('ESC key dismisses screenshot overlay', async () => {
   await expect(overlay).not.toBeVisible();
 });
 
+test('right-click dismisses screenshot overlay', async () => {
+  await page.mouse.move(400, 400);
+  await page.mouse.down();
+  await page.waitForTimeout(1100);
+  await page.mouse.up();
+
+  const overlay = page.locator('div[style*="crosshair"]');
+  await expect(overlay).toBeVisible({ timeout: 3000 });
+
+  await page.mouse.click(400, 400, { button: 'right' });
+  await expect(overlay).not.toBeVisible();
+});
+
 test('mouse movement cancels long-press', async () => {
   await page.mouse.move(400, 400);
   await page.mouse.down();

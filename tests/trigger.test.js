@@ -312,6 +312,36 @@ describe('screenshot mode', () => {
     expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
   });
 
+  it('right-click cancels screenshot mode', async () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+
+    overlay.dispatchEvent(new MouseEvent('mousedown', {
+      button: 2,
+      clientX: 100,
+      clientY: 100,
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+  });
+
+  it('contextmenu cancels a selected screenshot region', async () => {
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    simulateDrag(overlay, 50, 50, 200, 200);
+    expect(overlay.querySelector('[data-screenshot-toolbar]')).not.toBeNull();
+
+    overlay.dispatchEvent(new MouseEvent('contextmenu', {
+      button: 2,
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+  });
+
   it('mouseup without prior mousedown on overlay does not dismiss it', async () => {
     startScreenshotMode();
     const overlay = document.querySelector('div[style*="crosshair"]');
