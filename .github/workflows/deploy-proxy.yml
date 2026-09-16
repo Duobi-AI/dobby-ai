@@ -1,0 +1,99 @@
+name: Deploy Proxy Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'proxy/**'
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'proxy/**'
+  workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: 'Deploy the checked-out main branch to production'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate proxy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: proxy
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: proxy/package-lock.json
+
+      - name: Install proxy dependencies
+        run: npm ci
+
+      - name: Run proxy tests
+        run: npm test
+
+      - name: Validate Worker bundle
+        run: npx wrangler deploy --dry-run
+
+  deploy:
+    name: Deploy production Worker
+    needs: validate
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' &&
+      inputs.deploy_production == true)
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    concurrency:
+      group: production-proxy-worker
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: proxy
+    steps:
+      - name: Check out production source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify production ref
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "::error::Production deployments must run from main (got $GITHUB_REF_NAME)."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: proxy/package-lock.json
+
+      - name: Install proxy dependencies
+        run: npm ci
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+          workingDirectory: proxy

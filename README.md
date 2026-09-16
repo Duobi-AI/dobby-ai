@@ -161,8 +161,34 @@ When you select text, the detection engine analyzes it to suggest relevant prese
 | `release.yml` | Tag-based build, GitHub Release, and Chrome Web Store publish |
 | `version-bump.yml` | Manual version bump branch and release PR creation |
 | `token-count.yml` | Updates the repository token-count badge |
+| `deploy-proxy.yml` | Tests and dry-runs proxy changes on PRs; deploys the Worker after a merged PR or confirmed manual dispatch |
 
 E2E tests run inside `ci.yml`; there is no separate `e2e.yml` workflow.
+
+### Cloudflare proxy deployment
+
+The `deploy-proxy.yml` workflow is limited to changes under `proxy/`. Pull requests
+run proxy tests and `wrangler deploy --dry-run` without Cloudflare credentials. A
+push to the protected `main` branch (the repository's PR-only workflow) runs the
+same validation before deploying the production Worker. Manual production
+deployment is available through `workflow_dispatch`, but requires checking the
+deployment confirmation and using the `main` branch. The deploy job uses the
+`production` GitHub environment and queues concurrent deployments instead of
+cancelling an in-flight production run.
+
+Before enabling deployment, configure these secrets on the `production` GitHub
+environment:
+
+- `CLOUDFLARE_ACCOUNT_ID` — the account containing `dobby-ai-proxy`.
+- `CLOUDFLARE_API_TOKEN` — a custom Cloudflare token using the **Edit Cloudflare
+  Workers** template, scoped only to that account and the resources needed by
+  this Worker. Do not use a global API key or commit the token.
+
+Add required reviewers or other protection rules to the `production` environment
+if deployments need an explicit human approval. See the [Cloudflare GitHub
+Actions guide](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/)
+and [GitHub deployment environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments)
+for the provider setup details.
 
 ## Contributing
 
