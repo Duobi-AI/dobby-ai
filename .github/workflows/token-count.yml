@@ -3,7 +3,9 @@ name: Update token count
 on:
   push:
     branches: [main]
-    paths: ['src/**']
+    paths:
+      - 'src/**'
+      - 'proxy/src/**'
   workflow_dispatch:
 
 permissions:
@@ -20,8 +22,8 @@ jobs:
       - uses: qwibitai/nanoclaw/repo-tokens@v1.2.0
         id: tokens
         with:
-          include: 'src/**/*.js'
-          exclude: 'src/**/*.test.js'
+          include: 'src/**/*.ts src/**/*.tsx proxy/src/**/*.ts'
+          exclude: 'src/**/*.test.ts src/**/*.test.tsx proxy/src/**/*.test.ts'
       - name: Update Gist badge
         run: |
           PCT=${{ steps.tokens.outputs.percentage }}

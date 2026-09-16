@@ -9,14 +9,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml/badge.svg" alt="Security"></a>
-  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml/badge.svg" alt="Coverage"></a>
-  <img src="https://img.shields.io/badge/version-1.4.0-blue" alt="Version">
-  <img src="https://img.shields.io/badge/manifest-v3-green" alt="Manifest V3">
-  <a href="https://github.com/Duobi-AI/dobby-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
-  <a href="https://chromewebstore.google.com/detail/fobblgpebpnelefaneijkpbcljdlofoo?utm_source=item-share-cb"><img src="https://img.shields.io/badge/chrome-web%20store-orange?logo=googlechrome&logoColor=white" alt="Chrome Web Store"></a>
-  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome">
+  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml/badge.svg?branch=main" alt="Security"></a>
+  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml/badge.svg?branch=main" alt="Coverage"></a>
+  <img src="https://img.shields.io/github/package-json/v/Duobi-AI/dobby-ai/main?label=version&color=blue" alt="Version from package.json">
+  <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FDuobi-AI%2Fdobby-ai%2Fmain%2Fmanifest.json&query=%24.manifest_version&label=manifest&prefix=v&color=green" alt="Manifest version from manifest.json">
+  <a href="https://github.com/Duobi-AI/dobby-ai"><img src="https://img.shields.io/github/license/Duobi-AI/dobby-ai?label=license" alt="Repository license"></a>
+  <a href="https://chromewebstore.google.com/detail/fobblgpebpnelefaneijkpbcljdlofoo"><img src="https://img.shields.io/chrome-web-store/v/fobblgpebpnelefaneijkpbcljdlofoo?label=chrome%20web%20store&color=orange&logo=googlechrome&logoColor=white" alt="Chrome Web Store version"></a>
+  <a href="https://github.com/Duobi-AI/dobby-ai/pulls"><img src="https://img.shields.io/github/issues-pr/Duobi-AI/dobby-ai?label=PRs&color=brightgreen" alt="Open pull requests"></a>
   <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/zhongnansu/67d3ff04e606234417bba6bca0f60d85/raw/tokens.json" alt="Repo Tokens">
 </p>
 
@@ -39,7 +39,7 @@ Dobby AI is a Chrome extension that brings AI directly into your browsing workfl
 | **Smart Content Detection** | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Language-Aware Responses** | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **No Account Required** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Open Source** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Public Source Code** | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 ## Features
 
@@ -191,7 +191,7 @@ When you select text, the detection engine analyzes it to suggest relevant prese
 | Workflow | Purpose |
 |----------|---------|
 | `ci.yml` | Extension build/tests, proxy tests, manifest linting, Playwright E2E, and packaging on every push/PR |
-| `coverage.yml` | PR coverage reporting with an 80% threshold |
+| `coverage.yml` | Main and PR coverage reporting with an 80% threshold |
 | `security.yml` | Root and proxy `npm audit`, dangerous pattern scan, and manifest permission audit |
 | `pr-preview.yml` | Built extension artifact from `dist/`, plus PR preview comment and permission diff |
 | `permission-guard.yml` | Fails PRs that add extension permissions until they are reviewed |
@@ -216,7 +216,7 @@ Dobby AI does not collect accounts, cookies, advertising identifiers, prompts, p
 
 ## License
 
-[MIT](LICENSE) — free and open source.
+No license file is currently included in this repository.
 
 ---
 
