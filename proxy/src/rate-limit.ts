@@ -9,8 +9,7 @@ const LIMITS = {
 };
 
 const AUTOSUGGEST_LIMITS = {
-  perMinute: 20,
-  perDay: 200,
+  perDay: 100,
 };
 
 function minuteBucket(): number {
@@ -49,6 +48,7 @@ export async function checkRateLimit(
 
   const prefix = keyPrefix(purpose);
   const limits = purpose === 'autosuggest' ? AUTOSUGGEST_LIMITS : LIMITS;
+  const usesMinuteLimit = purpose !== 'autosuggest';
   const subject = tokenHash ? `${ip}:${tokenHash}` : ip;
 
   const minKey = `${prefix}:min:${subject}:${minuteBucket()}`;
@@ -58,14 +58,14 @@ export async function checkRateLimit(
   const globalKey = `rl:global:${dayBucket()}`;
 
   const [minCount, dayCount, ipMinCount, ipDayCount, globalCount] = await Promise.all([
-    kv.get(minKey).then((v) => parseInt(v!) || 0),
+    usesMinuteLimit ? kv.get(minKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
     kv.get(dayKey).then((v) => parseInt(v!) || 0),
-    tokenHash ? kv.get(ipMinKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
+    usesMinuteLimit && tokenHash ? kv.get(ipMinKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
     tokenHash ? kv.get(ipDayKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
     kv.get(globalKey).then((v) => parseInt(v!) || 0),
   ]);
 
-  if (minCount >= limits.perMinute || ipMinCount >= limits.perMinute) {
+  if (usesMinuteLimit && (minCount >= LIMITS.perMinute || ipMinCount >= LIMITS.perMinute)) {
     return { allowed: false, reason: 'Rate limit: per-minute limit reached', retryAfter: 60 };
   }
 
@@ -89,6 +89,7 @@ export async function incrementCounters(
   tokenHash?: string,
 ): Promise<void> {
   const prefix = keyPrefix(purpose);
+  const usesMinuteLimit = purpose !== 'autosuggest';
   const subject = tokenHash ? `${ip}:${tokenHash}` : ip;
 
   const minKey = `${prefix}:min:${subject}:${minuteBucket()}`;
@@ -99,30 +100,34 @@ export async function incrementCounters(
   const burstKey = `rl:10s:${ip}:${tenSecBucket()}`;
 
   const [minCount, dayCount, ipMinCount, ipDayCount, globalCount, burstCount] = await Promise.all([
-    kv.get(minKey).then((v) => parseInt(v!) || 0),
+    usesMinuteLimit ? kv.get(minKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
     kv.get(dayKey).then((v) => parseInt(v!) || 0),
-    tokenHash ? kv.get(ipMinKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
+    usesMinuteLimit && tokenHash ? kv.get(ipMinKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
     tokenHash ? kv.get(ipDayKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
     kv.get(globalKey).then((v) => parseInt(v!) || 0),
-    kv.get(burstKey).then((v) => parseInt(v!) || 0),
+    usesMinuteLimit ? kv.get(burstKey).then((v) => parseInt(v!) || 0) : Promise.resolve(0),
   ]);
 
   // Note: KV is eventually consistent so counts are best-effort, which is acceptable for rate limiting
   const puts = [
-    kv.put(minKey, String(minCount + 1), { expirationTtl: 120 }),
     kv.put(dayKey, String(dayCount + 1), { expirationTtl: 86400 }),
     kv.put(globalKey, String(globalCount + 1), { expirationTtl: 86400 }),
-    kv.put(burstKey, String(burstCount + 1), { expirationTtl: 60 }),
   ];
-  if (tokenHash) {
+  if (usesMinuteLimit) {
     puts.push(
-      kv.put(ipMinKey, String(ipMinCount + 1), { expirationTtl: 120 }),
-      kv.put(ipDayKey, String(ipDayCount + 1), { expirationTtl: 86400 }),
+      kv.put(minKey, String(minCount + 1), { expirationTtl: 120 }),
+      kv.put(burstKey, String(burstCount + 1), { expirationTtl: 60 }),
     );
+  }
+  if (tokenHash) {
+    puts.push(kv.put(ipDayKey, String(ipDayCount + 1), { expirationTtl: 86400 }));
+    if (usesMinuteLimit) {
+      puts.push(kv.put(ipMinKey, String(ipMinCount + 1), { expirationTtl: 120 }));
+    }
   }
 
   // Abuse detection: 10+ requests in 10 seconds → 1-hour block
-  if (burstCount + 1 >= 10) {
+  if (usesMinuteLimit && burstCount + 1 >= 10) {
     puts.push(kv.put(`blocked:${ip}`, '1', { expirationTtl: 3600 }));
   }
 

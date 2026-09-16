@@ -183,33 +183,10 @@ describe('incrementCounters', () => {
 });
 
 describe('checkRateLimit with autosuggest purpose', () => {
-  it('allows up to 20 requests per minute for autosuggest', async () => {
+  it('does not apply the chat minute limit to autosuggest', async () => {
     const kv = createMockKV();
     kv.get.mockImplementation((key) => {
-      if (key.startsWith('as:min:')) return Promise.resolve('19');
-      return Promise.resolve(null);
-    });
-
-    const result = await checkRateLimit('1.2.3.4', kv, 'autosuggest');
-    expect(result.allowed).toBe(true);
-  });
-
-  it('blocks autosuggest after 20 requests per minute', async () => {
-    const kv = createMockKV();
-    kv.get.mockImplementation((key) => {
-      if (key.startsWith('as:min:')) return Promise.resolve('20');
-      return Promise.resolve(null);
-    });
-
-    const result = await checkRateLimit('1.2.3.4', kv, 'autosuggest');
-    expect(result.allowed).toBe(false);
-    expect(result.reason).toContain('per-minute');
-  });
-
-  it('allows up to 200 requests per day for autosuggest', async () => {
-    const kv = createMockKV();
-    kv.get.mockImplementation((key) => {
-      if (key.startsWith('as:day:')) return Promise.resolve('199');
+      if (key.startsWith('as:day:')) return Promise.resolve('99');
       return Promise.resolve(null);
     });
 
@@ -218,10 +195,33 @@ describe('checkRateLimit with autosuggest purpose', () => {
     expect(result.remaining).toBe(0);
   });
 
-  it('blocks autosuggest after 200 requests per day', async () => {
+  it('allows autosuggest over the former minute threshold', async () => {
     const kv = createMockKV();
     kv.get.mockImplementation((key) => {
-      if (key.startsWith('as:day:')) return Promise.resolve('200');
+      if (key.startsWith('as:min:')) return Promise.resolve('20');
+      return Promise.resolve(null);
+    });
+
+    const result = await checkRateLimit('1.2.3.4', kv, 'autosuggest');
+    expect(result.allowed).toBe(true);
+  });
+
+  it('allows up to 100 requests per day for autosuggest', async () => {
+    const kv = createMockKV();
+    kv.get.mockImplementation((key) => {
+      if (key.startsWith('as:day:')) return Promise.resolve('99');
+      return Promise.resolve(null);
+    });
+
+    const result = await checkRateLimit('1.2.3.4', kv, 'autosuggest');
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(0);
+  });
+
+  it('blocks autosuggest after 100 requests per day', async () => {
+    const kv = createMockKV();
+    kv.get.mockImplementation((key) => {
+      if (key.startsWith('as:day:')) return Promise.resolve('100');
       return Promise.resolve(null);
     });
 
@@ -256,13 +256,9 @@ describe('checkRateLimit with autosuggest purpose', () => {
 });
 
 describe('incrementCounters with autosuggest purpose', () => {
-  it('uses as: key prefix for autosuggest', async () => {
+  it('only writes daily and shared counters for autosuggest', async () => {
     const kv = createMockKV();
     await incrementCounters('1.2.3.4', kv, 'autosuggest');
-
-    const minuteCall = kv.put.mock.calls.find((c) => c[0].startsWith('as:min:'));
-    expect(minuteCall).toBeDefined();
-    expect(minuteCall[1]).toBe('1');
 
     const dayCall = kv.put.mock.calls.find((c) => c[0].startsWith('as:day:'));
     expect(dayCall).toBeDefined();
@@ -271,9 +267,26 @@ describe('incrementCounters with autosuggest purpose', () => {
     // Global counter still uses rl: prefix (shared)
     const globalCall = kv.put.mock.calls.find((c) => c[0].startsWith('rl:global:'));
     expect(globalCall).toBeDefined();
+
+    expect(kv.put).toHaveBeenCalledTimes(2);
+    expect(kv.put.mock.calls.some((c) => c[0].startsWith('as:min:'))).toBe(false);
+    expect(kv.put.mock.calls.some((c) => c[0].startsWith('as:ipmin:'))).toBe(false);
+    expect(kv.put.mock.calls.some((c) => c[0].startsWith('rl:10s:'))).toBe(false);
   });
 
-  it('chat and autosuggest counters are independent', async () => {
+  it('also writes the per-IP daily counter when a token is provided', async () => {
+    const kv = createMockKV();
+    await incrementCounters('1.2.3.4', kv, 'autosuggest', 'token-hash');
+
+    expect(kv.put).toHaveBeenCalledTimes(3);
+    expect(kv.put).toHaveBeenCalledWith(
+      expect.stringContaining('as:ipday:1.2.3.4'),
+      '1',
+      expect.anything()
+    );
+  });
+
+  it('chat and autosuggest daily counters are independent', async () => {
     const kv = createMockKV();
     // Simulate 5 chat requests at minute limit
     kv.get.mockImplementation((key) => {
