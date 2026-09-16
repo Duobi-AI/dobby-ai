@@ -47,6 +47,8 @@ jobs:
           node -e "
             const fs = require('fs');
             const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
             const required = ['manifest_version', 'name', 'version', 'permissions'];
             for (const key of required) {
               if (!manifest[key]) {
@@ -56,6 +58,15 @@ jobs:
             }
             if (manifest.manifest_version !== 3) {
               console.error('Must use Manifest V3');
+              process.exit(1);
+            }
+            if (manifest.version !== pkg.version) {
+              console.error('Version mismatch: manifest.json=' + manifest.version + ', package.json=' + pkg.version);
+              process.exit(1);
+            }
+            const lockVersion = lock.packages?.['']?.version || lock.version;
+            if (lockVersion !== pkg.version) {
+              console.error('Version mismatch: package-lock.json=' + lockVersion + ', package.json=' + pkg.version);
               process.exit(1);
             }
             console.log('Manifest validation passed');

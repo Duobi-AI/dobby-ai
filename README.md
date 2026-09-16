@@ -9,14 +9,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml/badge.svg" alt="Security"></a>
-  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml/badge.svg" alt="Coverage"></a>
-  <img src="https://img.shields.io/badge/version-1.4.0-blue" alt="Version">
-  <img src="https://img.shields.io/badge/manifest-v3-green" alt="Manifest V3">
-  <a href="https://github.com/Duobi-AI/dobby-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
-  <a href="https://chromewebstore.google.com/detail/fobblgpebpnelefaneijkpbcljdlofoo?utm_source=item-share-cb"><img src="https://img.shields.io/badge/chrome-web%20store-orange?logo=googlechrome&logoColor=white" alt="Chrome Web Store"></a>
-  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome">
+  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/security.yml/badge.svg?branch=main" alt="Security"></a>
+  <a href="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml"><img src="https://github.com/Duobi-AI/dobby-ai/actions/workflows/coverage.yml/badge.svg?branch=main" alt="Coverage"></a>
+  <img src="https://img.shields.io/github/package-json/v/Duobi-AI/dobby-ai/main?label=version&color=blue" alt="Version from package.json">
+  <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FDuobi-AI%2Fdobby-ai%2Fmain%2Fmanifest.json&query=%24.manifest_version&label=manifest&prefix=v&color=green" alt="Manifest version from manifest.json">
+  <a href="https://github.com/Duobi-AI/dobby-ai"><img src="https://img.shields.io/github/license/Duobi-AI/dobby-ai?label=license" alt="Repository license"></a>
+  <a href="https://chromewebstore.google.com/detail/fobblgpebpnelefaneijkpbcljdlofoo"><img src="https://img.shields.io/chrome-web-store/v/fobblgpebpnelefaneijkpbcljdlofoo?label=chrome%20web%20store&color=orange&logo=googlechrome&logoColor=white" alt="Chrome Web Store version"></a>
+  <a href="https://github.com/Duobi-AI/dobby-ai/pulls"><img src="https://img.shields.io/github/issues-pr/Duobi-AI/dobby-ai?label=PRs&color=brightgreen" alt="Open pull requests"></a>
   <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/zhongnansu/67d3ff04e606234417bba6bca0f60d85/raw/tokens.json" alt="Repo Tokens">
 </p>
 
@@ -28,18 +28,9 @@
 
 Dobby AI is a Chrome extension that brings AI directly into your browsing workflow. Select text to get instant explanations, or **long-press anywhere to screenshot a region and ask AI about what you see** — charts, diagrams, code, error messages, anything on screen. All responses appear in a frosted glass bubble right next to your selection, no tab-switching required.
 
-## What Makes Dobby AI Different?
+## Why Dobby AI?
 
-**Visual intelligence built in.** Long-press anywhere on any page for 1 second, drag to select a region, and ask AI about what you see. No copy-pasting, no screenshots to clipboard, no switching to ChatGPT.
-
-| | Dobby AI | HARPA AI | Merlin | Monica | Sider |
-|---|:---:|:---:|:---:|:---:|:---:|
-| **Screenshot & Ask AI** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Inline AI Responses** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Smart Content Detection** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Language-Aware Responses** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **No Account Required** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Open Source** | ✅ | ❌ | ❌ | ❌ | ❌ |
+Visual intelligence is built in: long-press anywhere on a page for 1 second, drag to select a region, and ask AI about what you see. Answers appear inline, without copy-pasting or tab switching.
 
 ## Features
 
@@ -58,8 +49,6 @@ Dobby AI is a Chrome extension that brings AI directly into your browsing workfl
 - **Preset prompts** — one-click actions like "Explain", "Debug", "Summarize", "Translate"
 - **Custom instructions** — click the pencil icon to type any prompt inline
 
-![Custom prompt demo](https://raw.githubusercontent.com/Duobi-AI/dobby-ai/docs/pr-demo-gifs/toolbar-custom-prompt.gif)
-
 ### UX
 - **Pin & drag** — pin the chat bubble and drag it anywhere on the page
 - **Resize** — drag the corner handle to resize the bubble
@@ -71,7 +60,7 @@ Dobby AI is a Chrome extension that brings AI directly into your browsing workfl
 
 ### Chrome Web Store
 
-Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/fobblgpebpnelefaneijkpbcljdlofoo?utm_source=item-share-cb) — one click and you're ready.
+Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/fobblgpebpnelefaneijkpbcljdlofoo) — one click and you're ready.
 
 ### Manual Installation
 
@@ -106,43 +95,16 @@ Right-click any image → "Dobby AI" → AI describes/analyzes the image
 
 ## Architecture
 
-Built with vanilla JS, bundled with esbuild, no frameworks.
+Built with TypeScript and React, bundled with esbuild. The extension and its Cloudflare proxy are kept in separate source trees.
 
 ```
 dobby-ai/
-├── src/
-│   ├── content/                    # Content script modules (bundled → dist/content.js)
-│   │   ├── index.js                # Entry point — message listeners, init
-│   │   ├── bubble/
-│   │   │   ├── core.js             # Bubble UI — init, show/hide, presets
-│   │   │   ├── stream.js           # Streaming responses, follow-up handling
-│   │   │   ├── history.js          # Chat history panel
-│   │   │   ├── markdown.js         # Markdown renderer with XSS protection
-│   │   │   └── styles.js           # CSS-in-JS styles (Shadow DOM)
-│   │   ├── trigger/
-│   │   │   ├── button.js           # Floating trigger button on text selection
-│   │   │   ├── screenshot.js       # Screenshot overlay, drag-to-select, toolbar
-│   │   │   ├── progress-ring.js    # Long-press progress ring animation
-│   │   │   └── selection.js        # Event listeners (mouseup, scroll, long-press)
-│   │   ├── shared/
-│   │   │   ├── state.js            # Centralized mutable state
-│   │   │   ├── constants.js        # Z-index, theme colors, timing values
-│   │   │   └── dom-utils.js        # DOM helpers
-│   │   ├── detection.js            # Smart content type detection engine
-│   │   ├── presets.js              # Preset prompts per content type
-│   │   ├── prompt.js               # OpenAI message format builder
-│   │   ├── api.js                  # Background service worker communication
-│   │   ├── history.js              # Chat history storage (chrome.storage)
-│   │   └── image-capture.js        # Screenshot capture, CORS refetch, downscaling
-│   ├── background/
-│   │   └── index.js                # Service worker — API relay, SSE streaming
-│   ├── popup.js                    # Toolbar popup (enable/disable toggle)
-│   └── options.js                  # Settings page (API key management)
-├── dist/                           # Built output (load this in Chrome)
-├── proxy/                          # Cloudflare Worker proxy server
-├── tests/                          # Vitest test suite (400+ tests, 88% coverage)
-├── esbuild.config.js               # Build config — src/ → dist/
-└── manifest.json                   # Chrome extension manifest (MV3)
+├── src/                            # Extension TypeScript/React source
+├── proxy/src/                      # Cloudflare Worker source
+├── tests/                          # Unit tests
+├── e2e/                            # Playwright browser tests
+├── manifest.json                   # Chrome extension manifest (MV3)
+└── esbuild.config.js              # Build config — src/ → dist/
 ```
 
 ## Development
@@ -191,7 +153,7 @@ When you select text, the detection engine analyzes it to suggest relevant prese
 | Workflow | Purpose |
 |----------|---------|
 | `ci.yml` | Extension build/tests, proxy tests, manifest linting, Playwright E2E, and packaging on every push/PR |
-| `coverage.yml` | PR coverage reporting with an 80% threshold |
+| `coverage.yml` | Main and PR coverage reporting with an 80% threshold |
 | `security.yml` | Root and proxy `npm audit`, dangerous pattern scan, and manifest permission audit |
 | `pr-preview.yml` | Built extension artifact from `dist/`, plus PR preview comment and permission diff |
 | `permission-guard.yml` | Fails PRs that add extension permissions until they are reviewed |
@@ -216,7 +178,7 @@ Dobby AI does not collect accounts, cookies, advertising identifiers, prompts, p
 
 ## License
 
-[MIT](LICENSE) — free and open source.
+No license file is currently included in this repository.
 
 ---
 

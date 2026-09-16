@@ -5,6 +5,8 @@ name: Code Coverage
 # Without this package installed, the coverage step will fail.
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -110,30 +112,32 @@ jobs:
               await core.summary.write();
             }
 
-            // Post or update PR comment
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const marker = '## :bar_chart: Code Coverage Report';
-            const existing = comments.find(c => c.body && c.body.startsWith(marker));
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body: commentBody,
-              });
-            } else {
-              await github.rest.issues.createComment({
+            // Post or update a PR comment only when this is a pull-request run.
+            if (context.eventName === 'pull_request') {
+              const { data: comments } = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: commentBody,
               });
+
+              const marker = '## :bar_chart: Code Coverage Report';
+              const existing = comments.find(c => c.body && c.body.startsWith(marker));
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body: commentBody,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: commentBody,
+                });
+              }
             }
 
             // Hard-fail the CI if coverage is below threshold
