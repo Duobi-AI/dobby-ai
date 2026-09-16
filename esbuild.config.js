@@ -22,7 +22,7 @@ const sharedConfig = {
   bundle: true,
   format: 'iife',
   target: 'chrome115',
-  minify: false,
+  minify: !isWatch,
   tsconfig: 'tsconfig.build.json',
   define: {
     'process.env.NODE_ENV': '"production"',
