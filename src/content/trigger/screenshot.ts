@@ -10,6 +10,7 @@ import { getColorPalette } from '../../shared/color-palette.js';
 import type { CaptureRect, ScreenshotOverlay } from '../../shared/types';
 
 const colors = getColorPalette('light');
+const SCREENSHOT_BANNER_TEXT = 'Drag to select a region \u2022 ESC or right-click to cancel';
 
 export function startScreenshotMode(): void {
   if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
@@ -44,7 +45,7 @@ export function startScreenshotMode(): void {
     boxShadow: '0 4px 16px ' + colors.shadowBanner,
     letterSpacing: '0.3px',
   });
-  banner.textContent = 'Drag to select a region \u2022 ESC to cancel';
+  banner.textContent = SCREENSHOT_BANNER_TEXT;
   screenshotState.overlay!.appendChild(banner);
 
   // Visual border around the viewport
@@ -73,6 +74,13 @@ export function startScreenshotMode(): void {
   screenshotState.overlay!.addEventListener('mousedown', (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (e.button === 2) {
+      cancelScreenshotMode();
+      return;
+    }
+    if (e.button !== 0) return;
+
     // Clear existing toolbar if user re-drags on overlay
     const existingToolbar = screenshotState.overlay!.querySelector('[data-screenshot-toolbar]');
     if (existingToolbar) existingToolbar.remove();
@@ -86,6 +94,12 @@ export function startScreenshotMode(): void {
       width: '0px',
       height: '0px',
     });
+  });
+
+  screenshotState.overlay!.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    cancelScreenshotMode();
   });
 
   screenshotState.overlay!.addEventListener('mouseup', (e) => {
@@ -212,7 +226,7 @@ function _showConfirmToolbar(overlay: ScreenshotOverlay, banner: HTMLDivElement,
       height: '0px',
     });
     screenshotState.dragStarted = false;
-    banner.textContent = 'Drag to select a region \u2022 ESC to cancel';
+    banner.textContent = SCREENSHOT_BANNER_TEXT;
   });
 
   // Cancel button
