@@ -10,6 +10,7 @@ import { getColorPalette } from '../../shared/color-palette.js';
 import type { CaptureRect, ScreenshotOverlay } from '../../shared/types';
 
 const colors = getColorPalette('light');
+const SCREENSHOT_BANNER_TEXT = 'Drag to select a region \u2022 ESC or right-click to cancel';
 
 export function startScreenshotMode(): void {
   if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
@@ -44,7 +45,7 @@ export function startScreenshotMode(): void {
     boxShadow: '0 4px 16px ' + colors.shadowBanner,
     letterSpacing: '0.3px',
   });
-  banner.textContent = 'Drag to select a region \u2022 ESC or right-click to cancel';
+  banner.textContent = SCREENSHOT_BANNER_TEXT;
   screenshotState.overlay!.appendChild(banner);
 
   // Visual border around the viewport
@@ -225,7 +226,7 @@ function _showConfirmToolbar(overlay: ScreenshotOverlay, banner: HTMLDivElement,
       height: '0px',
     });
     screenshotState.dragStarted = false;
-    banner.textContent = 'Drag to select a region \u2022 ESC or right-click to cancel';
+    banner.textContent = SCREENSHOT_BANNER_TEXT;
   });
 
   // Cancel button
