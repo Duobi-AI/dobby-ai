@@ -42,6 +42,9 @@ export function initAutosuggest() {
 
   document.addEventListener('focusin', focusinHandler);
   document.addEventListener('focusout', focusoutHandler);
+
+  const focusedEditor = getEditableRoot(document.activeElement);
+  if (focusedEditor) attachToEditor(focusedEditor);
 }
 
 export function destroyAutosuggest() {

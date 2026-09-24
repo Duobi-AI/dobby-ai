@@ -4,13 +4,14 @@ import { screenshotState, resetScreenshotState, longPressState } from '../shared
 import { removeElement } from '../shared/dom-utils.js';
 import { FONT_STACK, Z_INDEX } from '../shared/constants.js';
 import { _removeProgressRing } from './progress-ring.js';
-import { showBubbleWithPresets } from '../bubble/core.js';
+import { showBubbleWithPresets, createBubbleOpeningGuard } from '../bubble/core.js';
 import { captureScreenshot } from '../image-capture.js';
 import { getColorPalette } from '../../shared/color-palette.js';
 import type { CaptureRect, ScreenshotOverlay } from '../../shared/types';
 
 const colors = getColorPalette('light');
 const SCREENSHOT_BANNER_TEXT = 'Drag to select a region \u2022 ESC or right-click to cancel';
+let screenshotCaptureGeneration = 0;
 
 export function startScreenshotMode(): void {
   if (longPressState.ringTimer) { clearTimeout(longPressState.ringTimer); longPressState.ringTimer = null; }
@@ -189,11 +190,13 @@ function _showConfirmToolbar(overlay: ScreenshotOverlay, banner: HTMLDivElement,
   });
   confirmBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
+    const isOpeningAllowed = createBubbleOpeningGuard();
     cancelScreenshotMode();
+    const generation = screenshotCaptureGeneration;
     try {
       if (typeof captureScreenshot === 'function') {
         const captured = await captureScreenshot(rect);
-        if (captured) {
+        if (captured && generation === screenshotCaptureGeneration && isOpeningAllowed()) {
           const bubbleRect = {
             bottom: rect.y + rect.height + 8,
             left: rect.x,
@@ -254,6 +257,7 @@ function _showConfirmToolbar(overlay: ScreenshotOverlay, banner: HTMLDivElement,
 }
 
 export function cancelScreenshotMode(): void {
+  screenshotCaptureGeneration += 1;
   if (screenshotState.overlay) {
     if (screenshotState.overlay._escHandler) {
       document.removeEventListener('keydown', screenshotState.overlay._escHandler);

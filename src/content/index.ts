@@ -10,7 +10,7 @@ import {
 } from './shared/state.js';
 import { initAutosuggest, destroyAutosuggest } from './autosuggest/index.js';
 import { registerListeners, disableTriggerModes } from './trigger/selection.js';
-import { showBubbleWithPresets, showBubble, showHistoryBubble, hideBubble, getBubbleContainer, isBubblePinned } from './bubble/core.js';
+import { showBubbleWithPresets, showBubble, showHistoryBubble, hideBubble, getBubbleContainer, isBubblePinned, cancelPendingBubbleOpenings, createBubbleOpeningGuard } from './bubble/core.js';
 import { buildChatMessages } from './prompt.js';
 import { gatherCurrentTabContext } from './page-context.js';
 import { captureImage } from './image-capture.js';
@@ -43,6 +43,7 @@ chrome.runtime.onMessage.addListener((msg: ContentRuntimeMessage) => {
   if (msg.type === 'DOBBY_TOGGLE') {
     setDobbyEnabled(msg.enabled);
     if (!msg.enabled) {
+      cancelPendingBubbleOpenings();
       disableTriggerModes();
       hideBubble();
     }
@@ -87,9 +88,11 @@ chrome.runtime.onMessage.addListener((msg: ContentRuntimeMessage) => {
     };
 
     if (msg.image) {
+      const isOpeningAllowed = createBubbleOpeningGuard();
       (async () => {
         let images: ImageContentPart[] = [];
         const captured = await captureImage(msg.image);
+        if (!isOpeningAllowed()) return;
         if (captured) images = [captured];
         if (images.length > 0) {
           await showBubbleWithPresets(rect, '', null, images);

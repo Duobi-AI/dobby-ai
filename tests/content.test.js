@@ -43,6 +43,8 @@ vi.mock('../src/content/bubble/core.js', () => ({
   showBubble: vi.fn(),
   showBubbleWithPresets: vi.fn(),
   showHistoryBubble: vi.fn(),
+  cancelPendingBubbleOpenings: vi.fn(),
+  createBubbleOpeningGuard: vi.fn(() => () => true),
   hideBubble: vi.fn(),
   getBubbleContainer: vi.fn(),
   isBubblePinned: vi.fn(() => false),
@@ -92,7 +94,7 @@ vi.mock('../src/content/shared/dom-utils.js', () => ({
   }),
 }));
 
-const { showBubble, showBubbleWithPresets, showHistoryBubble, hideBubble, getBubbleContainer } = await import('../src/content/bubble/core.js');
+const { showBubble, showBubbleWithPresets, showHistoryBubble, hideBubble, getBubbleContainer, cancelPendingBubbleOpenings } = await import('../src/content/bubble/core.js');
 const { buildChatMessages } = await import('../src/content/prompt.js');
 const { captureImage } = await import('../src/content/image-capture.js');
 const { initAutosuggest, destroyAutosuggest } = await import('../src/content/autosuggest/index.js');
@@ -123,6 +125,7 @@ describe('content/index.js', () => {
 
       vi.clearAllMocks();
       dobbyToggle({ type: 'DOBBY_TOGGLE', enabled: false });
+      expect(cancelPendingBubbleOpenings).toHaveBeenCalledTimes(1);
       expect(destroyAutosuggest).toHaveBeenCalledTimes(1);
       expect(hideBubble).toHaveBeenCalledTimes(1);
 

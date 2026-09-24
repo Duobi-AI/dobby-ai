@@ -44,6 +44,17 @@ import {
 
 export { detectTheme, isBubblePinned };
 
+let bubbleOpenGeneration = 0;
+
+export function cancelPendingBubbleOpenings(): void {
+  bubbleOpenGeneration += 1;
+}
+
+export function createBubbleOpeningGuard(): () => boolean {
+  const generation = bubbleOpenGeneration;
+  return () => generation === bubbleOpenGeneration;
+}
+
 function truncatePreview(text: string, maxLen = 120): string {
   if (!text) return '';
   return text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
@@ -61,16 +72,22 @@ async function initBubble(
   images?: ImageContentPart[] | null,
   presets?: BubblePresetSelection,
   options: BubbleOpenOptions = {},
-): Promise<ShadowRoot> {
+  generation = bubbleOpenGeneration,
+): Promise<ShadowRoot | null> {
   const host = openBubbleHost(selectionRect, options);
   setResponseText('');
   const shadow = host.attachShadow({ mode: 'open' });
   stopShadowRootKeyboardEventPropagation(shadow);
 
+  const theme = await detectTheme();
+  if (generation !== bubbleOpenGeneration) {
+    return null;
+  }
+
   const reactRoot = mountReactRoot(
     shadow,
     <BubbleShell
-      styles={getStyles(await detectTheme())}
+      styles={getStyles(theme)}
       previewText={truncatePreview(selectedText)}
       previewLabel={previewLabel}
       images={images}
@@ -112,6 +129,7 @@ export async function showBubbleWithPresets(
   anchorNode: Node | null,
   images?: ImageContentPart[] | null,
 ): Promise<void> {
+  const generation = bubbleOpenGeneration;
   const hasImages = images && images.length > 0;
   const isImageOnly = hasImages && !selectedText.trim();
   let detected: DetectionResult;
@@ -141,7 +159,9 @@ export async function showBubbleWithPresets(
     },
     onEscape: closeBubble,
   };
-  shadow = await initBubble(selectionRect, selectedText, previewLabel, images, presetSelection);
+  const opened = await initBubble(selectionRect, selectedText, previewLabel, images, presetSelection, {}, generation);
+  if (!opened) return;
+  shadow = opened;
 }
 
 // Direct response entry operation.
@@ -153,14 +173,18 @@ export async function showBubble(
   images?: ImageContentPart[] | null,
   options: BubbleOpenOptions = {},
 ): Promise<void> {
-  const shadow = await initBubble(selectionRect, selectedText, instruction || 'Selected text', images, undefined, options);
+  const generation = bubbleOpenGeneration;
+  const shadow = await initBubble(selectionRect, selectedText, instruction || 'Selected text', images, undefined, options, generation);
+  if (!shadow || generation !== bubbleOpenGeneration) return;
   setCurrentMessages(messages);
   activateResponseSection(shadow, messages);
 }
 
 // History entry operation.
 export async function showHistoryBubble(selectionRect: SelectionRect): Promise<void> {
-  const shadow = await initBubble(selectionRect, '', 'History', null);
+  const generation = bubbleOpenGeneration;
+  const shadow = await initBubble(selectionRect, '', 'History', null, undefined, {}, generation);
+  if (!shadow || generation !== bubbleOpenGeneration) return;
   activateBubbleResponse();
   setBubbleViewStatus('history');
   await showHistoryPanel(shadow);

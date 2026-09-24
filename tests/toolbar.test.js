@@ -10,6 +10,7 @@ vi.mock('../src/content/bubble/core.js', () => ({
   hideBubble: vi.fn(),
   getBubbleContainer: vi.fn(() => null),
   detectTheme: vi.fn(() => Promise.resolve('light')),
+  createBubbleOpeningGuard: vi.fn(() => () => true),
 }));
 
 // Mock image-capture

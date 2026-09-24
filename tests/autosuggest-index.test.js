@@ -81,6 +81,16 @@ describe('autosuggest lifecycle', () => {
     expect(spy.mock.calls.filter((c) => c[0] === 'focusout')).toHaveLength(1);
   });
 
+  it('reattaches the currently focused editor when autosuggest is reinitialized', () => {
+    textarea.focus();
+    const addSpy = vi.spyOn(textarea, 'addEventListener');
+
+    initAutosuggest();
+
+    expect(addSpy.mock.calls.filter((call) => call[0] === 'input')).toHaveLength(1);
+    expect(addSpy.mock.calls.filter((call) => call[0] === 'keydown')).toHaveLength(1);
+  });
+
   it('does not attach duplicate textarea listeners after repeated initAutosuggest() calls', () => {
     const addSpy = vi.spyOn(textarea, 'addEventListener');
     const removeSpy = vi.spyOn(textarea, 'removeEventListener');

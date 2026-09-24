@@ -39,6 +39,7 @@ const {
   setBubbleStatus,
   getBubbleContainer: _getBubbleContainer,
   detectTheme,
+  cancelPendingBubbleOpenings,
 } = await import('../src/content/bubble/core.js');
 const { renderMarkdown } = await import('../src/content/bubble/markdown.js');
 
@@ -66,6 +67,23 @@ describe('bubble.js', () => {
   });
 
   describe('showBubble', () => {
+    it('does not mount or start a response if Dobby is disabled during theme detection', async () => {
+      const originalGet = chrome.storage.local.get;
+      let resolveTheme;
+      chrome.storage.local.get = vi.fn((key, cb) => { resolveTheme = () => cb({ theme: 'light' }); });
+
+      const opening = showBubble({ bottom: 200, left: 100, right: 300 }, [{ role: 'user', content: 'hi' }]);
+      expect(_getBubbleContainer()).not.toBeNull();
+      cancelPendingBubbleOpenings();
+      hideBubble();
+      resolveTheme();
+      await opening;
+      chrome.storage.local.get = originalGet;
+
+      expect(document.body.querySelector('#dobby-ai-bubble')).toBeNull();
+      expect(apiModule.requestChat).not.toHaveBeenCalled();
+    });
+
     it('creates a shadow DOM container', async () => {
       await showBubble({ bottom: 200, left: 100, right: 300 }, [{ role: 'user', content: 'hi' }]);
       const container = _getBubbleContainer();

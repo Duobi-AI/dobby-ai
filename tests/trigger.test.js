@@ -9,6 +9,7 @@ vi.mock('../src/content/bubble/core.js', () => ({
   showBubbleWithPresets: vi.fn(),
   showBubble: vi.fn(),
   hideBubble: vi.fn(),
+  createBubbleOpeningGuard: vi.fn(() => () => true),
   getBubbleContainer: vi.fn(() => null),
   detectTheme: vi.fn(() => Promise.resolve('light')),
 }));
@@ -447,6 +448,22 @@ describe('screenshot mode', () => {
       expect(captureScreenshot).toHaveBeenCalled();
     });
     expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+  });
+
+  it('does not open a bubble when capture finishes after screenshot mode is canceled', async () => {
+    let resolveCapture;
+    captureScreenshot.mockImplementation(() => new Promise((resolve) => { resolveCapture = resolve; }));
+    startScreenshotMode();
+    const overlay = document.querySelector('div[style*="crosshair"]');
+    simulateDrag(overlay, 50, 50, 200, 200);
+    overlay.querySelector('[data-screenshot-toolbar] button').click();
+    await vi.waitFor(() => expect(captureScreenshot).toHaveBeenCalled());
+
+    disableTriggerModes();
+    resolveCapture({ type: 'image', data: 'captured' });
+    await Promise.resolve();
+
+    expect(showBubbleWithPresets).not.toHaveBeenCalled();
   });
 
   it('does not show toolbar for too-small drag', async () => {

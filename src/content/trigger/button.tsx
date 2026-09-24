@@ -3,7 +3,7 @@
 //   collapsed (icon only) → expanded (hover, preset buttons) → morphed (inline chat)
 
 import { getToolbarStyles } from './styles.js';
-import { detectTheme, showBubble } from '../bubble/core.js';
+import { detectTheme, showBubble, createBubbleOpeningGuard } from '../bubble/core.js';
 import { watchThemeChanges } from '../../shared/theme.js';
 import { mountReactRoot } from '../../shared/react-root.js';
 import { removeSelectionHighlight, showSelectionHighlight } from './selection-highlight.js';
@@ -190,6 +190,7 @@ function morphIntoBubble(
   instruction: string,
 ): void {
   if (host._isMorphing) return;
+  const isOpeningAllowed = createBubbleOpeningGuard();
   host._isMorphing = true;
 
   const toolbar = shadow.querySelector<HTMLElement>('.toolbar')!;
@@ -197,6 +198,7 @@ function morphIntoBubble(
 
   clearAutoHide();
   resolveSelectionImages(host, selectionRequestId as number, (images) => {
+    if (!isOpeningAllowed()) return;
     // Get toolbar position — bubble will appear growing from here
     const hostRect = host.getBoundingClientRect();
 
