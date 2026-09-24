@@ -135,6 +135,29 @@ describe('bubble.js', () => {
       expect(shadow.querySelector('.presets-section').classList.contains('collapsed')).toBe(true);
     });
 
+    it('makes preset chips keyboard-operable and labels interactive controls', async () => {
+      await showBubbleWithPresets(
+        { bottom: 100, left: 50, right: 250 },
+        'selected text',
+        null,
+      );
+      const shadow = _getBubbleContainer().shadowRoot;
+      const chip = shadow.querySelector('.preset-chip');
+
+      expect(chip.getAttribute('role')).toBe('button');
+      expect(chip.getAttribute('tabindex')).toBe('0');
+      chip.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        composed: true,
+      }));
+
+      expect(promptModule.buildChatMessages).toHaveBeenCalled();
+      expect(shadow.querySelector('.pin-btn').getAttribute('aria-label')).toBe('Pin chat bubble');
+      expect(shadow.querySelector('.close-btn').getAttribute('aria-label')).toBe('Close chat');
+      expect(shadow.querySelector('.history-btn').getAttribute('aria-label')).toBe('View history');
+    });
+
     it('launches a custom preset prompt through React keyboard events', async () => {
       await showBubbleWithPresets(
         { bottom: 100, left: 50, right: 250 },
