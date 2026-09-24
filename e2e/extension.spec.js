@@ -65,18 +65,40 @@ test('popup page loads and toggle works', async () => {
   await popupPage.waitForLoadState('domcontentloaded');
   await popupPage.waitForTimeout(500);
 
+  await popupPage.evaluate(() => chrome.storage.local.set({
+    dobbyEnabled: false,
+    screenshotEnabled: true,
+    autosuggestEnabled: true,
+    theme: 'dark',
+  }));
+  await popupPage.reload();
+
   // The checkbox is visually hidden (opacity:0) — use the label to toggle
   const toggleLabel = popupPage.locator('label.toggle').first();
   await expect(toggleLabel).toBeVisible({ timeout: 5000 });
+  const screenshotToggle = popupPage.locator('#screenshot-enabled');
+  const autosuggestToggle = popupPage.locator('#autosuggest-enabled');
+  await expect(popupPage.locator('#enabled')).not.toBeChecked();
+  await expect(screenshotToggle).toBeChecked();
+  await expect(autosuggestToggle).toBeChecked();
+  await expect(screenshotToggle).toBeDisabled();
+  await expect(autosuggestToggle).toBeDisabled();
+  await expect(popupPage.locator('.feature-paused-note')).toHaveCount(0);
+  await expect(popupPage.locator('.state-badge')).toHaveCount(0);
 
-  // Click to toggle off
+  // Turning the master back on re-enables the saved child preferences.
   await toggleLabel.click();
-  const status = popupPage.locator('#status');
-  await expect(status).toHaveText('Off');
+  await expect(popupPage.locator('#enabled')).toBeChecked();
+  await expect(screenshotToggle).toBeChecked();
+  await expect(autosuggestToggle).toBeChecked();
+  await expect(screenshotToggle).toBeEnabled();
+  await expect(autosuggestToggle).toBeEnabled();
 
-  // Click to toggle back on (toggleLabel already references .first())
+  // Turning it off again preserves the same child choices.
   await toggleLabel.click();
-  await expect(status).toHaveText('On');
+  await expect(popupPage.locator('#enabled')).not.toBeChecked();
+  await expect(screenshotToggle).toBeChecked();
+  await expect(autosuggestToggle).toBeChecked();
 
   await popupPage.close();
 });

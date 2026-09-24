@@ -100,7 +100,7 @@ describe('context menu click handler', () => {
 describe('keyboard commands', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockTabsQuery.mockImplementation((query, cb) => cb([{ id: 1 }]));
+    mockTabsQuery.mockImplementation((query, cb) => cb([{ id: 1 }, { id: 2 }]));
     mockStorageSet.mockImplementation((data, cb) => { if (cb) cb(); });
     mockSendMessage.mockResolvedValue(undefined);
   });
@@ -115,8 +115,12 @@ describe('keyboard commands', () => {
     commandHandler('toggle-dobby');
 
     expect(mockStorageSet).toHaveBeenCalledWith({ dobbyEnabled: false }, expect.any(Function));
-    expect(mockTabsQuery).toHaveBeenCalledWith({ active: true, currentWindow: true }, expect.any(Function));
+    expect(mockTabsQuery).toHaveBeenCalledWith({}, expect.any(Function));
     expect(mockSendMessage).toHaveBeenCalledWith(1, {
+      type: 'DOBBY_TOGGLE',
+      enabled: false,
+    });
+    expect(mockSendMessage).toHaveBeenCalledWith(2, {
       type: 'DOBBY_TOGGLE',
       enabled: false,
     });
@@ -129,6 +133,10 @@ describe('keyboard commands', () => {
 
     expect(mockStorageSet).toHaveBeenCalledWith({ dobbyEnabled: true }, expect.any(Function));
     expect(mockSendMessage).toHaveBeenCalledWith(1, {
+      type: 'DOBBY_TOGGLE',
+      enabled: true,
+    });
+    expect(mockSendMessage).toHaveBeenCalledWith(2, {
       type: 'DOBBY_TOGGLE',
       enabled: true,
     });
@@ -152,6 +160,7 @@ describe('keyboard commands', () => {
     commandHandler('toggle-screenshot-mode');
 
     expect(mockStorageSet).toHaveBeenCalledWith({ screenshotEnabled: false }, expect.any(Function));
+    expect(mockTabsQuery).toHaveBeenCalledWith({ active: true, currentWindow: true }, expect.any(Function));
     expect(mockSendMessage).toHaveBeenCalledWith(1, {
       type: 'SCREENSHOT_TOGGLE',
       enabled: false,

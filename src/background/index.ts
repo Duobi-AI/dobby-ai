@@ -83,6 +83,17 @@ function notifyActiveTab(message: ContentRuntimeMessage): void {
   });
 }
 
+function notifyAllTabs(message: ContentRuntimeMessage): void {
+  chrome.tabs.query({}, (tabs) => {
+    for (const tab of tabs || []) {
+      if (tab.id === undefined) continue;
+      sendContentMessage(tab.id, message).catch(() => {
+        // Many tabs cannot host content scripts (for example chrome:// pages).
+      });
+    }
+  });
+}
+
 function toggleStoredSetting(
   storageKey: 'dobbyEnabled' | 'screenshotEnabled',
   messageType: ToggleMessageType,
@@ -91,7 +102,9 @@ function toggleStoredSetting(
     const current = data[storageKey] !== false;
     const enabled = !current;
     setLocalStorage({ [storageKey]: enabled }, () => {
-      notifyActiveTab({ type: messageType, enabled });
+      const message = { type: messageType, enabled };
+      if (storageKey === 'dobbyEnabled') notifyAllTabs(message);
+      else notifyActiveTab(message);
     });
   });
 }

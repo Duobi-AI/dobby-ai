@@ -243,6 +243,21 @@ export function registerListeners(): void {
 
 }
 
+export function disableTriggerModes(): void {
+  hideTrigger();
+  cancelScreenshotMode();
+
+  if (longPressState.timer) {
+    clearTimeout(longPressState.timer);
+    longPressState.timer = null;
+  }
+  if (longPressState.ringTimer) {
+    clearTimeout(longPressState.ringTimer);
+    longPressState.ringTimer = null;
+  }
+  _removeProgressRing();
+}
+
 export function _resetTriggerForTesting(): void {
   removeElement(triggerButton);
   setTriggerButton(null);

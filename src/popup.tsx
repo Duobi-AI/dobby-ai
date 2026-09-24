@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { flushSync } from 'react-dom';
+import { IconCrop, IconMessage } from '@tabler/icons-react';
 import { applyColorVariables } from './shared/color-palette.js';
 import { COLOR_SCHEME_QUERY, normalizeThemeMode, resolveTheme } from './shared/theme.js';
 import { mountReactRoot } from './shared/react-root.js';
@@ -117,10 +118,44 @@ function SwitchRow({
     <div className="toggle-row">
       <div className="toggle-copy">
         <span className="toggle-label" title={title}>{label}</span>
-        <span className={`state-badge ${enabled ? 'on' : 'off'}`} id={id === 'enabled' ? 'status' : `${id.replace('-enabled', '')}-status`}>
-          {enabled ? 'On' : 'Off'}
-        </span>
       </div>
+      <label className="toggle">
+        <input
+          type="checkbox"
+          id={id}
+          checked={enabled}
+          aria-label={ariaLabel}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.currentTarget.checked)}
+        />
+        <span className="slider" />
+      </label>
+    </div>
+  );
+}
+
+function FeatureSwitchRow({
+  id,
+  label,
+  title,
+  enabled,
+  ariaLabel,
+  Icon,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  title?: string;
+  enabled: boolean;
+  ariaLabel: string;
+  Icon: typeof IconCrop;
+  onChange: (enabled: boolean) => void;
+}) {
+  return (
+    <div className="feature-row">
+      <span className="feature-icon" aria-hidden="true">
+        <Icon size={20} stroke={1.8} />
+      </span>
+      <span className="feature-label" title={title}>{label}</span>
       <label className="toggle">
         <input
           type="checkbox"
@@ -235,22 +270,27 @@ function PopupApp() {
         ariaLabel="Enable or disable Dobby AI"
         onChange={(enabled) => updateToggle('dobbyEnabled', 'DOBBY_TOGGLE', enabled)}
       />
-      <SwitchRow
-        id="screenshot-enabled"
-        label="Long-press screenshots"
-        title="Long-press anywhere to screenshot a region and ask AI about it."
-        enabled={state.screenshotEnabled}
-        ariaLabel="Enable or disable screenshot mode"
-        onChange={(enabled) => updateToggle('screenshotEnabled', 'SCREENSHOT_TOGGLE', enabled)}
-      />
-      <SwitchRow
-        id="autosuggest-enabled"
-        label="Text auto-suggest"
-        title="Works in standard textareas and rich-text editors such as LinkedIn chat, Gmail, and Notion."
-        enabled={state.autosuggestEnabled}
-        ariaLabel="Enable or disable auto-suggest"
-        onChange={(enabled) => updateToggle('autosuggestEnabled', 'AUTOSUGGEST_TOGGLE', enabled)}
-      />
+      <fieldset className="feature-settings" disabled={!state.dobbyEnabled}>
+        <legend className="feature-heading">Features</legend>
+        <FeatureSwitchRow
+          id="screenshot-enabled"
+          label="Long-press screenshots"
+          title="Long-press anywhere to screenshot a region and ask AI about it."
+          enabled={state.screenshotEnabled}
+          ariaLabel="Enable or disable screenshot mode"
+          Icon={IconCrop}
+          onChange={(enabled) => updateToggle('screenshotEnabled', 'SCREENSHOT_TOGGLE', enabled)}
+        />
+        <FeatureSwitchRow
+          id="autosuggest-enabled"
+          label="Text auto-suggest"
+          title="Works in standard textareas and rich-text editors such as LinkedIn chat, Gmail, and Notion."
+          enabled={state.autosuggestEnabled}
+          ariaLabel="Enable or disable auto-suggest"
+          Icon={IconMessage}
+          onChange={(enabled) => updateToggle('autosuggestEnabled', 'AUTOSUGGEST_TOGGLE', enabled)}
+        />
+      </fieldset>
       <div className="quick-actions">
         <button className="quick-action" id="history" disabled={!state.hasHistory} onClick={openHistory}>History</button>
         <button className="quick-action" id="clear-history" disabled={!state.hasHistory} onClick={clearHistory}>Clear</button>

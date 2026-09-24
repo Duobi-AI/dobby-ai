@@ -9,7 +9,8 @@ import type {
 
 // Trigger state
 export let triggerButton: ToolbarHost | null = null;
-export let dobbyEnabled = true;
+// Keep page features inactive until the persisted master setting is loaded.
+export let dobbyEnabled = false;
 
 export function setTriggerButton(v: ToolbarHost | null) { triggerButton = v; }
 export function setDobbyEnabled(v: boolean) { dobbyEnabled = v; }

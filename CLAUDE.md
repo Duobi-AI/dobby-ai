@@ -50,10 +50,9 @@ Build entry points (`esbuild.config.js`): `src/content/index.js` → `content.js
   2. Load in Playwright persistent context with the extension
   3. Screenshot each visual state and verify correctness
   4. Fix any visual issues before committing
-- UI/UX PRs must include a demo GIF in the description
+- UI/UX PRs should include a demo GIF or video in the description
   - Record via Playwright: `node scripts/record-demo.js demos/<scenario>.js /tmp/output.gif --framerate 5`
-  - Push to `docs/pr-demo-gifs` branch (non-LFS, <800KB), reference via `raw.githubusercontent.com` URL
-  - Do NOT use Git LFS — raw URLs serve pointer files instead of actual content
+  - Attach media directly to the PR with `gh pr create --attach <file>`; do not host it on a repository branch
 
 ## Obsidian Project Notes
 

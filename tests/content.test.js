@@ -4,6 +4,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 let messageListeners = [];
+let mockStorageValues = { dobbyEnabled: true, screenshotEnabled: true, autosuggestEnabled: false };
+let deferFeatureSettingsLoad = false;
+let releaseFeatureSettingsLoad = null;
+const mockContentState = vi.hoisted(() => ({ dobbyEnabled: true, autosuggestEnabled: false }));
 
 // Mock chrome APIs — capture message listeners
 global.chrome = {
@@ -15,10 +19,15 @@ global.chrome = {
   storage: {
     local: {
       get: vi.fn((key, cb) => {
-        if (key === 'dobbyEnabled') return cb({ dobbyEnabled: true });
-        if (key === 'screenshotEnabled') return cb({ screenshotEnabled: true });
-        if (key === 'autosuggestEnabled') return cb({ autosuggestEnabled: false });
-        cb({});
+        if (Array.isArray(key)) {
+          const values = Object.fromEntries(key.filter((name) => name in mockStorageValues).map((name) => [name, mockStorageValues[name]]));
+          if (deferFeatureSettingsLoad) {
+            releaseFeatureSettingsLoad = () => cb(values);
+            return;
+          }
+          return cb(values);
+        }
+        cb(key in mockStorageValues ? { [key]: mockStorageValues[key] } : {});
       }),
       set: vi.fn(),
     },
@@ -34,6 +43,8 @@ vi.mock('../src/content/bubble/core.js', () => ({
   showBubble: vi.fn(),
   showBubbleWithPresets: vi.fn(),
   showHistoryBubble: vi.fn(),
+  cancelPendingBubbleOpenings: vi.fn(),
+  createBubbleOpeningGuard: vi.fn(() => () => true),
   hideBubble: vi.fn(),
   getBubbleContainer: vi.fn(),
   isBubblePinned: vi.fn(() => false),
@@ -49,18 +60,16 @@ vi.mock('../src/content/image-capture.js', () => ({
 
 vi.mock('../src/content/trigger/selection.js', () => ({
   registerListeners: vi.fn(),
-}));
-
-vi.mock('../src/content/trigger/button.js', () => ({
-  hideTrigger: vi.fn(),
+  disableTriggerModes: vi.fn(),
 }));
 
 vi.mock('../src/content/shared/state.js', () => ({
-  setDobbyEnabled: vi.fn(),
+  setDobbyEnabled: vi.fn((enabled) => { mockContentState.dobbyEnabled = enabled; }),
   setScreenshotEnabled: vi.fn(),
-  setAutosuggestEnabled: vi.fn(),
+  setAutosuggestEnabled: vi.fn((enabled) => { mockContentState.autosuggestEnabled = enabled; }),
+  get dobbyEnabled() { return mockContentState.dobbyEnabled; },
   screenshotEnabled: true,
-  autosuggestEnabled: false,
+  get autosuggestEnabled() { return mockContentState.autosuggestEnabled; },
 }));
 
 vi.mock('../src/content/autosuggest/index.js', () => ({
@@ -85,9 +94,11 @@ vi.mock('../src/content/shared/dom-utils.js', () => ({
   }),
 }));
 
-const { showBubble, showBubbleWithPresets, showHistoryBubble, hideBubble, getBubbleContainer } = await import('../src/content/bubble/core.js');
+const { showBubble, showBubbleWithPresets, showHistoryBubble, hideBubble, getBubbleContainer, cancelPendingBubbleOpenings } = await import('../src/content/bubble/core.js');
 const { buildChatMessages } = await import('../src/content/prompt.js');
 const { captureImage } = await import('../src/content/image-capture.js');
+const { initAutosuggest, destroyAutosuggest } = await import('../src/content/autosuggest/index.js');
+const { disableTriggerModes } = await import('../src/content/trigger/selection.js');
 
 // Import the entry point — this registers the message listeners
 await import('../src/content/index.js');
@@ -100,6 +111,31 @@ function getShowBubbleListener() {
 describe('content/index.js', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('master toggle and auto-suggest', () => {
+    it('pauses auto-suggest while Dobby is off and resumes its saved preference when turned back on', () => {
+      const dobbyToggle = messageListeners[0];
+      const autosuggestToggle = messageListeners[2];
+
+      mockContentState.dobbyEnabled = true;
+      mockContentState.autosuggestEnabled = false;
+      autosuggestToggle({ type: 'AUTOSUGGEST_TOGGLE', enabled: true });
+      expect(initAutosuggest).toHaveBeenCalledTimes(1);
+
+      vi.clearAllMocks();
+      dobbyToggle({ type: 'DOBBY_TOGGLE', enabled: false });
+      expect(cancelPendingBubbleOpenings).toHaveBeenCalledTimes(1);
+      expect(destroyAutosuggest).toHaveBeenCalledTimes(1);
+      expect(hideBubble).toHaveBeenCalledTimes(1);
+
+      expect(disableTriggerModes).toHaveBeenCalledTimes(1);
+
+      vi.clearAllMocks();
+      dobbyToggle({ type: 'DOBBY_TOGGLE', enabled: true });
+      expect(initAutosuggest).toHaveBeenCalledTimes(1);
+      expect(destroyAutosuggest).not.toHaveBeenCalled();
+    });
   });
 
   describe('SHOW_BUBBLE with text', () => {
@@ -168,6 +204,17 @@ describe('content/index.js', () => {
       expect(showBubble).not.toHaveBeenCalled();
       expect(showBubbleWithPresets).not.toHaveBeenCalled();
       expect(buildChatMessages).not.toHaveBeenCalled();
+    });
+
+    it('ignores AI bubble requests while Dobby is off', () => {
+      mockContentState.dobbyEnabled = false;
+      messageListeners[3]({ type: 'SHOW_BUBBLE', text: 'hello world' });
+
+      expect(buildChatMessages).not.toHaveBeenCalled();
+      expect(showBubble).not.toHaveBeenCalled();
+      expect(showBubbleWithPresets).not.toHaveBeenCalled();
+
+      mockContentState.dobbyEnabled = true;
     });
   });
 
@@ -287,5 +334,32 @@ describe('content/index.js', () => {
 
       expect(hideBubble).not.toHaveBeenCalled();
     });
+  });
+
+  it('keeps AI actions blocked until the saved master setting loads', async () => {
+    mockStorageValues = { dobbyEnabled: false, screenshotEnabled: true, autosuggestEnabled: true };
+    mockContentState.dobbyEnabled = false;
+    mockContentState.autosuggestEnabled = false;
+    deferFeatureSettingsLoad = true;
+    messageListeners = [];
+    vi.resetModules();
+
+    await import('../src/content/index.js');
+    const { initAutosuggest, destroyAutosuggest } = await import('../src/content/autosuggest/index.js');
+    const { buildChatMessages: freshBuildChatMessages } = await import('../src/content/prompt.js');
+    const { showBubble: freshShowBubble } = await import('../src/content/bubble/core.js');
+
+    messageListeners[3]({ type: 'SHOW_BUBBLE', text: 'hello before settings load' });
+    expect(freshBuildChatMessages).not.toHaveBeenCalled();
+    expect(freshShowBubble).not.toHaveBeenCalled();
+
+    deferFeatureSettingsLoad = false;
+    releaseFeatureSettingsLoad?.();
+    releaseFeatureSettingsLoad = null;
+
+    expect(mockContentState.dobbyEnabled).toBe(false);
+    expect(mockContentState.autosuggestEnabled).toBe(true);
+    expect(initAutosuggest).not.toHaveBeenCalled();
+    expect(destroyAutosuggest).toHaveBeenCalledTimes(1);
   });
 });

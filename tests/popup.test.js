@@ -21,11 +21,8 @@ function setupDom() {
       <div id="usage-secondary"></div>
     </div>
     <input type="checkbox" id="enabled" />
-    <span id="status"></span>
     <input type="checkbox" id="screenshot-enabled" checked />
-    <span id="screenshot-status"></span>
     <input type="checkbox" id="autosuggest-enabled" />
-    <span id="autosuggest-status"></span>
     <button id="history">History</button>
     <button id="clear-history">Clear</button>
     <button id="settings">Settings</button>
@@ -100,11 +97,8 @@ describe('popup.js', () => {
 
     it('loads default toggle states', () => {
       expect(document.getElementById('enabled').checked).toBe(true);
-      expect(document.getElementById('status').textContent).toBe('On');
       expect(document.getElementById('screenshot-enabled').checked).toBe(true);
-      expect(document.getElementById('screenshot-status').textContent).toBe('On');
       expect(document.getElementById('autosuggest-enabled').checked).toBe(false);
-      expect(document.getElementById('autosuggest-status').textContent).toBe('Off');
     });
 
     it('loads explicit disabled/enabled settings from storage', async () => {
@@ -115,11 +109,39 @@ describe('popup.js', () => {
       });
 
       expect(document.getElementById('enabled').checked).toBe(false);
-      expect(document.getElementById('status').textContent).toBe('Off');
       expect(document.getElementById('screenshot-enabled').checked).toBe(false);
-      expect(document.getElementById('screenshot-status').textContent).toBe('Off');
       expect(document.getElementById('autosuggest-enabled').checked).toBe(true);
-      expect(document.getElementById('autosuggest-status').textContent).toBe('On');
+    });
+
+    it('shows saved feature preferences in disabled switches while Dobby is off', async () => {
+      await loadPopup({
+        dobbyEnabled: false,
+        screenshotEnabled: true,
+        autosuggestEnabled: true,
+      });
+
+      for (const id of ['screenshot-enabled', 'autosuggest-enabled']) {
+        expect(document.getElementById(id).checked).toBe(true);
+        expect(document.getElementById(id).matches(':disabled')).toBe(true);
+      }
+      expect(document.querySelector('.feature-settings')).not.toBeNull();
+      expect(document.querySelector('.feature-paused-note')).toBeNull();
+      expect(document.querySelector('.state-badge')).toBeNull();
+    });
+
+    it('restores saved feature controls when Dobby is turned back on', async () => {
+      await loadPopup({
+        dobbyEnabled: false,
+        screenshotEnabled: true,
+        autosuggestEnabled: true,
+      });
+
+      document.getElementById('enabled').click();
+
+      for (const id of ['screenshot-enabled', 'autosuggest-enabled']) {
+        expect(document.getElementById(id).checked).toBe(true);
+        expect(document.getElementById(id).matches(':disabled')).toBe(false);
+      }
     });
   });
 
@@ -210,7 +232,7 @@ describe('popup.js', () => {
       input.click();
 
       expect(chrome.storage.local.set).toHaveBeenCalledWith({ dobbyEnabled: false });
-      expect(document.getElementById('status').textContent).toBe('Off');
+      expect(input.checked).toBe(false);
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'DOBBY_TOGGLE', enabled: false });
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { type: 'DOBBY_TOGGLE', enabled: false });
     });
@@ -220,7 +242,7 @@ describe('popup.js', () => {
       input.click();
 
       expect(chrome.storage.local.set).toHaveBeenCalledWith({ screenshotEnabled: false });
-      expect(document.getElementById('screenshot-status').textContent).toBe('Off');
+      expect(input.checked).toBe(false);
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'SCREENSHOT_TOGGLE', enabled: false });
     });
 
@@ -229,7 +251,7 @@ describe('popup.js', () => {
       input.click();
 
       expect(chrome.storage.local.set).toHaveBeenCalledWith({ autosuggestEnabled: true });
-      expect(document.getElementById('autosuggest-status').textContent).toBe('On');
+      expect(input.checked).toBe(true);
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'AUTOSUGGEST_TOGGLE', enabled: true });
     });
   });
