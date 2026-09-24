@@ -16,6 +16,7 @@ describe('autosuggest constants', () => {
 describe('autosuggest state', () => {
   it('exports autosuggest state variables with correct defaults', async () => {
     const state = await import('../src/content/shared/state.js');
+    expect(state.dobbyEnabled).toBe(false);
     expect(state.autosuggestEnabled).toBe(false);
     expect(state.autosuggestActiveEditor).toBeNull();
     expect(state.autosuggestCurrentSuggestion).toBe('');

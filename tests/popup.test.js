@@ -117,8 +117,41 @@ describe('popup.js', () => {
       expect(document.getElementById('enabled').checked).toBe(false);
       expect(document.getElementById('status').textContent).toBe('Off');
       expect(document.getElementById('screenshot-enabled').checked).toBe(false);
-      expect(document.getElementById('screenshot-status').textContent).toBe('Off');
+      expect(document.getElementById('screenshot-status').textContent).toBe('Paused');
       expect(document.getElementById('autosuggest-enabled').checked).toBe(true);
+      expect(document.getElementById('autosuggest-status').textContent).toBe('Paused');
+    });
+
+    it('shows saved feature preferences as paused and disables them while Dobby is off', async () => {
+      await loadPopup({
+        dobbyEnabled: false,
+        screenshotEnabled: true,
+        autosuggestEnabled: true,
+      });
+
+      for (const id of ['screenshot-enabled', 'autosuggest-enabled']) {
+        expect(document.getElementById(id).checked).toBe(true);
+        expect(document.getElementById(id).matches(':disabled')).toBe(true);
+      }
+      expect(document.getElementById('screenshot-status').textContent).toBe('Paused');
+      expect(document.getElementById('autosuggest-status').textContent).toBe('Paused');
+      expect(document.querySelector('.feature-settings')).not.toBeNull();
+    });
+
+    it('restores saved feature controls when Dobby is turned back on', async () => {
+      await loadPopup({
+        dobbyEnabled: false,
+        screenshotEnabled: true,
+        autosuggestEnabled: true,
+      });
+
+      document.getElementById('enabled').click();
+
+      for (const id of ['screenshot-enabled', 'autosuggest-enabled']) {
+        expect(document.getElementById(id).checked).toBe(true);
+        expect(document.getElementById(id).matches(':disabled')).toBe(false);
+      }
+      expect(document.getElementById('screenshot-status').textContent).toBe('On');
       expect(document.getElementById('autosuggest-status').textContent).toBe('On');
     });
   });

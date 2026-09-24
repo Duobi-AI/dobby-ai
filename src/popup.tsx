@@ -104,6 +104,7 @@ function SwitchRow({
   title,
   enabled,
   ariaLabel,
+  statusText,
   onChange,
 }: {
   id: string;
@@ -111,14 +112,16 @@ function SwitchRow({
   title?: string;
   enabled: boolean;
   ariaLabel: string;
+  statusText?: string;
   onChange: (enabled: boolean) => void;
 }) {
+  const status = statusText || (enabled ? 'On' : 'Off');
   return (
     <div className="toggle-row">
       <div className="toggle-copy">
         <span className="toggle-label" title={title}>{label}</span>
-        <span className={`state-badge ${enabled ? 'on' : 'off'}`} id={id === 'enabled' ? 'status' : `${id.replace('-enabled', '')}-status`}>
-          {enabled ? 'On' : 'Off'}
+        <span className={`state-badge ${status === 'Paused' ? 'paused' : enabled ? 'on' : 'off'}`} id={id === 'enabled' ? 'status' : `${id.replace('-enabled', '')}-status`}>
+          {status}
         </span>
       </div>
       <label className="toggle">
@@ -235,22 +238,28 @@ function PopupApp() {
         ariaLabel="Enable or disable Dobby AI"
         onChange={(enabled) => updateToggle('dobbyEnabled', 'DOBBY_TOGGLE', enabled)}
       />
-      <SwitchRow
-        id="screenshot-enabled"
-        label="Long-press screenshots"
-        title="Long-press anywhere to screenshot a region and ask AI about it."
-        enabled={state.screenshotEnabled}
-        ariaLabel="Enable or disable screenshot mode"
-        onChange={(enabled) => updateToggle('screenshotEnabled', 'SCREENSHOT_TOGGLE', enabled)}
-      />
-      <SwitchRow
-        id="autosuggest-enabled"
-        label="Text auto-suggest"
-        title="Works in standard textareas and rich-text editors such as LinkedIn chat, Gmail, and Notion."
-        enabled={state.autosuggestEnabled}
-        ariaLabel="Enable or disable auto-suggest"
-        onChange={(enabled) => updateToggle('autosuggestEnabled', 'AUTOSUGGEST_TOGGLE', enabled)}
-      />
+      <fieldset className="feature-settings" disabled={!state.dobbyEnabled}>
+        <legend className="feature-heading">Features</legend>
+        {!state.dobbyEnabled && <p className="feature-paused-note">Saved choices are paused while Dobby is off.</p>}
+        <SwitchRow
+          id="screenshot-enabled"
+          label="Long-press screenshots"
+          title="Long-press anywhere to screenshot a region and ask AI about it."
+          enabled={state.screenshotEnabled}
+          ariaLabel="Enable or disable screenshot mode"
+          statusText={state.dobbyEnabled ? undefined : 'Paused'}
+          onChange={(enabled) => updateToggle('screenshotEnabled', 'SCREENSHOT_TOGGLE', enabled)}
+        />
+        <SwitchRow
+          id="autosuggest-enabled"
+          label="Text auto-suggest"
+          title="Works in standard textareas and rich-text editors such as LinkedIn chat, Gmail, and Notion."
+          enabled={state.autosuggestEnabled}
+          ariaLabel="Enable or disable auto-suggest"
+          statusText={state.dobbyEnabled ? undefined : 'Paused'}
+          onChange={(enabled) => updateToggle('autosuggestEnabled', 'AUTOSUGGEST_TOGGLE', enabled)}
+        />
+      </fieldset>
       <div className="quick-actions">
         <button className="quick-action" id="history" disabled={!state.hasHistory} onClick={openHistory}>History</button>
         <button className="quick-action" id="clear-history" disabled={!state.hasHistory} onClick={clearHistory}>Clear</button>

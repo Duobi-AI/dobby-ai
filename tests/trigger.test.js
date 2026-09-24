@@ -54,7 +54,8 @@ setupChromeMocks();
 const { createTriggerButton, showTrigger, hideTrigger, extractImagesFromSelection } = await import('../src/content/trigger/button.js');
 const { startScreenshotMode, cancelScreenshotMode } = await import('../src/content/trigger/screenshot.js');
 const { _showProgressRing, _removeProgressRing } = await import('../src/content/trigger/progress-ring.js');
-const { _resetTriggerForTesting, _setDobbyEnabled, registerListeners } = await import('../src/content/trigger/selection.js');
+const { _resetTriggerForTesting, _setDobbyEnabled, registerListeners, disableTriggerModes } = await import('../src/content/trigger/selection.js');
+const { longPressState } = await import('../src/content/shared/state.js');
 const { showBubbleWithPresets } = await import('../src/content/bubble/core.js');
 const { captureScreenshot } = await import('../src/content/image-capture.js');
 
@@ -303,6 +304,22 @@ describe('screenshot mode', () => {
     expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(1);
     cancelScreenshotMode();
     expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+  });
+
+  it('disabling Dobby cancels screenshot mode and pending long-press timers', () => {
+    vi.useFakeTimers();
+    startScreenshotMode();
+    longPressState.timer = setTimeout(() => {}, 1000);
+    longPressState.ringTimer = setTimeout(() => {}, 500);
+    _showProgressRing(100, 100);
+
+    disableTriggerModes();
+
+    expect(document.querySelectorAll('div[style*="crosshair"]').length).toBe(0);
+    expect(document.querySelector('[data-dobby-progress-ring]')).toBeNull();
+    expect(longPressState.timer).toBeNull();
+    expect(longPressState.ringTimer).toBeNull();
+    vi.useRealTimers();
   });
 
   it('ESC key cancels screenshot mode', async () => {

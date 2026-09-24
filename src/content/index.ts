@@ -1,10 +1,15 @@
 // src/content/index.js — Content script entry point
 // Imports establish module initialization order
 
-import { setDobbyEnabled, setAutosuggestEnabled, setScreenshotEnabled } from './shared/state.js';
+import {
+  autosuggestEnabled,
+  dobbyEnabled,
+  setDobbyEnabled,
+  setAutosuggestEnabled,
+  setScreenshotEnabled,
+} from './shared/state.js';
 import { initAutosuggest, destroyAutosuggest } from './autosuggest/index.js';
-import { registerListeners } from './trigger/selection.js';
-import { hideTrigger } from './trigger/button.js';
+import { registerListeners, disableTriggerModes } from './trigger/selection.js';
 import { showBubbleWithPresets, showBubble, showHistoryBubble, hideBubble, getBubbleContainer, isBubblePinned } from './bubble/core.js';
 import { buildChatMessages } from './prompt.js';
 import { gatherCurrentTabContext } from './page-context.js';
@@ -14,30 +19,34 @@ import { loadUsageData } from './shared/preset-usage.js';
 import { getLocalStorage } from '../shared/storage.js';
 import type { ContentRuntimeMessage, ImageContentPart } from '../shared/types';
 
-// Load initial enabled state
-getLocalStorage('dobbyEnabled', (data) => {
-  setDobbyEnabled(data.dobbyEnabled !== false);
-});
+function syncAutosuggestAvailability(): void {
+  if (dobbyEnabled && autosuggestEnabled) {
+    initAutosuggest();
+  } else {
+    destroyAutosuggest();
+  }
+}
 
 // Load preset usage data for reordering
 loadUsageData();
 
-// Load screenshot mode state
-getLocalStorage('screenshotEnabled', (data) => {
+// Load related feature preferences together so auto-suggest cannot briefly start
+// before the master setting is known.
+getLocalStorage(['dobbyEnabled', 'screenshotEnabled', 'autosuggestEnabled'], (data) => {
+  setDobbyEnabled(data.dobbyEnabled !== false);
   setScreenshotEnabled(data.screenshotEnabled !== false); // default: enabled
-});
-
-// Load autosuggest state
-getLocalStorage('autosuggestEnabled', (data) => {
-  const enabled = data.autosuggestEnabled === true;
-  setAutosuggestEnabled(enabled);
-  if (enabled) initAutosuggest();
+  setAutosuggestEnabled(data.autosuggestEnabled === true);
+  syncAutosuggestAvailability();
 });
 
 chrome.runtime.onMessage.addListener((msg: ContentRuntimeMessage) => {
   if (msg.type === 'DOBBY_TOGGLE') {
     setDobbyEnabled(msg.enabled);
-    if (!msg.enabled) hideTrigger();
+    if (!msg.enabled) {
+      disableTriggerModes();
+      hideBubble();
+    }
+    syncAutosuggestAvailability();
   }
 });
 
@@ -50,11 +59,7 @@ chrome.runtime.onMessage.addListener((msg: ContentRuntimeMessage) => {
 chrome.runtime.onMessage.addListener((msg: ContentRuntimeMessage) => {
   if (msg.type === 'AUTOSUGGEST_TOGGLE') {
     setAutosuggestEnabled(msg.enabled);
-    if (msg.enabled) {
-      initAutosuggest();
-    } else {
-      destroyAutosuggest();
-    }
+    syncAutosuggestAvailability();
   }
 });
 
@@ -72,6 +77,8 @@ chrome.runtime.onMessage.addListener((msg: ContentRuntimeMessage) => {
   }
 
   if (msg.type === 'SHOW_BUBBLE') {
+    if (!dobbyEnabled) return;
+
     const rect = {
       top: window.innerHeight / 3 - 8,
       bottom: window.innerHeight / 3,
