@@ -12,7 +12,18 @@ import {
   type AutosuggestEditor,
 } from './editor.js';
 
-function createOverlayHost(): { host: HTMLDivElement; container: HTMLDivElement } {
+type OverlayRefs = {
+  host: HTMLDivElement;
+  container: HTMLDivElement;
+  mirror: HTMLSpanElement;
+  ghost: HTMLSpanElement;
+};
+
+let overlayRefs: OverlayRefs | null = null;
+let styledEditor: AutosuggestEditor | null = null;
+let styledMetrics: CSSStyleDeclaration | null = null;
+
+function createOverlayHost(): OverlayRefs {
   const host = document.createElement('div');
   host.setAttribute('data-dobby-autosuggest', '');
   host.style.position = 'absolute';
@@ -26,8 +37,23 @@ function createOverlayHost(): { host: HTMLDivElement; container: HTMLDivElement 
 
   const container = document.createElement('div');
   container.className = 'ghost-container';
+  container.style.width = '100%';
+  container.style.boxSizing = 'border-box';
+
+  const mirror = document.createElement('span');
+  mirror.className = 'ghost-mirror';
+  const ghost = document.createElement('span');
+  ghost.className = 'ghost-text';
+  const paw = document.createElement('span');
+  paw.className = 'ghost-paw';
+  paw.textContent = '🐾';
+  container.append(mirror, ghost, paw);
   shadow.appendChild(container);
-  return { host, container };
+  document.body.appendChild(host);
+  setAutosuggestOverlayHost(host);
+  const refs = { host, container, mirror, ghost };
+  overlayRefs = refs;
+  return refs;
 }
 
 function applyTextMetrics(container: HTMLDivElement, computed: CSSStyleDeclaration) {
@@ -45,6 +71,7 @@ function positionTextareaOverlay(
   container: HTMLDivElement,
   textarea: HTMLTextAreaElement,
   computed: CSSStyleDeclaration,
+  mirror: HTMLSpanElement,
 ) {
   const rect = textarea.getBoundingClientRect();
   host.style.top = `${rect.top + window.scrollY}px`;
@@ -63,10 +90,7 @@ function positionTextareaOverlay(
   container.style.boxSizing = 'border-box';
   container.scrollTop = textarea.scrollTop;
 
-  const mirror = document.createElement('span');
-  mirror.className = 'ghost-mirror';
   mirror.textContent = textarea.value.substring(0, textarea.selectionStart);
-  container.appendChild(mirror);
 }
 
 function positionContenteditableOverlay(
@@ -87,6 +111,8 @@ function positionContenteditableOverlay(
   host.style.maxWidth = `${wrapToNextLine ? editorRect.width : remainingWidth}px`;
   host.style.minHeight = `${lineHeight}px`;
   host.style.overflow = 'visible';
+  container.style.width = '';
+  container.style.boxSizing = '';
   container.classList.add('contenteditable');
   return true;
 }
@@ -94,32 +120,37 @@ function positionContenteditableOverlay(
 export function showGhostText(editor: AutosuggestEditor, suggestion: string) {
   setAutosuggestCurrentSuggestion(suggestion);
 
-  const existing = autosuggestOverlayHost;
-  if (existing) existing.remove();
-
-  const { host, container } = createOverlayHost();
-  const computed = window.getComputedStyle(editor);
-  applyTextMetrics(container, computed);
-  if (isTextareaEditor(editor)) {
-    positionTextareaOverlay(host, container, editor, computed);
-  } else if (!positionContenteditableOverlay(host, container, editor, computed)) {
-    setAutosuggestCurrentSuggestion('');
+  if (!editor.isConnected) {
+    hideGhostText();
     return;
   }
 
-  const ghost = document.createElement('span');
-  ghost.className = 'ghost-text';
+  const refs = overlayRefs && autosuggestOverlayHost === overlayRefs.host
+    ? overlayRefs
+    : createOverlayHost();
+  const { host, container, mirror, ghost } = refs;
+
+  if (editor !== styledEditor) {
+    styledMetrics = window.getComputedStyle(editor);
+    applyTextMetrics(container, styledMetrics);
+    styledEditor = editor;
+  }
+
+  const computed = styledMetrics!;
+  if (isTextareaEditor(editor)) {
+    const rect = editor.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      hideGhostText();
+      return;
+    }
+    container.classList.remove('contenteditable');
+    positionTextareaOverlay(host, container, editor, computed, mirror);
+  } else if (!positionContenteditableOverlay(host, container, editor, computed)) {
+    hideGhostText();
+    return;
+  }
+
   ghost.textContent = suggestion;
-
-  const paw = document.createElement('span');
-  paw.className = 'ghost-paw';
-  paw.textContent = '🐾';
-
-  container.appendChild(ghost);
-  container.appendChild(paw);
-
-  document.body.appendChild(host);
-  setAutosuggestOverlayHost(host);
 }
 
 export function hideGhostText() {
@@ -128,6 +159,9 @@ export function hideGhostText() {
     host.remove();
     setAutosuggestOverlayHost(null);
   }
+  overlayRefs = null;
+  styledEditor = null;
+  styledMetrics = null;
   setAutosuggestCurrentSuggestion('');
 }
 
