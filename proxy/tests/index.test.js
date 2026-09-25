@@ -323,6 +323,37 @@ describe('POST /chat', () => {
     expect(res.status).toBe(403);
   });
 
+  it('logs content-free usage metadata when a valid payload has an invalid signature', async () => {
+    verifyHmac.mockResolvedValue(false);
+    const logger = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const req = makeRequest('/chat', {
+      method: 'POST',
+      body: {
+        messages: [{ role: 'user', content: 'private autosuggest context' }],
+        signature: 'invalid-signature',
+        timestamp: 1,
+        purpose: 'autosuggest',
+      },
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await handler.fetch(req, makeEnv());
+
+    expect(res.status).toBe(403);
+    const log = logger.mock.calls.map(([entry]) => entry).find(entry => entry.event === 'dobby_request');
+    expect(log).toMatchObject({
+      route: 'chat',
+      purpose: 'autosuggest',
+      outcome: 'invalid_signature',
+      client_ip: '1.2.3.4',
+      message_count: 1,
+      user_text_chars: 27,
+      image_count: 0,
+    });
+    expect(JSON.stringify(log)).not.toContain('private autosuggest context');
+    logger.mockRestore();
+  });
+
   it('returns 401 when the proxy access token is missing or invalid', async () => {
     verifyAccessToken.mockResolvedValue({ valid: false, reason: 'missing proxy access token' });
     const req = makeRequest('/chat', {

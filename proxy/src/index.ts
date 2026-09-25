@@ -290,6 +290,11 @@ export default {
       ), { body_chars: bodyText.length });
     }
 
+    const purpose: ProxyPurpose = (body as ValidProxyPayload).purpose || 'chat';
+    log.body_chars = bodyText.length;
+    log.purpose = purpose === 'autosuggest' ? 'autosuggest' : 'chat';
+    Object.assign(log, summarizeMessageUsage((body as ValidProxyPayload).messages));
+
     const hmacValid = await verifyHmac(body as ValidProxyPayload, env.HMAC_SECRET);
     if (!hmacValid) {
       return respond('invalid_signature', 'signature', jsonResponse(
@@ -297,12 +302,8 @@ export default {
       ), { body_chars: bodyText.length, signature: 'invalid' });
     }
 
-    const purpose: ProxyPurpose = (body as ValidProxyPayload).purpose || 'chat';
     const devBypass = env.DEV_BYPASS_TOKEN
       && request.headers.get('X-Dev-Token') === env.DEV_BYPASS_TOKEN;
-    log.body_chars = bodyText.length;
-    log.purpose = purpose === 'autosuggest' ? 'autosuggest' : 'chat';
-    Object.assign(log, summarizeMessageUsage((body as ValidProxyPayload).messages));
     log.signature = 'valid';
     log.dev_bypass = Boolean(devBypass);
     const tokenResult = devBypass
