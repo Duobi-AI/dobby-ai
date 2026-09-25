@@ -142,6 +142,7 @@ describe('POST /telemetry', () => {
     expect(kv.put).not.toHaveBeenCalled();
     expect(logger).toHaveBeenCalledWith(expect.objectContaining({
       route: 'telemetry',
+      client_ip: '1.2.3.4',
       usage_mode: 'byok',
       telemetry_event: 'usage_request',
       installation_id: '123e4567-e89b-12d3-a456-426614174000',
@@ -322,6 +323,37 @@ describe('POST /chat', () => {
     expect(res.status).toBe(403);
   });
 
+  it('logs content-free usage metadata when a valid payload has an invalid signature', async () => {
+    verifyHmac.mockResolvedValue(false);
+    const logger = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const req = makeRequest('/chat', {
+      method: 'POST',
+      body: {
+        messages: [{ role: 'user', content: 'private autosuggest context' }],
+        signature: 'invalid-signature',
+        timestamp: 1,
+        purpose: 'autosuggest',
+      },
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await handler.fetch(req, makeEnv());
+
+    expect(res.status).toBe(403);
+    const log = logger.mock.calls.map(([entry]) => entry).find(entry => entry.event === 'dobby_request');
+    expect(log).toMatchObject({
+      route: 'chat',
+      purpose: 'autosuggest',
+      outcome: 'invalid_signature',
+      client_ip: '1.2.3.4',
+      message_count: 1,
+      user_text_chars: 27,
+      image_count: 0,
+    });
+    expect(JSON.stringify(log)).not.toContain('private autosuggest context');
+    logger.mockRestore();
+  });
+
   it('returns 401 when the proxy access token is missing or invalid', async () => {
     verifyAccessToken.mockResolvedValue({ valid: false, reason: 'missing proxy access token' });
     const req = makeRequest('/chat', {
@@ -362,6 +394,53 @@ describe('POST /chat', () => {
     expect(res.headers.get('Content-Type')).toBe('text/event-stream');
     expect(res.headers.get('Cache-Control')).toBe('no-cache');
     expect(incrementCounters).toHaveBeenCalled();
+  });
+
+  it('logs client and content-free usage metadata for a successful request', async () => {
+    const logger = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const req = makeRequest('/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Dobby-Access-Token': 'secret-access-token',
+      },
+      body: {
+        messages: [
+          { role: 'user', content: 'hello Dobby' },
+          { role: 'assistant', content: 'previous answer' },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'see image' },
+              { type: 'image_url', image_url: { url: 'data:image/png;base64,private-image-data' } },
+            ],
+          },
+        ],
+        signature: 'secret-signature',
+        timestamp: 1,
+        purpose: 'autosuggest',
+      },
+    });
+
+    const res = await handler.fetch(req, makeEnv());
+
+    expect(res.status).toBe(200);
+    const log = logger.mock.calls.map(([entry]) => entry).find(entry => entry.event === 'dobby_request');
+    expect(log).toMatchObject({
+      client_ip: '1.2.3.4',
+      route: 'chat',
+      purpose: 'autosuggest',
+      message_count: 3,
+      user_text_chars: 20,
+      image_count: 1,
+      outcome: 'stream_started',
+      status: 200,
+    });
+    expect(JSON.stringify(log)).not.toContain('hello Dobby');
+    expect(JSON.stringify(log)).not.toContain('private-image-data');
+    expect(JSON.stringify(log)).not.toContain('secret-access-token');
+    expect(JSON.stringify(log)).not.toContain('secret-signature');
+    logger.mockRestore();
   });
 
   it('returns remaining count in X-RateLimit-Remaining header', async () => {

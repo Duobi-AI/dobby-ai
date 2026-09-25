@@ -1,6 +1,6 @@
 # Privacy Policy - Dobby AI Chrome Extension
 
-**Last updated:** September 13, 2026
+**Last updated:** September 25, 2026
 
 ## Overview
 
@@ -15,17 +15,19 @@ Dobby AI handles data only when needed to provide user-facing extension features
 - **Authentication information:** if you choose to use your own OpenAI API key, the key is stored locally in Chrome extension storage and used only to send your requests to OpenAI.
 - **Extension settings and usage state:** preferences, feature toggles, local usage counters, and local conversation history are stored with Chrome's local extension storage.
 
-Dobby AI does not collect names, email addresses, payment information, health information, precise location, advertising identifiers, or cookies. Dobby AI collects the limited anonymous usage telemetry described below as part of operating the service.
+Dobby AI does not collect names, email addresses, payment information, health information, precise location, advertising identifiers, or cookies. Dobby AI collects the limited usage telemetry described below as part of operating the service.
 
-## Anonymous Usage Telemetry
+## Usage Telemetry
 
 Dobby AI sends an anonymous usage event for each tracked request containing:
 
 - whether the request used the Dobby AI free proxy or the user's own API key;
-- a randomly generated installation identifier; and
+- a randomly generated installation identifier that is not an account identifier; and
 - the extension version.
 
-This telemetry also identifies the request kind (Chat, Autosuggestion, or screenshot capture) and final outcome (success, provider error, timeout, or rate limit). It contains no API keys, prompts, webpage content, URLs, screenshots, model responses, or conversation history. It is used only for product capacity and reliability measurement. Cloudflare may process standard network metadata for the telemetry request according to its terms and privacy policy.
+This telemetry also identifies the request kind (Chat, Autosuggestion, or screenshot capture) and final outcome (success, provider error, timeout, or rate limit). Its payload contains no API keys, prompts, webpage content, URLs, screenshots, model responses, or conversation history. It is used only for product capacity and reliability measurement. For requests handled by the Dobby AI proxy, source IP and aggregate request metadata are recorded separately in structured Worker logs, as described below. Cloudflare may process standard network metadata according to its terms and privacy policy.
+
+For requests handled by the Dobby AI proxy, its structured Cloudflare Worker logs also record the source IP address, route, feature purpose, request outcome, country and network ASN when available, extension version and random installation identifier for telemetry events, and aggregate request-shape counts (serialized body character count, message count, user-text character count, and image count). These counts do not include message text or image data. The logs do not record prompts, webpage content or URLs, image bytes, API keys, access tokens, signatures, or model responses. This information is used for capacity planning, reliability troubleshooting, rate limiting, and abuse prevention. Cloudflare stores Worker logs according to the account plan's log-retention policy.
 
 ## How Data Is Used
 
@@ -35,7 +37,7 @@ Dobby AI uses handled data only to provide or improve its single purpose: answer
 - Current-tab context extraction is local and attempts to prioritize useful page information such as headings, nearby selected-text context, and main content while excluding common page chrome and editable/form fields such as navigation, footers, inputs, textareas, and contenteditable regions.
 - If you provide your own OpenAI API key, requests are sent directly from the extension to the OpenAI API over HTTPS.
 - If you do not provide your own API key, requests are relayed through the Dobby AI proxy over HTTPS and then sent to OpenAI. The proxy relays requests and responses for the feature and does not store prompt content or model responses.
-- The extension sends the limited usage event described above to the Dobby AI proxy. The proxy records the event in its structured observability logs and does not write it to the rate-limit KV namespace.
+- The extension sends the limited usage event described above to the Dobby AI proxy. The proxy records the event in its structured observability logs and does not write it to the rate-limit KV namespace. Proxy request logs include the source IP and aggregate request-shape counts described above, but no request content or credentials.
 - Local conversation history is stored only in your browser and can be cleared from the extension popup.
 - Local usage counters are used only to show request counts and free-tier status in the extension popup.
 
