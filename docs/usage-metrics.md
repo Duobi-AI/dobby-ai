@@ -31,3 +31,9 @@ Filter structured logs with:
 - `usage_mode = "free"` or `usage_mode = "byok"`
 
 Count events, grouped by `usage_mode`, `telemetry_request_kind`, and `telemetry_outcome`, for central request volume and reliability metrics. Count distinct `installation_id` values only when measuring installations, not requests.
+
+## Proxy request diagnostics
+
+The same `dobby_request` log also includes `client_ip`, `route`, `purpose`, `status`, `rate_limit`, `country`, and `asn` where available. Chat requests include `body_chars`, `message_count`, `user_text_chars`, and `image_count`; these are aggregate sizes only and do not contain message or image content. Group by `client_ip` to inspect source-level activity, or by `purpose` and `outcome` to compare Chat with Autosuggestion. Treat an IP as a network source, not a person: multiple people can share one address, and one person can use multiple addresses.
+
+These request diagnostics are structured Worker logs only. They do not add writes to `RATE_LIMIT_KV` or emit an additional log event per request.

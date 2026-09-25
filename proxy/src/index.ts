@@ -10,7 +10,7 @@ import {
 } from './request-log.js';
 import type { UsageMetrics, UsageModeMetrics } from './request-log.js';
 import { AUTOSUGGEST_MAX_SUGGESTION_TOKENS } from '../../src/shared/autosuggest-limits.js';
-import type { ProxyPurpose } from '../../src/shared/types';
+import type { ChatMessage, ProxyPurpose } from '../../src/shared/types';
 import type { ProxyEnv, ValidProxyPayload } from './types';
 
 const MAX_BODY_SIZE = 2097152; // 2MB
@@ -115,6 +115,36 @@ function getCorsHeaders(request: Request, env: ProxyEnv): Record<string, string>
 
 function corsResponse(request: Request, env: ProxyEnv): Response {
   return new Response(null, { status: 204, headers: getCorsHeaders(request, env) });
+}
+
+function summarizeMessageUsage(messages: ChatMessage[]): {
+  message_count: number;
+  user_text_chars: number;
+  image_count: number;
+} {
+  let userTextChars = 0;
+  let imageCount = 0;
+
+  for (const message of messages) {
+    if (typeof message.content === 'string') {
+      if (message.role === 'user') userTextChars += message.content.length;
+      continue;
+    }
+
+    for (const part of message.content) {
+      if (part.type === 'image_url') {
+        imageCount++;
+      } else if (message.role === 'user') {
+        userTextChars += part.text.length;
+      }
+    }
+  }
+
+  return {
+    message_count: messages.length,
+    user_text_chars: userTextChars,
+    image_count: imageCount,
+  };
 }
 
 function jsonResponse(
@@ -272,6 +302,7 @@ export default {
       && request.headers.get('X-Dev-Token') === env.DEV_BYPASS_TOKEN;
     log.body_chars = bodyText.length;
     log.purpose = purpose === 'autosuggest' ? 'autosuggest' : 'chat';
+    Object.assign(log, summarizeMessageUsage((body as ValidProxyPayload).messages));
     log.signature = 'valid';
     log.dev_bypass = Boolean(devBypass);
     const tokenResult = devBypass
