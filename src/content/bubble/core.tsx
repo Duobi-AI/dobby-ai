@@ -27,6 +27,7 @@ import {
   beginBubbleResize,
   closeBubble,
   getBubbleHost,
+  getBubbleConversationState,
   getBubbleLifecycleState,
   getResponseText,
   isBubblePinned,
@@ -210,7 +211,7 @@ export function hideBubble(): void {
 export function appendToken(text: string): void {
   if (!getBubbleHost()) return;
   appendResponseText(text);
-  const messages = getBubbleLifecycleState().messages;
+  const messages = getBubbleConversationState().messages;
   const lastMessage = messages[messages.length - 1];
   const responseId = lastMessage?.role === 'assistant' ? lastMessage.id : startAssistantResponse();
   setAssistantResponse(responseId, getResponseText());

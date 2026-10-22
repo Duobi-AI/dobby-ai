@@ -49,6 +49,7 @@ const historyModule = await import('../src/content/history.js');
 const promptModule = await import('../src/content/prompt.js');
 const apiModule = await import('../src/content/api.js');
 const viewModel = await import('../src/content/bubble/view-model.js');
+const lifecycle = await import('../src/content/bubble/lifecycle.js');
 
 describe('bubble.js', () => {
   beforeEach(() => {
@@ -517,6 +518,36 @@ describe('bubble.js', () => {
       expect(historyControl.getAttribute('aria-label')).toBe('Open history');
     });
 
+    it('keeps stream updates received while history is open when returning', async () => {
+      await showBubble(
+        { bottom: 100, left: 50, right: 250 },
+        [{ role: 'user', content: 'active question' }],
+        'active question',
+        'Explain',
+      );
+      appendToken('active answer');
+      const shadow = _getBubbleContainer().shadowRoot;
+      const historyControl = shadow.querySelector('.history-btn');
+
+      historyControl.click();
+      await new Promise((r) => setTimeout(r, 0));
+      appendToken(' completed while browsing History');
+      lifecycle.setCurrentMessages([
+        ...lifecycle.getCurrentMessages(),
+        { role: 'assistant', content: lifecycle.getResponseText() },
+      ]);
+
+      expect(shadow.querySelector('.history-panel')).not.toBeNull();
+      historyControl.click();
+
+      expect(shadow.querySelector('.response-text').textContent)
+        .toContain('active answer completed while browsing History');
+      expect(lifecycle.getCurrentMessages()).toContainEqual({
+        role: 'assistant',
+        content: 'active answer completed while browsing History',
+      });
+    });
+
     it('reuses an active bubble when history opens from the popup message', async () => {
       historyModule.getHistory.mockResolvedValue([]);
       await showBubble(
@@ -537,6 +568,26 @@ describe('bubble.js', () => {
       expect(shadow.querySelectorAll('.history-btn')).toHaveLength(1);
       historyControl.click();
       expect(shadow.querySelector('.response-text').textContent).toContain('active answer');
+    });
+
+    it('activates the history body when reusing a preset-selection bubble', async () => {
+      await showBubbleWithPresets(
+        { bottom: 100, left: 50, right: 250 },
+        'active question',
+        null,
+      );
+      const container = _getBubbleContainer();
+      const shadow = container.shadowRoot;
+      expect(shadow.querySelector('.response-section').classList.contains('active')).toBe(false);
+
+      await showHistoryBubble({ top: 100, bottom: 110, left: 50, right: 250 });
+
+      expect(_getBubbleContainer()).toBe(container);
+      expect(shadow.querySelector('.response-section').classList.contains('active')).toBe(true);
+      expect(shadow.querySelector('.history-panel')).not.toBeNull();
+      shadow.querySelector('.history-btn').click();
+      expect(shadow.querySelector('.presets-section').classList.contains('collapsed')).toBe(false);
+      expect(shadow.querySelector('.response-section').classList.contains('active')).toBe(false);
     });
 
     it('shows user text instead of instruction in history entry', async () => {
