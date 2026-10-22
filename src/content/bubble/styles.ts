@@ -427,18 +427,20 @@ export function getStyles(theme: ResolvedTheme): string {
     .clear-link:hover { background: ${colors.surfaceDanger}; }
     .clear-link:focus-visible { outline: 2px solid ${colors.danger}; outline-offset: 2px; }
     .history-btn {
-      min-width: 154px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
       min-height: 36px;
-      padding: 0 10px;
-      border: 1px solid ${colors.borderHistory};
-      border-radius: 8px;
-      color: ${accentInteractive};
-      font-size: 12px;
-      font-weight: 500;
-      white-space: nowrap;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      color: ${colors.textMuted};
+      flex: 0 0 36px;
     }
-    .history-btn:hover { background: ${colors.surfaceHistoryHover}; border-color: ${accentInteractive}; }
+    .history-btn:hover { background: ${colors.surfaceCode}; color: ${accentInteractive}; }
     .history-btn:focus-visible { outline: 2px solid ${accentInteractive}; outline-offset: 2px; }
+    .history-icon { display: block; flex: none; }
     .resize-handle {
       position: absolute;
       bottom: 0;

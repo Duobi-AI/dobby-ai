@@ -7,6 +7,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { createPortal, flushSync } from 'react-dom';
+import { IconArrowLeft, IconHistory } from '@tabler/icons-react';
 import { BRAND_MARK_DATA_URI, BRAND_NAME } from '../../shared/brand.js';
 import { getColorPalette } from '../../shared/color-palette.js';
 import { OPEN_OPTIONS_MESSAGE } from '../../shared/runtime-messages.js';
@@ -363,10 +364,13 @@ function ResponseSection({
         <button
           className={`action-btn history-btn${view.canReturnToConversation ? ' back-to-conversation' : ''}`}
           aria-label={view.canReturnToConversation ? 'Return to current conversation' : 'Open history'}
-          title={view.canReturnToConversation ? 'Return to current conversation' : 'History'}
           onClick={onHistory}
         >
-          {view.canReturnToConversation ? '← Back to conversation' : 'History'}
+          {view.canReturnToConversation ? (
+            <IconArrowLeft className="history-icon" data-icon="arrow-left" size={16} stroke={1.8} aria-hidden="true" />
+          ) : (
+            <IconHistory className="history-icon" data-icon="history" size={16} stroke={1.8} aria-hidden="true" />
+          )}
         </button>
       </div>
     </div>

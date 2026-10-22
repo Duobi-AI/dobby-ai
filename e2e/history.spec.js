@@ -34,9 +34,11 @@ test('one footer control opens History and returns to the conversation', async (
   const historyControl = page.locator('#dobby-ai-bubble').locator('.history-btn');
 
   await expect(historyControl).toHaveCount(1);
-  await expect(historyControl).toHaveText('History');
+  await expect(historyControl).toHaveText('');
+  await expect(historyControl.locator('svg.history-icon')).toHaveCount(1);
+  await expect(historyControl.locator('svg.history-icon')).toHaveAttribute('data-icon', 'history');
   await expect(historyControl).toHaveAttribute('aria-label', 'Open history');
-  await expect(historyControl).toHaveAttribute('title', 'History');
+  await expect(historyControl).not.toHaveAttribute('title', /.+/);
 
   // Click history button
   await clickInShadow(page, '.history-btn');
@@ -46,13 +48,18 @@ test('one footer control opens History and returns to the conversation', async (
   const bodyText = await getTextInShadow(page, '.bubble-body');
   expect(bodyText).toBeTruthy();
   await expect(historyControl).toHaveCount(1);
-  await expect(historyControl).toContainText('Back to conversation');
+  await expect(historyControl).toHaveText('');
+  await expect(historyControl.locator('svg.history-icon')).toHaveCount(1);
+  await expect(historyControl.locator('svg.history-icon')).toHaveAttribute('data-icon', 'arrow-left');
   await expect(historyControl).toHaveAttribute('aria-label', 'Return to current conversation');
+  await expect(page.locator('#dobby-ai-bubble').locator('.history-panel-title')).toHaveText('History');
+  await expect(page.locator('#dobby-ai-bubble').locator('.selected-text-preview')).toContainText('History test selection text');
   await expect(page.locator('#dobby-ai-bubble').locator('.history-back-btn')).toHaveCount(0);
 
   await clickInShadow(page, '.history-btn');
   await expect(page.locator('#dobby-ai-bubble').locator('.history-panel')).toHaveCount(0);
-  await expect(historyControl).toHaveText('History');
+  await expect(historyControl).toHaveText('');
+  await expect(historyControl.locator('svg.history-icon')).toHaveAttribute('data-icon', 'history');
 });
 
 test('the same footer control returns after restoring a history entry', async () => {
@@ -70,7 +77,8 @@ test('the same footer control returns after restoring a history entry', async ()
   await page.locator('#dobby-ai-bubble').locator('.history-entry').click();
 
   await expect(page.locator('#dobby-ai-bubble').locator('.response-text')).toContainText('archived answer');
-  await expect(historyControl).toContainText('Back to conversation');
+  await expect(historyControl).toHaveText('');
+  await expect(historyControl.locator('svg.history-icon')).toHaveAttribute('data-icon', 'arrow-left');
   await expect(historyControl).toHaveAttribute('aria-label', 'Return to current conversation');
   await expect(page.locator('#dobby-ai-bubble').locator('.history-back-btn')).toHaveCount(0);
   await clickInShadow(page, '.history-btn');
@@ -92,7 +100,8 @@ test('popup history message reuses an active bubble', async () => {
 
   await expect(page.locator('#dobby-ai-bubble').locator('.history-panel')).toBeVisible();
   await expect(page.locator('#dobby-ai-bubble')).toHaveAttribute('data-session-marker', 'active-chat');
-  await expect(page.locator('#dobby-ai-bubble').locator('.history-btn')).toContainText('Back to conversation');
+  await expect(page.locator('#dobby-ai-bubble').locator('.history-btn')).toHaveText('');
+  await expect(page.locator('#dobby-ai-bubble').locator('.history-btn svg.history-icon')).toHaveAttribute('data-icon', 'arrow-left');
   await clickInShadow(page, '.history-btn');
   await expect(page.locator('#dobby-ai-bubble').locator('.selected-text-preview')).toContainText('History test selection text');
 });
