@@ -370,24 +370,75 @@ export function getStyles(theme: ResolvedTheme): string {
     }
     .response-section { display: none; }
     .response-section.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-    .history-panel { padding: 4px 0; }
+    .history-panel { padding: 4px 10px 12px; }
+    .history-panel-title {
+      margin: 2px 0 10px;
+      color: ${colors.textPrimary};
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
     .history-empty { text-align: center; color: ${colors.textMuted}; }
     .history-entry {
-      padding: 8px 0;
-      border-bottom: 1px solid ${colors.borderHistory};
+      display: block;
+      width: 100%;
+      margin: 6px 0;
+      padding: 10px 11px;
+      border: 1px solid ${colors.borderHistory};
+      border-radius: 8px;
+      background: ${colors.surfaceCard};
       cursor: pointer;
+      color: inherit;
+      font: inherit;
+      text-align: left;
     }
-    .history-entry:hover { background: ${colors.surfaceHistoryHover}; }
-    .history-instruction { font-weight: 500; font-size: 13px; }
-    .history-meta { font-size: 11px; color: ${colors.textSubtle}; margin-top: 2px; }
+    .history-entry:hover { background: ${colors.surfaceHistoryHover}; border-color: ${accentInteractive}; }
+    .history-entry:focus-visible { outline: 2px solid ${accentInteractive}; outline-offset: 2px; }
+    .history-entry-title {
+      display: block;
+      color: ${colors.textPrimary};
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+    .history-instruction {
+      display: block;
+      margin-top: 3px;
+      color: ${colors.textMuted};
+      font-size: 12px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+    .history-meta { display: block; font-size: 10px; color: ${colors.textSubtle}; margin-top: 5px; }
+    .history-actions { margin-top: 12px; padding-top: 8px; border-top: 1px solid ${colors.borderHistory}; }
     .clear-link {
       display: block;
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
       text-align: center;
       color: ${colors.danger};
       cursor: pointer;
-      font-size: 12px;
-      padding: 8px;
+      font: inherit;
+      font-size: 11px;
+      padding: 7px 8px;
     }
+    .clear-link:hover { background: ${colors.surfaceDanger}; }
+    .clear-link:focus-visible { outline: 2px solid ${colors.danger}; outline-offset: 2px; }
+    .history-btn {
+      min-width: 154px;
+      min-height: 36px;
+      padding: 0 10px;
+      border: 1px solid ${colors.borderHistory};
+      border-radius: 8px;
+      color: ${accentInteractive};
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .history-btn:hover { background: ${colors.surfaceHistoryHover}; border-color: ${accentInteractive}; }
+    .history-btn:focus-visible { outline: 2px solid ${accentInteractive}; outline-offset: 2px; }
     .resize-handle {
       position: absolute;
       bottom: 0;

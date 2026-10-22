@@ -263,22 +263,31 @@ function BubbleBody({
     return (
       <div className="bubble-body">
         <div className="history-panel">
+          <h2 className="history-panel-title">History</h2>
           {view.historyMessage ? <p className="history-empty">{view.historyMessage}</p> : null}
           {!view.historyMessage && view.historyEntries.length === 0 ? (
             <p className="history-empty">No history yet</p>
           ) : null}
           {!view.historyMessage ? view.historyEntries.map((entry, index) => (
-            <div className="history-entry" key={entry.id || `${entry.timestamp}-${index}`} onClick={() => onHistoryEntry(entry)}>
-              <div className="history-instruction">
-                {(entry.text || entry.instruction || '').substring(0, 60)}
-              </div>
-              <div className="history-meta">
-                {entry.pageTitle || 'Unknown page'} · {getTimeAgo(entry.timestamp)}
-              </div>
-            </div>
+            <button
+              className="history-entry"
+              type="button"
+              key={entry.id || `${entry.timestamp}-${index}`}
+              title={`Open saved answer from ${entry.pageTitle || 'unknown page'}`}
+              aria-label={`Open saved history entry: ${entry.pageTitle || entry.text || entry.instruction || 'Saved answer'}`}
+              onClick={() => onHistoryEntry(entry)}
+            >
+              <span className="history-entry-title">{entry.pageTitle || 'Saved answer'}</span>
+              <span className="history-instruction">
+                {(entry.text || entry.instruction || '').substring(0, 120)}
+              </span>
+              <span className="history-meta">{getTimeAgo(entry.timestamp)}</span>
+            </button>
           )) : null}
           {view.historyEntries.length > 0 && !view.historyMessage ? (
-            <span className="clear-link" onClick={onClearHistory}>Clear all history</span>
+            <div className="history-actions">
+              <button className="clear-link" type="button" onClick={onClearHistory}>Clear all history</button>
+            </div>
           ) : null}
         </div>
       </div>
@@ -351,7 +360,14 @@ function ResponseSection({
           disabled={view.followUpDisabled}
           onKeyDown={handleFollowUpKeyDown}
         />
-        <button className="action-btn history-btn" title="History" onClick={onHistory}>🕐</button>
+        <button
+          className={`action-btn history-btn${view.canReturnToConversation ? ' back-to-conversation' : ''}`}
+          aria-label={view.canReturnToConversation ? 'Return to current conversation' : 'Open history'}
+          title={view.canReturnToConversation ? 'Return to current conversation' : 'History'}
+          onClick={onHistory}
+        >
+          {view.canReturnToConversation ? '← Back to conversation' : 'History'}
+        </button>
       </div>
     </div>
   );

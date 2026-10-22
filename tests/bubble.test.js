@@ -34,6 +34,7 @@ vi.mock('../src/content/presets.js', () => ({
 const {
   showBubble,
   showBubbleWithPresets,
+  showHistoryBubble,
   hideBubble,
   appendToken,
   setBubbleStatus,
@@ -436,6 +437,100 @@ describe('bubble.js', () => {
   });
 
   describe('history preview', () => {
+    it('uses one accessible footer control to open and return from history', async () => {
+      await showBubble(
+        { bottom: 100, left: 50, right: 250 },
+        [{ role: 'user', content: 'active question' }],
+        'active question',
+        'Explain',
+      );
+      appendToken('active answer');
+      const shadow = _getBubbleContainer().shadowRoot;
+      const historyControl = shadow.querySelector('.history-btn');
+
+      expect(shadow.querySelectorAll('.history-btn')).toHaveLength(1);
+      expect(historyControl.textContent).toBe('History');
+      expect(historyControl.getAttribute('aria-label')).toBe('Open history');
+      expect(historyControl.title).toBe('History');
+
+      historyControl.click();
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(shadow.querySelector('.history-panel')).not.toBeNull();
+      expect(shadow.querySelectorAll('.history-btn')).toHaveLength(1);
+      expect(shadow.querySelector('.history-back-btn')).toBeNull();
+      expect(historyControl.textContent).toContain('Back to conversation');
+      expect(historyControl.getAttribute('aria-label')).toBe('Return to current conversation');
+      expect(historyControl.title).toBe('Return to current conversation');
+
+      historyControl.click();
+
+      expect(shadow.querySelector('.history-panel')).toBeNull();
+      expect(shadow.querySelector('.response-text').textContent).toContain('active answer');
+      expect(shadow.querySelector('.selected-text-preview .text').textContent).toBe('active question');
+      expect(historyControl.textContent).toBe('History');
+    });
+
+    it('keeps the same accessible footer control after restoring a history entry', async () => {
+      historyModule.getHistory.mockResolvedValue([
+        {
+          text: 'saved question',
+          instruction: 'saved instruction',
+          response: 'saved answer',
+          pageTitle: 'Test Page',
+          timestamp: Date.now(),
+        },
+      ]);
+      await showBubble(
+        { bottom: 100, left: 50, right: 250 },
+        [{ role: 'user', content: 'active question' }],
+        'active question',
+        'Explain',
+      );
+      appendToken('active answer');
+      const shadow = _getBubbleContainer().shadowRoot;
+      const historyControl = shadow.querySelector('.history-btn');
+
+      historyControl.click();
+      await new Promise((r) => setTimeout(r, 0));
+      shadow.querySelector('.history-entry').click();
+
+      expect(shadow.querySelector('.response-text').textContent).toContain('saved answer');
+      expect(shadow.querySelectorAll('.history-btn')).toHaveLength(1);
+      expect(shadow.querySelector('.history-back-btn')).toBeNull();
+      expect(historyControl.textContent).toContain('Back to conversation');
+      expect(historyControl.getAttribute('aria-label')).toBe('Return to current conversation');
+      expect(historyControl.title).toBe('Return to current conversation');
+
+      historyControl.click();
+
+      expect(shadow.querySelector('.response-text').textContent).toContain('active answer');
+      expect(shadow.querySelector('.selected-text-preview .text').textContent).toBe('active question');
+      expect(historyControl.textContent).toBe('History');
+    });
+
+    it('reuses an active bubble when history opens from the popup message', async () => {
+      historyModule.getHistory.mockResolvedValue([]);
+      await showBubble(
+        { bottom: 100, left: 50, right: 250 },
+        [{ role: 'user', content: 'active question' }],
+        'active question',
+        'Explain',
+      );
+      appendToken('active answer');
+      const container = _getBubbleContainer();
+      const shadow = container.shadowRoot;
+      const historyControl = shadow.querySelector('.history-btn');
+
+      await showHistoryBubble({ top: 100, bottom: 110, left: 50, right: 250 });
+
+      expect(_getBubbleContainer()).toBe(container);
+      expect(shadow.querySelector('.history-panel')).not.toBeNull();
+      expect(shadow.querySelectorAll('.history-btn')).toHaveLength(1);
+      historyControl.click();
+      expect(shadow.querySelector('.response-text').textContent).toContain('active answer');
+    });
+
     it('shows user text instead of instruction in history entry', async () => {
       historyModule.getHistory.mockResolvedValue([
         {
@@ -459,6 +554,11 @@ describe('bubble.js', () => {
 
       const instrDiv = shadow.querySelector('.history-instruction');
       expect(instrDiv.textContent).toBe('user selected text here');
+      const historyEntry = shadow.querySelector('.history-entry');
+      expect(historyEntry.tagName).toBe('BUTTON');
+      expect(shadow.querySelector('.history-panel-title').textContent).toBe('History');
+      expect(shadow.querySelector('.history-entry-title').textContent).toBe('Test Page');
+      expect(historyEntry.getAttribute('aria-label')).toContain('Test Page');
     });
 
     it('restores conversation state and enables follow-up on history entry click', async () => {

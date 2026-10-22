@@ -40,6 +40,7 @@ export type BubbleViewState = {
   bodyMode: BubbleBodyMode;
   historyEntries: HistoryEntry[];
   historyMessage: string | null;
+  canReturnToConversation: boolean;
   pinned: boolean;
 };
 
@@ -55,8 +56,15 @@ export type BubbleLifecycleSnapshot = Readonly<{
   bodyMode: BubbleBodyMode;
   historyEntries: readonly HistoryEntry[];
   historyMessage: string | null;
+  canReturnToConversation: boolean;
   pinned: boolean;
 }>;
+
+type HistoryReturnSnapshot = {
+  view: BubbleViewState;
+  currentMessages: ChatMessage[];
+  responseText: string;
+};
 
 const initialState: BubbleViewState = {
   status: '',
@@ -70,6 +78,7 @@ const initialState: BubbleViewState = {
   bodyMode: 'conversation',
   historyEntries: [],
   historyMessage: null,
+  canReturnToConversation: false,
   pinned: false,
 };
 
@@ -81,6 +90,7 @@ let responseText = '';
 let currentRequest: StreamRequestHandle | null = null;
 let renderTimer: ReturnType<typeof setTimeout> | null = null;
 let rawResponses: string[] = [];
+let historyReturnSnapshot: HistoryReturnSnapshot | null = null;
 let reactCleanup: Cleanup | null = null;
 let themeCleanup: Cleanup | null = null;
 let dragCleanup: Cleanup | null = null;
@@ -137,6 +147,7 @@ export function useBubbleViewState(): BubbleLifecycleSnapshot {
 }
 
 export function resetBubbleView(): void {
+  historyReturnSnapshot = null;
   state = { ...initialState };
   nextMessageId = 1;
   emit();
@@ -207,7 +218,34 @@ export function showRateLimitView(): void {
 }
 
 export function showHistoryView(entries: HistoryEntry[], historyMessage: string | null = null): void {
-  update({ bodyMode: 'history', historyEntries: entries, historyMessage });
+  if (!historyReturnSnapshot) {
+    historyReturnSnapshot = {
+      view: {
+        ...state,
+        messages: [...state.messages],
+        historyEntries: [...state.historyEntries],
+      },
+      currentMessages: [...currentMessages],
+      responseText,
+    };
+  }
+  update({
+    bodyMode: 'history',
+    historyEntries: entries,
+    historyMessage,
+    canReturnToConversation: true,
+  });
+}
+
+export function returnToCurrentConversation(): boolean {
+  if (!historyReturnSnapshot) return false;
+  const snapshot = historyReturnSnapshot;
+  historyReturnSnapshot = null;
+  currentMessages = [...snapshot.currentMessages];
+  responseText = snapshot.responseText;
+  state = { ...snapshot.view, canReturnToConversation: false };
+  emit();
+  return true;
 }
 
 export function showRestoredHistoryResponse(response: string): void {
