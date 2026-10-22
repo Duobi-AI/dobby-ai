@@ -687,6 +687,45 @@ describe('bubble.js', () => {
       expect(shadow.querySelector('.message-user').textContent).toBe('tell me more');
     });
 
+    it('returns restored history to the active conversation context', async () => {
+      const activeContext = [
+        { role: 'system', content: 'active instruction' },
+        { role: 'user', content: 'active question' },
+        { role: 'assistant', content: 'active answer' },
+      ];
+      historyModule.getHistory.mockResolvedValue([
+        {
+          text: 'saved question',
+          instruction: 'saved instruction',
+          response: 'saved answer',
+          pageTitle: 'Test Page',
+          timestamp: Date.now(),
+        },
+      ]);
+
+      await showBubble(
+        { bottom: 100, left: 50, right: 250 },
+        activeContext,
+        'active question',
+        'Explain',
+      );
+      appendToken('active answer');
+      const shadow = _getBubbleContainer().shadowRoot;
+      shadow.querySelector('.history-btn').click();
+      await new Promise((r) => setTimeout(r, 0));
+      shadow.querySelector('.history-entry').click();
+      expect(shadow.querySelector('.response-text').textContent).toContain('saved answer');
+
+      shadow.querySelector('.history-btn').click();
+      expect(shadow.querySelector('.response-text').textContent).toContain('active answer');
+      const followUpInput = shadow.querySelector('.follow-up-input');
+      followUpInput.disabled = false;
+      followUpInput.value = 'tell me more';
+      followUpInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+      expect(promptModule.buildFollowUp).toHaveBeenCalledWith(activeContext, 'tell me more');
+    });
+
     it('falls back to instruction when text is empty', async () => {
       historyModule.getHistory.mockResolvedValue([
         {
