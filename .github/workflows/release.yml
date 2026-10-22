@@ -44,11 +44,20 @@ jobs:
         run: |
           cd dist && zip -r ../dobby-ai-${GITHUB_REF#refs/tags/}.zip .
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dobby-ai-*.zip
-          generate_release_notes: true
+      - name: Create GitHub Release and upload package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          ZIP_FILE="dobby-ai-$TAG.zip"
+          if gh release view "$TAG" --json tagName >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ZIP_FILE" --clobber
+          else
+            gh release create "$TAG" "$ZIP_FILE" \
+              --title "$TAG" \
+              --generate-notes \
+              --verify-tag
+          fi
 
       - name: Check Chrome Web Store credentials
         id: chrome_creds
@@ -57,9 +66,10 @@ jobs:
           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
         run: |
           missing=0
-          for name in CHROME_CLIENT_ID CHROME_CLIENT_SECRET CHROME_REFRESH_TOKEN CHROME_EXTENSION_ID; do
+          for name in CHROME_CLIENT_ID CHROME_CLIENT_SECRET CHROME_REFRESH_TOKEN CHROME_EXTENSION_ID CHROME_PUBLISHER_ID; do
             if [ -z "${!name:-}" ]; then
               echo "::notice::$name is not configured; skipping Chrome Web Store publish."
               missing=1
@@ -79,6 +89,7 @@ jobs:
           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
         run: |
           set -euo pipefail
 
@@ -100,26 +111,68 @@ jobs:
             process.stdout.write(response.access_token);
           " "$TOKEN_RESPONSE")
 
-          # Upload zip
-          UPLOAD_STATUS=$(curl -sS -o /tmp/chrome-upload.json -w "%{http_code}" -X PUT \
-            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID" \
+          # Upload zip to Chrome Web Store API v2.
+          UPLOAD_STATUS=$(curl -sS -o /tmp/chrome-upload.json -w "%{http_code}" -X POST \
+            "https://chromewebstore.googleapis.com/upload/v2/publishers/$CHROME_PUBLISHER_ID/items/$CHROME_EXTENSION_ID:upload" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "x-goog-api-version: 2" \
+            -H "Content-Type: application/zip" \
             -T "$ZIP_FILE")
-          cat /tmp/chrome-upload.json
-          echo
           if [ "$UPLOAD_STATUS" -lt 200 ] || [ "$UPLOAD_STATUS" -ge 300 ]; then
+            cat /tmp/chrome-upload.json
             echo "::error::Chrome Web Store upload failed with HTTP $UPLOAD_STATUS"
             exit 1
           fi
-          node -e "
+          UPLOAD_STATE=$(node -e "
             const fs = require('fs');
             const response = JSON.parse(fs.readFileSync('/tmp/chrome-upload.json', 'utf8'));
             if (response.error) {
               console.error('Chrome Web Store upload failed:', JSON.stringify(response.error));
               process.exit(1);
             }
-          "
+            process.stdout.write(response.uploadState || '');
+          ")
+
+          # Large uploads may finish asynchronously. Poll the v2 status endpoint before publishing.
+          MAX_UPLOAD_STATUS_ATTEMPTS=24
+          for attempt in $(seq 1 "$MAX_UPLOAD_STATUS_ATTEMPTS"); do
+            case "$UPLOAD_STATE" in
+              SUCCEEDED) break ;;
+              FAILED|NOT_FOUND)
+                echo "::error::Chrome Web Store upload ended with state $UPLOAD_STATE"
+                exit 1
+                ;;
+              IN_PROGRESS)
+                if [ "$attempt" -eq "$MAX_UPLOAD_STATUS_ATTEMPTS" ]; then
+                  echo "::error::Chrome Web Store upload is still in progress after $MAX_UPLOAD_STATUS_ATTEMPTS checks"
+                  exit 1
+                fi
+                sleep 10
+                STATUS_HTTP=$(curl -sS -o /tmp/chrome-status.json -w "%{http_code}" \
+                  "https://chromewebstore.googleapis.com/v2/publishers/$CHROME_PUBLISHER_ID/items/$CHROME_EXTENSION_ID:fetchStatus" \
+                  -H "Authorization: Bearer $ACCESS_TOKEN")
+                if [ "$STATUS_HTTP" -lt 200 ] || [ "$STATUS_HTTP" -ge 300 ]; then
+                  cat /tmp/chrome-status.json
+                  echo "::error::Chrome Web Store status check failed with HTTP $STATUS_HTTP"
+                  exit 1
+                fi
+                UPLOAD_STATE=$(node -e "
+                  const fs = require('fs');
+                  const response = JSON.parse(fs.readFileSync('/tmp/chrome-status.json', 'utf8'));
+                  if (response.error) {
+                    console.error('Chrome Web Store status check failed:', JSON.stringify(response.error));
+                    process.exit(1);
+                  }
+                  process.stdout.write(response.lastAsyncUploadState || '');
+                ")
+                ;;
+              *)
+                echo "::error::Chrome Web Store returned unexpected upload state '${UPLOAD_STATE:-missing}'"
+                cat /tmp/chrome-upload.json
+                exit 1
+                ;;
+            esac
+          done
+          echo "Chrome Web Store upload completed successfully."
 
           is_retryable_publish_failure() {
             local http_status="$1"
@@ -152,9 +205,9 @@ jobs:
             rm -f /tmp/chrome-publish.json
             CURL_EXIT=0
             PUBLISH_STATUS=$(curl -sS -o /tmp/chrome-publish.json -w "%{http_code}" -X POST \
-              "https://www.googleapis.com/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID/publish" \
+              "https://chromewebstore.googleapis.com/v2/publishers/$CHROME_PUBLISHER_ID/items/$CHROME_EXTENSION_ID:publish" \
               -H "Authorization: Bearer $ACCESS_TOKEN" \
-              -H "x-goog-api-version: 2") || CURL_EXIT=$?
+              -H "Content-Length: 0") || CURL_EXIT=$?
             if [ "$CURL_EXIT" -ne 0 ]; then
               PUBLISH_STATUS=000
             fi
@@ -170,6 +223,18 @@ jobs:
                 const response = JSON.parse(fs.readFileSync('/tmp/chrome-publish.json', 'utf8'));
                 if (response.error) {
                   console.error('Chrome Web Store publish failed:', JSON.stringify(response.error));
+                  process.exit(1);
+                }
+                if (!response.state) {
+                  console.error('Chrome Web Store publish response did not include an item state');
+                  process.exit(1);
+                }
+                console.log('Chrome Web Store accepted publish request; item state: ' + response.state);
+                for (const warning of response.warningInfo?.warnings || []) {
+                  console.warn('Chrome Web Store publish warning: ' + JSON.stringify(warning));
+                }
+                if (response.state === 'REJECTED' || response.state === 'CANCELLED') {
+                  console.error('Chrome Web Store publish ended in state ' + response.state);
                   process.exit(1);
                 }
               "

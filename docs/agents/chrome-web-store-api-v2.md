@@ -1,0 +1,29 @@
+# Chrome Web Store API v2 Migration Notes
+
+Research checked 2026-10-22 against Google’s Chrome for Developers documentation. This note covers the existing tag-triggered release workflow in `.github/workflows/release.yml`.
+
+## Endpoints and upload body
+
+V2 uses the `https://chromewebstore.googleapis.com` service and names an existing item as `publishers/{publisherId}/items/{itemId}`. Upload is `POST https://chromewebstore.googleapis.com/upload/v2/publishers/{publisherId}/items/{itemId}:upload`; publish is `POST https://chromewebstore.googleapis.com/v2/publishers/{publisherId}/items/{itemId}:publish`; status is `GET https://chromewebstore.googleapis.com/v2/publishers/{publisherId}/items/{itemId}:fetchStatus`. Google’s migration table maps the old v1.1 item GET, upload PUT, and publish POST to these v2 methods. [Migration guide](https://developer.chrome.com/blog/cws-api-v2) · [API reference](https://developer.chrome.com/docs/webstore/api/reference/rest)
+
+The upload is a media upload: send the ZIP file bytes as the request body with `POST` (`curl -T "$ZIP_FILE"`), not as `multipart/form-data`. The method reference distinguishes the `/upload/` media URI from the metadata-only URI; the usage guide’s v2 example sends the file directly with `-T`. The media method’s JSON metadata body is empty. Upload response includes `crxVersion` and `uploadState`; if upload is still in progress, poll `fetchStatus`. [Upload method](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/media/upload) · [Usage examples](https://developer.chrome.com/docs/webstore/using-api)
+
+## Authentication and item identity
+
+Both upload and publish require OAuth scope `https://www.googleapis.com/auth/chromewebstore`. `fetchStatus` accepts that scope or the read-only `https://www.googleapis.com/auth/chromewebstore.readonly`. The existing workflow’s OAuth refresh-token exchange can remain; it must send the access token as `Authorization: Bearer …`, keep its existing client ID, client secret, and refresh token in Actions secrets, and avoid logging token responses. V2 also supports a service account if separately granted access in the Developer Dashboard, but that is not required for this OAuth migration. [Upload scope](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/media/upload) · [Publish scope](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/publishers.items/publish) · [OAuth and token guide](https://developer.chrome.com/docs/webstore/using-api) · [V2 announcement](https://developer.chrome.com/blog/cws-api-v2)
+
+V2 paths require the **publisher ID** as well as the extension/item ID. Google says to find the publisher ID in Developer Dashboard → Publisher → Settings. The current release workflow has `CHROME_EXTENSION_ID` but no publisher ID, so migration needs a separately configured `CHROME_PUBLISHER_ID` value (store it as an Actions secret if following the existing secret-handling pattern). [Publisher ID instructions](https://developer.chrome.com/docs/webstore/using-api)
+
+## Publish semantics and verification
+
+An empty publish body defaults `publishType` to `DEFAULT_PUBLISH`: submit for review and publish automatically after approval, using the item’s existing visibility settings and current saved rollout percentage. `STAGED_PUBLISH` instead stages an approved revision for a later developer action. V2 accepts `deployInfos` for an initial rollout percentage; omitted values use the Developer Dashboard’s current setting. `skipReview` defaults false and only works when Google determines review can be skipped; it does not guarantee review bypass. `blockOnWarnings` defaults false, so inspect `warningInfo` even when the call succeeds. [Publish method](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/publishers.items/publish) · [Usage guide](https://developer.chrome.com/docs/webstore/using-api)
+
+Treat a successful HTTP response or a successful publish request as submission acceptance, not proof of public release. The publish response has an `ItemState`; `fetchStatus` separately returns `submittedItemRevisionStatus` and `publishedItemRevisionStatus`, plus the last async upload state (reported only for uploads in the previous 24 hours). Verify the submitted and published revision states/version before reporting release completion. Item states include `PENDING_REVIEW`, `STAGED`, `PUBLISHED`, `PUBLISHED_TO_TESTERS`, `REJECTED`, and `CANCELLED`; upload states include `SUCCEEDED`, `IN_PROGRESS`, `FAILED`, and `NOT_FOUND`. [fetchStatus](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/publishers.items/fetchStatus) · [Item states](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/ItemState) · [Upload states](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/UploadState)
+
+## Migration pitfalls
+
+- V2 changes the API host, URI layout, upload verb, and item path: upload is `POST` to `/upload/v2/...:upload`, not v1.1 `PUT /upload/chromewebstore/v1.1/items/{itemId}`. Publish is a v2 `:publish` action endpoint.
+- V2 upload and publish identify the publisher in the resource path; extension ID alone is insufficient.
+- A version increase in `manifest.json` is required before uploading an update. A successful upload is not the same as an approved or published revision.
+- V2 no longer supports creating store items or changing item visibility via API. Existing visibility must already be set in the Developer Dashboard; Google notes that after a manual visibility change, the developer must manually publish with that visibility once before API publishing works.
+- Google announced support for v1 through 2026-10-15. This research is dated 2026-10-22, after that announced cutoff, so the release workflow should use v2 rather than rely on v1. [Migration and cutoff](https://developer.chrome.com/blog/cws-api-v2) · [Usage guide](https://developer.chrome.com/docs/webstore/using-api)
