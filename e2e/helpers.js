@@ -26,6 +26,11 @@ async function launchExtension() {
 
   // Open a test page
   const page = await context.newPage();
+  await page.route('https://example.com/**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: '<!doctype html><html><head><title>History E2E</title></head><body><h1>History test selection text</h1></body></html>',
+  }));
   await page.goto('https://example.com');
   await page.waitForLoadState('domcontentloaded');
 

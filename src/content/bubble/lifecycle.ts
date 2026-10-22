@@ -40,6 +40,7 @@ export type BubbleViewState = {
   bodyMode: BubbleBodyMode;
   historyEntries: HistoryEntry[];
   historyMessage: string | null;
+  canReturnToConversation: boolean;
   pinned: boolean;
 };
 
@@ -55,8 +56,15 @@ export type BubbleLifecycleSnapshot = Readonly<{
   bodyMode: BubbleBodyMode;
   historyEntries: readonly HistoryEntry[];
   historyMessage: string | null;
+  canReturnToConversation: boolean;
   pinned: boolean;
 }>;
+
+type HistoryReturnSnapshot = {
+  view: BubbleViewState;
+  currentMessages: ChatMessage[];
+  responseText: string;
+};
 
 const initialState: BubbleViewState = {
   status: '',
@@ -70,6 +78,7 @@ const initialState: BubbleViewState = {
   bodyMode: 'conversation',
   historyEntries: [],
   historyMessage: null,
+  canReturnToConversation: false,
   pinned: false,
 };
 
@@ -81,6 +90,7 @@ let responseText = '';
 let currentRequest: StreamRequestHandle | null = null;
 let renderTimer: ReturnType<typeof setTimeout> | null = null;
 let rawResponses: string[] = [];
+let historyReturnSnapshot: HistoryReturnSnapshot | null = null;
 let reactCleanup: Cleanup | null = null;
 let themeCleanup: Cleanup | null = null;
 let dragCleanup: Cleanup | null = null;
@@ -98,12 +108,29 @@ function update(patch: Partial<BubbleViewState>): void {
   emit();
 }
 
+function updateConversationView(patch: Partial<BubbleViewState>): void {
+  if (state.bodyMode === 'history' && historyReturnSnapshot) {
+    historyReturnSnapshot.view = { ...historyReturnSnapshot.view, ...patch };
+    return;
+  }
+  update(patch);
+}
+
 function updateMessage(id: number, patch: Partial<BubbleViewMessage>): void {
-  update({
-    messages: state.messages.map((message) => (
+  const view = state.bodyMode === 'history' && historyReturnSnapshot
+    ? historyReturnSnapshot.view
+    : state;
+  updateConversationView({
+    messages: view.messages.map((message) => (
       message.id === id ? { ...message, ...patch } : message
     )),
   });
+}
+
+export function getBubbleConversationState(): BubbleLifecycleSnapshot {
+  return state.bodyMode === 'history' && historyReturnSnapshot
+    ? historyReturnSnapshot.view
+    : state;
 }
 
 export function getBubbleLifecycleState(): BubbleLifecycleSnapshot {
@@ -137,6 +164,7 @@ export function useBubbleViewState(): BubbleLifecycleSnapshot {
 }
 
 export function resetBubbleView(): void {
+  historyReturnSnapshot = null;
   state = { ...initialState };
   nextMessageId = 1;
   emit();
@@ -152,7 +180,7 @@ export function activateBubbleResponse(): void {
 }
 
 export function setBubbleViewStatus(status: string): void {
-  update({ status });
+  updateConversationView({ status });
 }
 
 export function setBubblePreviewLabel(previewLabel: string): void {
@@ -160,11 +188,12 @@ export function setBubblePreviewLabel(previewLabel: string): void {
 }
 
 export function startAssistantResponse(): number {
+  const view = getBubbleConversationState();
   const id = nextMessageId++;
-  update({
+  updateConversationView({
     bodyMode: 'conversation',
     restoredResponse: null,
-    messages: [...state.messages, { id, role: 'assistant', content: '' }],
+    messages: [...view.messages, { id, role: 'assistant', content: '' }],
     status: 'thinking...',
     cursorVisible: true,
     followUpDisabled: true,
@@ -178,24 +207,26 @@ export function setAssistantResponse(id: number, content: string): void {
 
 export function completeAssistantResponse(id: number, content: string, responseIdx?: number): void {
   updateMessage(id, { content, responseIdx, errorMessage: undefined, onRetry: undefined });
-  update({ cursorVisible: false, followUpDisabled: false });
+  updateConversationView({ cursorVisible: false, followUpDisabled: false });
 }
 
 export function failAssistantResponse(id: number, message: string, onRetry: () => void): void {
   updateMessage(id, { errorMessage: message, onRetry });
-  update({ cursorVisible: false, status: '' });
+  updateConversationView({ cursorVisible: false, status: '' });
 }
 
 export function removeBubbleMessage(id: number): void {
-  update({ messages: state.messages.filter((message) => message.id !== id) });
+  const view = getBubbleConversationState();
+  updateConversationView({ messages: view.messages.filter((message) => message.id !== id) });
 }
 
 export function addUserResponse(content: string): void {
-  const restoredMessages = state.restoredResponse
-    ? [{ id: nextMessageId++, role: 'assistant' as const, content: state.restoredResponse }]
-    : state.messages;
+  const view = getBubbleConversationState();
+  const restoredMessages = view.restoredResponse
+    ? [{ id: nextMessageId++, role: 'assistant' as const, content: view.restoredResponse }]
+    : view.messages;
   const id = nextMessageId++;
-  update({
+  updateConversationView({
     bodyMode: 'conversation',
     restoredResponse: null,
     messages: [...restoredMessages, { id, role: 'user', content }],
@@ -203,11 +234,39 @@ export function addUserResponse(content: string): void {
 }
 
 export function showRateLimitView(): void {
-  update({ bodyMode: 'rate-limit', cursorVisible: false });
+  updateConversationView({ bodyMode: 'rate-limit', cursorVisible: false });
 }
 
 export function showHistoryView(entries: HistoryEntry[], historyMessage: string | null = null): void {
-  update({ bodyMode: 'history', historyEntries: entries, historyMessage });
+  if (!historyReturnSnapshot) {
+    historyReturnSnapshot = {
+      view: {
+        ...state,
+        messages: [...state.messages],
+        historyEntries: [...state.historyEntries],
+      },
+      currentMessages: [...currentMessages],
+      responseText,
+    };
+  }
+  update({
+    bodyMode: 'history',
+    responseActive: true,
+    historyEntries: entries,
+    historyMessage,
+    canReturnToConversation: true,
+  });
+}
+
+export function returnToCurrentConversation(): boolean {
+  if (!historyReturnSnapshot) return false;
+  const snapshot = historyReturnSnapshot;
+  historyReturnSnapshot = null;
+  currentMessages = [...snapshot.currentMessages];
+  responseText = snapshot.responseText;
+  state = { ...snapshot.view, canReturnToConversation: false };
+  emit();
+  return true;
 }
 
 export function showRestoredHistoryResponse(response: string): void {
@@ -223,23 +282,35 @@ export function showRestoredHistoryResponse(response: string): void {
 }
 
 export function getCurrentMessages(): ChatMessage[] {
-  return currentMessages;
+  return state.bodyMode === 'history' && historyReturnSnapshot
+    ? historyReturnSnapshot.currentMessages
+    : currentMessages;
 }
 
 export function setCurrentMessages(messages: ChatMessage[]): void {
+  if (state.bodyMode === 'history' && historyReturnSnapshot) {
+    historyReturnSnapshot.currentMessages = messages;
+    return;
+  }
   currentMessages = messages;
 }
 
 export function getResponseText(): string {
-  return responseText;
+  return state.bodyMode === 'history' && historyReturnSnapshot
+    ? historyReturnSnapshot.responseText
+    : responseText;
 }
 
 export function setResponseText(text: string): void {
+  if (state.bodyMode === 'history' && historyReturnSnapshot) {
+    historyReturnSnapshot.responseText = text;
+    return;
+  }
   responseText = text;
 }
 
 export function appendResponseText(text: string): void {
-  responseText += text;
+  setResponseText(getResponseText() + text);
 }
 
 export function getCurrentRequest(): StreamRequestHandle | null {

@@ -14,9 +14,9 @@ export function restoreHistoryEntry(entry: HistoryEntry): void {
   if (entry.instruction) msgs.push({ role: 'system', content: entry.instruction });
   if (entry.text) msgs.push({ role: 'user', content: entry.text });
   if (entry.response) msgs.push({ role: 'assistant', content: entry.response });
+  showRestoredHistoryResponse(entry.response || '');
   setCurrentMessages(msgs);
   setResponseText(entry.response || '');
-  showRestoredHistoryResponse(entry.response || '');
 }
 
 export async function clearHistoryPanel(): Promise<void> {

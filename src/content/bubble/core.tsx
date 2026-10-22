@@ -27,10 +27,12 @@ import {
   beginBubbleResize,
   closeBubble,
   getBubbleHost,
+  getBubbleConversationState,
   getBubbleLifecycleState,
   getResponseText,
   isBubblePinned,
   openBubbleHost,
+  returnToCurrentConversation,
   setAssistantResponse,
   setBubbleReactCleanup,
   setCurrentMessages,
@@ -93,7 +95,14 @@ async function initBubble(
       images={images}
       presets={presets}
       onFollowUp={(question) => handleFollowUp(shadow, question)}
-      onHistory={() => { void showHistoryPanel(shadow); }}
+      onHistory={() => {
+        const view = getBubbleLifecycleState();
+        if (view.canReturnToConversation || view.bodyMode === 'history') {
+          returnToCurrentConversation();
+          return;
+        }
+        void showHistoryPanel(shadow);
+      }}
       onHistoryEntry={restoreHistoryEntry}
       onClearHistory={() => { void clearHistoryPanel(); }}
       onClose={closeBubble}
@@ -182,6 +191,11 @@ export async function showBubble(
 
 // History entry operation.
 export async function showHistoryBubble(selectionRect: SelectionRect): Promise<void> {
+  const existingHost = getBubbleHost();
+  if (existingHost?.shadowRoot) {
+    await showHistoryPanel(existingHost.shadowRoot);
+    return;
+  }
   const generation = bubbleOpenGeneration;
   const shadow = await initBubble(selectionRect, '', 'History', null, undefined, {}, generation);
   if (!shadow || generation !== bubbleOpenGeneration) return;
@@ -197,7 +211,7 @@ export function hideBubble(): void {
 export function appendToken(text: string): void {
   if (!getBubbleHost()) return;
   appendResponseText(text);
-  const messages = getBubbleLifecycleState().messages;
+  const messages = getBubbleConversationState().messages;
   const lastMessage = messages[messages.length - 1];
   const responseId = lastMessage?.role === 'assistant' ? lastMessage.id : startAssistantResponse();
   setAssistantResponse(responseId, getResponseText());
